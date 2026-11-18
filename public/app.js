@@ -73,6 +73,7 @@ export function renderHeatmap(container, data) {
   for (const d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
     const key = iso(d);
     const cell = document.createElement('span');
+    cell.style.setProperty('--w', week);
     if (d < jan1 || d > dec31) {
       cell.className = 'out';
     } else if (d > today) {

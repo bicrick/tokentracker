@@ -75,9 +75,14 @@ nav {
 }
 
 nav .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--ink);
   font-weight: 600;
 }
+
+nav .brand:hover { text-decoration: none; }
 
 nav .links {
   display: flex;
@@ -146,9 +151,169 @@ h1 {
   color: var(--muted);
 }
 
+/* supported tools */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tools li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tools i {
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
+}
+
+/* demo: terminal then profile */
+.demo {
+  display: grid;
+  margin-top: 56px;
+}
+
+/* Ordered-dither wipe canvas sits over the shared cell during the hand-off */
+.demo > .dither {
+  grid-area: 1 / 1;
+  align-self: start;
+  z-index: 2;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* Terminal and profile share one grid cell, so the section is always as tall
+   as the larger of the two and nothing below it moves during the demo. */
+.demo > .term,
+.demo > .profile {
+  grid-area: 1 / 1;
+  align-self: start;
+}
+
+.term {
+  --t-bg: #0f1115;
+  --t-ink: #e6e6e1;
+  border: 1px solid #23262d;
+  background: var(--t-bg);
+  color: var(--t-ink);
+  overflow: hidden;
+  transition: none;
+}
+
+.term-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-bottom: 1px solid #23262d;
+}
+
+.term-bar > span {
+  width: 9px;
+  height: 9px;
+  background: #2c3038;
+}
+
+.replay {
+  appearance: none;
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: #7c818c;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.replay:hover { color: #e6e6e1; }
+
+.term-body {
+  margin: 0;
+  height: 420px;
+  padding: 14px 16px;
+  border: 0;
+  background: none;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.t-gray { color: #7c818c; }
+.t-blue { color: #8ab4ff; }
+.t-green { color: #6fd39b; }
+.t-bold { font-weight: 600; }
+.t-under { text-decoration: underline; text-underline-offset: 3px; }
+
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: #e6e6e1;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.demo:not(.revealed) .profile { visibility: hidden; }
+
+
+
+.demo.revealed .term {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+
+
+.profile-actions {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.replay-link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.replay-link:hover { color: var(--ink); }
+
+.demo.revealed:not(.instant) .hm span:not(.out) {
+  animation: cell-in 0.3s steps(3) backwards;
+  animation-delay: calc(var(--w, 0) * 12ms + 150ms);
+}
+
+@keyframes cell-in {
+  from { opacity: 0; }
+}
+
+.demo.instant .term { transition: none; }
+
 /* example profile */
 .profile {
-  margin-top: 64px;
   border-top: 1px solid var(--rule-strong);
 }
 
@@ -364,6 +529,7 @@ footer {
 }
 
 @media (max-width: 640px) {
+  .term-body { font-size: 11px; height: 360px; padding: 12px; }
   h1 { margin-top: 56px; font-size: 32px; }
   .hm { gap: 2px; }
   .rows li { grid-template-columns: 1fr; gap: 4px; }
