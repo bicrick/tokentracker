@@ -1,185 +1,164 @@
-# tokentracker
-
-One heatmap for every AI token you spend, across every coding tool and every machine.
-
-<p>
-  <b>Cursor</b> · <b>Claude Code</b> · <b>OpenCode</b> (GitHub Copilot, Anthropic, OpenAI, OpenRouter, any provider)
+<p align="center">
+  <a href="https://tokentracker-nu.vercel.app"><img src="docs/assets/banner.png" alt="tokentracker: every AI token, every tool, every machine" width="100%"></a>
 </p>
 
-Live example: [bicrick.com/tokens](https://bicrick.com/tokens)
+<p align="center">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
+  <img alt="open source" src="https://img.shields.io/badge/open%20source-%E2%9C%93-2563eb?style=flat-square">
+  <img alt="Node 22.13+" src="https://img.shields.io/badge/node-22.13%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white">
+  <img alt="zero dependencies CLI" src="https://img.shields.io/badge/cli-zero%20dependencies-555?style=flat-square">
+  <img alt="Vercel" src="https://img.shields.io/badge/Vercel-functions-000?style=flat-square&logo=vercel&logoColor=white">
+  <img alt="Neon Postgres" src="https://img.shields.io/badge/Neon-Postgres-00E599?style=flat-square&logo=postgresql&logoColor=white">
+  <img alt="macOS, Linux, Windows" src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-supported-555?style=flat-square">
+</p>
+
+<p align="center">
+  <a href="https://tokentracker-nu.vercel.app">Website</a> ·
+  <a href="https://tokentracker-nu.vercel.app/u/bicrick">Live example</a> ·
+  <a href="#getting-started">Get started</a> ·
+  <a href="#privacy">Privacy</a>
+</p>
 
 ---
 
-## Why
+**tokentracker** adds up every AI token you spend across your coding tools and every computer you use, into one public profile and heatmap you can put on your site.
 
-Usage is scattered. Cursor has a profile page, Claude Code writes logs to disk, Copilot shows nothing per-token at all. tokentracker pulls all of it into one place you own, so you can see your real total and put it on your site.
-
-## Privacy, up front
-
-- The collector runs **on your machine** and reads local log files.
-- It uploads **only daily token counts per tool and model**. Never prompts, code, file paths, or API keys.
-- The server **rejects** any upload containing other fields.
-- You can see the exact payload before anything is sent: `tokentrack sync --dry`.
-- It's open source and self-hosted. Your data lives in your own database.
-
-What gets uploaded, in full:
-
-```json
-{
-  "device": "laptop",
-  "sources": ["opencode", "claude-code"],
-  "rows": [
-    { "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
-      "input": 381, "output": 138, "reasoning": 63, "cacheRead": 8448, "cacheWrite": 0, "messages": 1 }
-  ]
-}
+```sh
+npx github:bicrick/tokentracker init
 ```
 
-## Supported sources
+That one command finds the tools on your machine, shows you what it found, creates your free profile (or connects to your own server), uploads your history, and turns on an hourly background sync.
 
-| Source | How it's collected | Where from |
+## Supported tools
+
+| Tool | How | Read from |
 |---|---|---|
-| **OpenCode** (incl. GitHub Copilot) | Local collector | `~/.local/share/opencode/opencode.db` |
-| **Claude Code** | Local collector | `~/.claude/projects/**/*.jsonl` |
-| **Cursor** | Server pulls your public profile | `cursor.com/@<handle>` |
+| **Claude Code** | local | `~/.claude/projects` (also `~/.config/claude`, `$CLAUDE_CONFIG_DIR`) |
+| **Codex** (CLI, IDE extension, app) | local | `~/.codex/sessions`, `archived_sessions` (`$CODEX_HOME`) |
+| **OpenCode** (incl. GitHub Copilot, any provider) | local | `~/.local/share/opencode/opencode*.db` |
+| **Gemini CLI** | local | `~/.gemini/tmp/*/chats` |
+| **Copilot CLI** | local | `~/.copilot/session-state` |
+| **Cline**, **Roo Code**, **Kilo Code** | local | extension storage in VS Code, Insiders, Cursor, Windsurf, VSCodium, Kiro |
+| **Cursor** | server | your public `cursor.com/@handle` profile |
 
-Coming soon: Codex CLI, Gemini CLI, API usage via local admin keys.
-
----
+Tools are detected automatically on macOS, Linux and Windows. Planned next: Qwen Code, Factory Droid, Goose, Amp, Zed. See [docs/research/harnesses.md](docs/research/harnesses.md) for formats and paths of every tool we looked at.
 
 ## Getting started
 
-Setup has two parts: a **server** (once) and the **collector** (on each machine you code on). About 10 minutes total.
-
-### Part 1: Deploy your server (once)
-
-You need a free [Vercel](https://vercel.com) account.
-
-1. **Fork or import this repo into Vercel.**
-   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/bicrick/tokentracker&env=TOKENTRACK_INGEST_KEYS,TOKENTRACK_ACCOUNT,CURSOR_HANDLE,CRON_SECRET&envDescription=See%20.env.example&project-name=tokentracker&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
-
-2. **Add a database.** The button above provisions a free Neon Postgres database. If you imported manually: Project → Storage → Neon → Create, and connect it to the project.
-
-3. **Set environment variables** (Project → Settings → Environment Variables):
-
-   | Variable | Value |
-   |---|---|
-   | `TOKENTRACK_INGEST_KEYS` | One random key per device, comma-separated. Generate with `openssl rand -hex 24` |
-   | `TOKENTRACK_ACCOUNT` | Your name or handle, e.g. `bicrick` |
-   | `CURSOR_HANDLE` | Your Cursor profile handle (from `cursor.com/@handle`). Leave blank to skip Cursor |
-   | `CRON_SECRET` | Any random string (`openssl rand -hex 24`) |
-
-4. **Deploy**, then check it's alive:
-
-   ```sh
-   curl https://<your-project>.vercel.app/api/activity
-   ```
-
-   Tables are created automatically on the first request. If you set `CURSOR_HANDLE`, you'll already see Cursor data.
-
-### Part 2: Install the collector (each machine)
-
-Requires **Node 22.13+** (`node -v`). macOS is fully supported; Linux works with cron (see below).
+Needs **Node 22.13+**.
 
 ```sh
-git clone https://github.com/bicrick/tokentracker
-cd tokentracker
-npm link                # installs the `tokentrack` command
+npx github:bicrick/tokentracker init
 ```
 
-Connect it to your server, giving this machine a name:
+```
+╭──────────────────────────────────────────────────────╮
+│  ▪ ▪ ▪ ■ ▪   ✻ Welcome to tokentracker               │
+│  ▪ ■ ▪ ▪ ▪   every AI token you spend, every tool,   │
+│  ■ ▪ ▪ ■ ▪   every machine, in one place             │
+╰──────────────────────────────────────────────────────╯
 
-```sh
-tokentrack login \
-  --server https://<your-project>.vercel.app \
-  --key <one of your TOKENTRACK_INGEST_KEYS> \
-  --device laptop
+  ✓ Found 2 tools with usage
+    · Claude Code    1.39B tokens · 3,727 responses
+    · OpenCode       365M tokens · 1,251 responses
+
+  ✓ Which tools should be tracked? Claude Code, OpenCode
+  ✓ Where should your usage live? Create a free account
+  ✓ Pick a public handle you
+  ✓ Uploaded 18 day/model rows
+  ✓ Background sync on (launchd, runs hourly and at login, no admin needed)
 ```
 
-Preview what will be sent, then upload:
+**More computers:** run the same command on each one, choose *Connect an existing account*, and paste the key from `~/.config/tokentrack/config.json`. Give each computer its own name; totals add up.
 
-```sh
-tokentrack sync --dry   # look before you leap
-tokentrack sync         # first upload, includes all local history
+### Background sync
+
+`init` installs a per-user hourly job. No admin rights, no permission prompts.
+
+| OS | Mechanism | Logs |
+|---|---|---|
+| macOS | launchd LaunchAgent (hourly and at login) | `~/Library/Logs/tokentrack.log` |
+| Linux | systemd user timer, cron fallback | `~/.local/state/tokentrack/sync.log` |
+| Windows | Task Scheduler, per user | `%LOCALAPPDATA%\tokentrack\sync.log` |
+
+The first sync uploads your full history; later syncs send only the last 7 days. Claude Code deletes transcripts after 30 days by default, so the hourly sync also keeps that history safe.
+
+### Commands
+
+| Command | |
+|---|---|
+| `tokentrack init` | guided setup |
+| `tokentrack connect` | choose tools (detected ones are marked *Auto*), add custom folders, connect Cursor |
+| `tokentrack sync [--dry] [--full]` | upload daily totals. `--dry` prints the exact payload |
+| `tokentrack status` | account, machine, tools and recent syncs |
+| `tokentrack install` / `uninstall` | turn background sync on or off |
+| `tokentrack delete-account` | delete your account and all data |
+
+Connections live in `~/.config/tokentrack/config.json`:
+
+```json
+{
+  "connections": {
+    "claude-code": { "enabled": "auto" },
+    "codex": { "enabled": true, "paths": ["~/work/.codex/sessions"] },
+    "cline": { "enabled": false }
+  }
+}
 ```
 
-Keep it syncing hourly in the background:
+`auto` (the default) means on whenever the tool is found on this machine.
 
-```sh
-tokentrack install      # macOS launchd job, runs hourly and at login
-tokentrack status       # shows config and the last sync log
+## Privacy
+
+- The collector runs on your machine and uploads **only daily token counts per tool and model**. Never prompts, code, file paths or API keys.
+- The server **rejects** any upload containing other fields.
+- `tokentrack sync --dry` prints exactly what would be sent:
+
+```json
+{ "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
+  "input": 381, "output": 138, "reasoning": 63, "cacheRead": 8448, "cacheWrite": 0, "messages": 1 }
 ```
 
-That's it. Repeat Part 2 on every machine you code on. Use a different `--device` name for each. Totals across machines add up automatically.
+- Keys are stored hashed. `tokentrack delete-account` removes everything.
 
-**Linux:** instead of `tokentrack install`, add a cron entry:
-
-```sh
-(crontab -l; echo "0 * * * * $(which node) $(which tokentrack) sync >> ~/.tokentrack.log 2>&1") | crontab -
-```
-
-**Corporate network / TLS proxy?** If sync fails with `unable to get local issuer certificate`, run with `NODE_USE_SYSTEM_CA=1 tokentrack sync`. The hourly job sets this automatically.
-
-### Part 3: Show it off
-
-Fetch `/api/activity` from your site. `activityCounts` has the same shape as Cursor's profile data, so most heatmap components work as-is:
+## Put it on your site
 
 ```js
-const res = await fetch('https://<your-project>.vercel.app/api/activity');
-const { activityCounts, totals, models } = await res.json();
+const res = await fetch('https://tokentracker-nu.vercel.app/api/activity?handle=you');
+const { activityCounts, totals } = await res.json();
 // activityCounts: [{ date: "2026-11-17", count: 259485947, sources: { cursor: 3853940, opencode: 255632007 } }]
 ```
 
-The endpoint allows cross-origin requests and is cached at the edge for 5 minutes.
+CORS-open and cached at the edge for 5 minutes.
 
----
+## Self-hosting
 
-## Commands
+Prefer to keep your data in your own database? Deploy your own server and point `init` at it.
 
-| Command | What it does |
-|---|---|
-| `tokentrack login --server <url> --key <key> [--device <name>]` | Save server, key and device name to `~/.config/tokentrack/config.json` |
-| `tokentrack sync [--dry]` | Collect local usage and upload daily totals (`--dry` prints the payload instead) |
-| `tokentrack install` | Run sync hourly in the background (macOS) |
-| `tokentrack uninstall` | Stop the background sync |
-| `tokentrack status` | Show config and recent sync logs |
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/bicrick/tokentracker&env=TOKENTRACK_INGEST_KEYS,TOKENTRACK_ACCOUNT,CURSOR_HANDLE,CRON_SECRET&envDescription=See%20.env.example&project-name=tokentracker&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
+
+1. Deploy (the button provisions a free Neon Postgres database).
+2. Set `TOKENTRACK_INGEST_KEYS` (comma-separated, `openssl rand -hex 24`), `TOKENTRACK_ACCOUNT`, `CURSOR_HANDLE` and `CRON_SECRET`. See `.env.example`.
+3. Run `init`, choose *Connect an existing account*, and enter your server URL and one of your keys.
 
 ## API
 
-| Method | Path | Auth | Description |
+| Method | Path | Auth | |
 |---|---|---|---|
-| `GET` | `/api/activity` | public | Daily totals by source, totals, per-model breakdown, devices and last sync times |
-| `POST` | `/api/ingest` | device key | Upload daily aggregates |
-| `GET` | `/api/cron/cursor` | `CRON_SECRET` | Refresh Cursor profile data (run by Vercel cron) |
+| `GET` | `/api/activity?handle=` | public | daily totals by tool, per-model totals, machines and last sync |
+| `POST` | `/api/signup` | public | create a hosted account, returns a key once |
+| `GET` `POST` `DELETE` | `/api/account` | key | who am I, set Cursor handle, delete account |
+| `POST` | `/api/ingest` | key | upload daily aggregates (optional `since` replaces only recent days) |
+| `GET` | `/api/cron/cursor` | cron secret | refresh Cursor profiles |
 
-## How it works
+## Development
 
+```sh
+npm install
+npm test          # connector tests with synthetic fixtures for every tool
+npm run dev       # vercel dev
 ```
-laptop ───────┐
-work machine ─┼── tokentrack sync (hourly) ──▶ POST /api/ingest ──▶ Postgres ──▶ GET /api/activity
-desktop ──────┘                                                        ▲
-                                         cursor.com/@handle ── cron ───┘
-```
-
-Each sync re-reads the full local history and replaces that device's rows, so syncs are safe to repeat and never double count. Claude Code logs the same response several times while streaming; the collector dedupes by message and request ID.
-
-## FAQ
-
-**Do you need my API keys?** No. Nothing here reads, stores, or uploads API keys.
-
-**What about Copilot in VS Code or JetBrains?** GitHub doesn't expose per-token usage for individuals. Copilot usage is tracked when it goes through OpenCode, which records tokens locally.
-
-**Why is cache so much of my total?** Agents reread their context every turn, and providers count those reads as tokens. It's normal for 95%+ of agentic token usage to be cache reads.
-
-**Can I delete my data?** It's your database. Drop the rows, or run `tokentrack uninstall` and remove the device's key.
-
-## Roadmap
-
-- Hosted service: sign up in the browser, connect devices with `tokentrack login` (no server to deploy)
-- Public profile pages and an embeddable SVG heatmap
-- Real-time updates via an OpenCode plugin and Claude Code OpenTelemetry export
-- More sources: Codex CLI, Gemini CLI, Windsurf, API usage via local admin keys
 
 ## License
 
-MIT
+MIT. Tool names and logos belong to their owners.
