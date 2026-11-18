@@ -8,8 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=21">
-  <link rel="stylesheet" href="/mobile.css?v=21" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=22">
+  <link rel="stylesheet" href="/mobile.css?v=22" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -67,27 +67,21 @@
         <pre class="term-body" id="term-body"></pre>
       </div>
 
-      <div class="profile" id="profile">
-        <div class="profile-head">
-          <span class="handle">@bicrick</span>
-          <span class="profile-actions">
-            <button type="button" class="replay-link" id="replay2">replay setup</button>
-            <a class="view" href="/u/bicrick">View profile ↗</a>
-          </span>
-        </div>
-        <div class="total">
-          <span class="big" id="ex-total">—</span>
-          <span class="label">tokens this year</span>
-        </div>
+      <div class="profile opener" id="profile">
+        <p class="kicker">01 / embed anywhere</p>
+        <h2 class="opener-title">Your year of tokens, on your site.</h2>
         <div id="ex-heatmap"></div>
-        <p class="privacy-line">Only daily token counts leave your machine. Prompts and code stay local.</p>
+        <div class="opener-foot">
+          <code>![AI tokens](tokentracker-nu.vercel.app/u/you.svg)</code>
+          <span class="muted"><span id="ex-total">—</span> tokens this year · <button type="button" class="replay-link" id="replay2">replay setup</button></span>
+        </div>
       </div>
     </div>
 
     <section class="chapter" id="ch-heatmaps" aria-labelledby="ch1">
-      <p class="kicker">01 / heatmaps</p>
-      <h2 id="ch1">Your year, in any style.</h2>
-      <p class="chapter-lede">One image URL for your README or site. Pick the cells, colours and range.</p>
+      <p class="kicker">02 / style it</p>
+      <h2 id="ch1">Any cells, colours and range.</h2>
+      <p class="chapter-lede">Same image URL, a few query options. Make it match your site.</p>
       <figure class="cycler" id="cycler">
         <div class="cycler-frame"><img id="cycler-a" alt="Heatmap card"><img id="cycler-b" alt="" aria-hidden="true"></div>
         <figcaption><code id="cycler-url">/u/you.svg</code><span class="cycler-dots" id="cycler-dots"></span></figcaption>
@@ -95,7 +89,7 @@
     </section>
 
     <section class="chapter" id="ch-badges" aria-labelledby="ch2">
-      <p class="kicker">02 / badges</p>
+      <p class="kicker">03 / badges</p>
       <h2 id="ch2">A badge for your README.</h2>
       <p class="chapter-lede">Shields-style, with your total, any label and colour.</p>
       <div class="badge-row">
@@ -107,7 +101,7 @@
     </section>
 
     <section class="chapter" id="ch-graphs" aria-labelledby="ch3">
-      <p class="kicker">03 / graphs</p>
+      <p class="kicker">04 / graphs</p>
       <h2 id="ch3">Stats, breakdowns and trends.</h2>
       <p class="chapter-lede">Cards for the numbers people actually ask about.</p>
       <div class="graph-row">
@@ -118,7 +112,7 @@
     </section>
 
     <section class="chapter" id="ch-api" aria-labelledby="ch4">
-      <p class="kicker">04 / api</p>
+      <p class="kicker">05 / api</p>
       <h2 id="ch4">Or make your own with the API.</h2>
       <p class="chapter-lede">Raw tokens as JSON or CSV, grouped by day, week, month, tool or model. No key needed.</p>
       <div class="api-split">
@@ -144,11 +138,11 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=21';
-    import { mountDemo } from '/demo.js?v=21';
-    import { mountCoin } from '/coin.js?v=21';
-    import { mountTokenSea } from '/sea.js?v=21';
-    import { mountChapters } from '/chapters.js?v=21';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=22';
+    import { mountDemo } from '/demo.js?v=22';
+    import { mountCoin } from '/coin.js?v=22';
+    import { mountTokenSea } from '/sea.js?v=22';
+    import { mountChapters } from '/chapters.js?v=22';
 
 
     mountTokenSea(document.getElementById('sea'), {

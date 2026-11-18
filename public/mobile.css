@@ -146,3 +146,6 @@ footer {
 .lib-bars { height: 140px; }
 .chapter .docs-cta a { display: block; }
 .chapter .docs-cta a + a { margin: 6px 0 0; }
+
+.opener-title { font-size: 22px; }
+.opener-foot code { font-size: 10px; word-break: break-all; }

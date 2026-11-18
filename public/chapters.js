@@ -3,13 +3,14 @@
 import { formatTokens, MONTHS } from '/lib/heatmap.js';
 
 const HANDLE = 'bicrick';
+// The plain blue square heatmap opens the section above; these are the variations
 const STYLES = [
-  { q: '', label: 'square' },
   { q: 'cells=round&theme=light', label: 'round · light' },
   { q: 'cells=dot&accent=f0c463', label: 'dot · gold accent' },
   { q: 'cells=dither&theme=gold', label: 'dither · gold' },
   { q: 'cells=square&accent=6fd39b&range=365d', label: 'last 365 days · green' },
   { q: 'cells=round&accent=d97757&tools=claude-code', label: 'claude code only' },
+  { q: 'cells=square&theme=light&accent=e11d48&hide=title', label: 'no title · red' },
 ];
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

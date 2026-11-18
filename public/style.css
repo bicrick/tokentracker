@@ -1059,3 +1059,36 @@ html.demo-locked body { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .chapter { opacity: 1; transform: none; transition: none; }
 }
+
+/* demo reveal: the platform opener (default blue square heatmap) */
+.opener { border-top: 0; }
+
+.opener .kicker { margin-top: 4px; }
+
+.opener-title {
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+  font-family: var(--sans);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.opener-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.opener-foot code { color: var(--ink-soft); }
+
+.opener-foot .replay-link { font-size: 12px; }
