@@ -3,12 +3,13 @@ import { expand, tildify } from '../fs-util.js';
 import claude from './claude.js';
 import codex from './codex.js';
 import copilot from './copilot.js';
+import dsh from './dsh.js';
 import gemini from './gemini.js';
 import opencode from './opencode.js';
 import { cline, kilo, roo } from './cline.js';
 
 /** Every local connector, in display order. */
-export const CONNECTORS = [claude, codex, opencode, gemini, copilot, cline, roo, kilo];
+export const CONNECTORS = [claude, codex, opencode, gemini, copilot, dsh, cline, roo, kilo];
 
 /** Server-side connectors (no local files). */
 export const REMOTE = [

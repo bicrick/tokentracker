@@ -38,6 +38,7 @@ That one command finds the tools on your machine, shows you what it found, creat
 | **OpenCode** (incl. GitHub Copilot, any provider) | local | `~/.local/share/opencode/opencode*.db` |
 | **Gemini CLI** | local | `~/.gemini/tmp/*/chats` |
 | **Copilot CLI** | local | `~/.copilot/session-state` |
+| **DeepSeek Harness** (`dsh`) | local | `~/.dsh/sessions` (`$DSH_HOME`), plain and zstd logs |
 | **Cline**, **Roo Code**, **Kilo Code** | local | extension storage in VS Code, Insiders, Cursor, Windsurf, VSCodium, Kiro |
 | **Cursor** | server | your public `cursor.com/@handle` profile |
 

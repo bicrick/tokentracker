@@ -14,6 +14,7 @@ export const TOOL_NAMES = {
   opencode: 'OpenCode',
   'gemini-cli': 'Gemini CLI',
   'copilot-cli': 'Copilot CLI',
+  'deepseek-harness': 'DeepSeek Harness',
   cline: 'Cline',
   'roo-code': 'Roo Code',
   'kilo-code': 'Kilo Code',

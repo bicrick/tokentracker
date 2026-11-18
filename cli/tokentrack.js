@@ -217,7 +217,7 @@ async function init(flags) {
   // 1. Scan
   const existing = readConfig();
   line(`  ${c.bold('Looking for AI tools on this machine')}`);
-  const scan = spinner('Checking Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI, Cline, Roo, Kilo…');
+  const scan = spinner('Checking Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo, Kilo…');
   let data = await collect(existing);
   const found = data.connections.filter((conn) => conn.paths.length).length;
   scan.succeed(`Found ${found} tool${found === 1 ? '' : 's'} with usage`);

@@ -64,6 +64,39 @@ write('.copilot/session-state/sess1/events.jsonl', jsonl([
     data: { usage: { model: 'claude-sonnet-4.5', inputTokens: 500, outputTokens: 80, cacheReadTokens: 200 } } },
 ]));
 
+// DeepSeek Harness: v4 jsonl with an older v3 copy (must be ignored), a forked
+// session that inherits its parent's events, and a multi-frame zstd log
+const dshEvents = (id, extra = []) => [
+  { type: 'session', version: 4, id, createdAt: Date.parse('2026-11-15T09:00:00Z') },
+  { type: 'request/header', seq: 1, time: Date.parse('2026-11-15T09:00:01Z'), data: { header: { config: { provider: 'deepseek', model: 'deepseek-v4' } } } },
+  { type: 'assistant/message', seq: 2, time: Date.parse('2026-11-15T09:00:02Z'), data: { usage: { inputTokens: 400, outputTokens: 120, reasoningTokens: 20, cacheReadTokens: 9000, cacheWriteTokens: 600 } } },
+  // usage only in the stream: use the last usage chunk
+  { type: 'assistant/attempt', seq: 3, time: Date.parse('2026-11-15T09:00:03Z'), data: { stream: [
+    { type: 'chunk', chunk: { type: 'usage', usage: { inputTokens: 1, outputTokens: 1 } } },
+    { type: 'chunk', chunk: { type: 'usage', usage: { inputTokens: 50, outputTokens: 10 } } },
+  ] } },
+  { type: 'compaction/summary', seq: 4, time: Date.parse('2026-11-16T10:00:00Z'), data: { provider: 'deepseek', model: 'deepseek-v4-flash', usage: { inputTokens: 300, outputTokens: 40 } } },
+  ...extra,
+];
+write('.dsh/sessions/proj/session-a/session.v4.jsonl', jsonl(dshEvents('session-a')));
+write('.dsh/sessions/proj/session-a/session.v3.jsonl', jsonl(dshEvents('session-a'))); // old generation
+// fork: inherits the parent's first events, then adds one of its own
+write('.dsh/sessions/proj/session-b/session.v4.jsonl', jsonl([
+  ...dshEvents('session-b').slice(0, 3),
+  { type: 'session/end-seed', seq: 5, time: Date.parse('2026-11-17T08:00:00Z'), data: { inherited: true } },
+  { type: 'assistant/message', seq: 6, time: Date.parse('2026-11-17T08:00:01Z'), data: { usage: { inputTokens: 70, outputTokens: 7 } } },
+]));
+{
+  const zlib = await import('node:zlib');
+  const lines = dshEvents('session-c').slice(0, 3).map((e) => `${JSON.stringify(e)}\n`);
+  // one zstd frame per append, plus a truncated frame at the end (still writing)
+  const frames = lines.map((l) => zlib.zstdCompressSync(Buffer.from(l)));
+  const tail = zlib.zstdCompressSync(Buffer.from(`${JSON.stringify({ type: 'assistant/message', seq: 9, time: 1, data: { usage: { inputTokens: 999 } } })}\n`));
+  const file = path.join(home, '.dsh/sessions/proj/session-c/session.v4.jsonl.zstd');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, Buffer.concat([...frames, tail.subarray(0, tail.length - 4)]));
+}
+
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 const { resolveConnections, collectAll } = await import('../cli/sources/index.js');
@@ -81,7 +114,7 @@ const sum = (rows, k) => rows.reduce((s, r) => s + r[k], 0);
 test('auto-detects installed tools only', async () => {
   const { conns } = await run();
   const on = conns.filter((c) => c.enabled).map((c) => c.id).sort();
-  const expected = ['cline', 'codex', 'copilot-cli', 'gemini-cli'];
+  const expected = ['cline', 'codex', 'copilot-cli', 'deepseek-harness', 'gemini-cli'];
   // Cline's fixture lives under the current platform's editor root
   assert.deepEqual(on, expected);
 });
@@ -119,4 +152,20 @@ test('connections can be turned off in config', async () => {
   const conns = resolveConnections({ connections: { codex: { enabled: false } } });
   assert.equal(conns.find((c) => c.id === 'codex').enabled, false);
   assert.equal(conns.find((c) => c.id === 'gemini-cli').enabled, true);
+});
+
+test('deepseek harness: current generation only, stream usage, compaction model, forks, zstd frames', async () => {
+  const rows = byTool((await run()).rows, 'deepseek-harness');
+  const day = (d, m) => rows.find((r) => r.date === d && r.model === m);
+  // 2026-11-15: session-a (400+50 input) + session-c zstd (400 input, truncated tail dropped)
+  const v4 = day('2026-11-15', 'deepseek/deepseek-v4');
+  assert.equal(v4.input, 400 + 50 + 400);
+  assert.equal(v4.cacheRead, 9000 * 2);
+  assert.equal(v4.reasoning, 20 * 2);
+  assert.equal(v4.output, (120 - 20) * 2 + 10);
+  // compaction uses its own model
+  assert.equal(day('2026-11-16', 'deepseek/deepseek-v4-flash').input, 300);
+  // fork: only the post-seed call counts, nothing duplicated from the parent
+  assert.equal(day('2026-11-17', 'deepseek/deepseek-v4').input, 70);
+  assert.equal(rows.reduce((s, r) => s + r.messages, 0), 3 + 1 + 1); // session-a, fork, zstd
 });
