@@ -8,8 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=20">
-  <link rel="stylesheet" href="/mobile.css?v=20" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=21">
+  <link rel="stylesheet" href="/mobile.css?v=21" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -63,7 +63,7 @@
 
     <div class="demo" id="demo" aria-label="Example setup and profile">
       <div class="term" id="term" aria-hidden="true">
-        <div class="term-bar"><span></span><span></span><span></span><button type="button" class="replay" id="replay">replay</button></div>
+        <div class="term-bar"><span></span><span></span><span></span><button type="button" class="replay" id="skip">skip →</button></div>
         <pre class="term-body" id="term-body"></pre>
       </div>
 
@@ -84,45 +84,53 @@
       </div>
     </div>
 
-    <section class="anywhere" id="anywhere" aria-labelledby="anywhere-title">
-      <h2 id="anywhere-title">put it anywhere</h2>
-      <p class="anywhere-lede">Your profile is public data. Drop it into a README or your personal site, or pull the raw numbers into your own charts. No API key needed.</p>
+    <section class="chapter" id="ch-heatmaps" aria-labelledby="ch1">
+      <p class="kicker">01 / heatmaps</p>
+      <h2 id="ch1">Your year, in any style.</h2>
+      <p class="chapter-lede">One image URL for your README or site. Pick the cells, colours and range.</p>
+      <figure class="cycler" id="cycler">
+        <div class="cycler-frame"><img id="cycler-a" alt="Heatmap card"><img id="cycler-b" alt="" aria-hidden="true"></div>
+        <figcaption><code id="cycler-url">/u/you.svg</code><span class="cycler-dots" id="cycler-dots"></span></figcaption>
+      </figure>
+    </section>
 
-      <div class="showcase">
-        <figure class="wide">
-          <img src="/u/bicrick.svg?cells=dither&amp;theme=gold" alt="Dithered gold heatmap card" loading="lazy">
-          <figcaption><code>/u/you.svg?cells=dither&amp;theme=gold</code></figcaption>
-        </figure>
-        <figure>
-          <img src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy">
-          <figcaption><code>?type=stats</code></figcaption>
-        </figure>
-        <figure>
-          <img src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy">
-          <figcaption><code>?type=breakdown</code></figcaption>
-        </figure>
-        <figure>
-          <img src="/u/bicrick.svg?type=line&amp;accent=f0c463" alt="Cumulative tokens chart" loading="lazy">
-          <figcaption><code>?type=line</code></figcaption>
-        </figure>
-        <figure>
-          <img src="/u/bicrick.svg?cells=round&amp;theme=light&amp;hide=legend,months" alt="Light rounded heatmap" loading="lazy">
-          <figcaption><code>?cells=round&amp;theme=light</code></figcaption>
-        </figure>
-        <figure class="wide live">
-          <token-heatmap handle="bicrick" range="90d"></token-heatmap>
-          <figcaption><code>&lt;token-heatmap&gt;</code> live web component, styled with your CSS · <img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"></figcaption>
-        </figure>
+    <section class="chapter" id="ch-badges" aria-labelledby="ch2">
+      <p class="kicker">02 / badges</p>
+      <h2 id="ch2">A badge for your README.</h2>
+      <p class="chapter-lede">Shields-style, with your total, any label and colour.</p>
+      <div class="badge-row">
+        <figure><img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"><figcaption><code>?type=badge</code></figcaption></figure>
+        <figure><img src="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent" alt="Gold badge" loading="lazy"><figcaption><code>&amp;accent=f0c463&amp;label=…</code></figcaption></figure>
+        <figure><img src="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days" alt="Last 30 days badge" loading="lazy"><figcaption><code>&amp;range=30d</code></figcaption></figure>
+        <figure><img src="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code" alt="Claude Code badge" loading="lazy"><figcaption><code>&amp;tools=claude-code</code></figcaption></figure>
       </div>
+    </section>
 
-      <div class="api-demo">
-        <div class="api-head">
-          <span class="mono">GET /u/bicrick.json?group=<b id="api-group">month</b></span>
-          <span class="chips" id="api-chips"><button data-v="month" class="on">month</button><button data-v="tool">tool</button><button data-v="week">week</button></span>
+    <section class="chapter" id="ch-graphs" aria-labelledby="ch3">
+      <p class="kicker">03 / graphs</p>
+      <h2 id="ch3">Stats, breakdowns and trends.</h2>
+      <p class="chapter-lede">Cards for the numbers people actually ask about.</p>
+      <div class="graph-row">
+        <figure><img src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy"><figcaption><code>?type=stats</code></figcaption></figure>
+        <figure><img src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy"><figcaption><code>?type=breakdown</code></figcaption></figure>
+        <figure class="wide"><img src="/u/bicrick.svg?type=line&amp;accent=f0c463" alt="Cumulative tokens chart" loading="lazy"><figcaption><code>?type=line</code></figcaption></figure>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-api" aria-labelledby="ch4">
+      <p class="kicker">04 / api</p>
+      <h2 id="ch4">Or make your own with the API.</h2>
+      <p class="chapter-lede">Raw tokens as JSON or CSV, grouped by day, week, month, tool or model. No key needed.</p>
+      <div class="api-split">
+        <div class="term api-term">
+          <div class="term-bar"><span></span><span></span><span></span></div>
+          <pre class="term-body api-body" id="api-term"></pre>
         </div>
-        <pre id="api-result">loading…</pre>
+        <figure class="api-chart">
+          <div class="lib-bars" id="api-bars"></div>
+          <figcaption>Your own chart, your own CSS. <a href="/docs#embed">The library</a> does the maths.</figcaption>
+        </figure>
       </div>
-
       <p class="docs-cta">
         <a href="/embed">Build your embed →</a>
         <a href="/docs#embed">API and embed docs →</a>
@@ -136,36 +144,16 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=20';
-    import { mountDemo } from '/demo.js?v=20';
-    import { mountCoin } from '/coin.js?v=20';
-    import { mountTokenSea } from '/sea.js?v=20';
-    import '/embed.js?v=20';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=21';
+    import { mountDemo } from '/demo.js?v=21';
+    import { mountCoin } from '/coin.js?v=21';
+    import { mountTokenSea } from '/sea.js?v=21';
+    import { mountChapters } from '/chapters.js?v=21';
 
-    // Live API example
-    const apiOut = document.getElementById('api-result');
-    const showApi = async (group) => {
-      document.getElementById('api-group').textContent = group;
-      apiOut.textContent = 'loading…';
-      try {
-        const j = await (await fetch(`/u/bicrick.json?group=${group}`)).json();
-        const rows = j.rows.slice(-6).map((r) => `    ${JSON.stringify(r).replace(/,"/g, ', "').replace(/":/g, '": ')}`);
-        apiOut.textContent = `{\n  "handle": "${j.handle}",\n  "group": "${j.group}",\n  "total": ${j.total},\n  "rows": [\n${rows.join(',\n')}\n  ]\n}`;
-      } catch {
-        apiOut.textContent = 'Could not load the example.';
-      }
-    };
-    document.getElementById('api-chips').addEventListener('click', (e) => {
-      const b = e.target.closest('button');
-      if (!b) return;
-      document.querySelectorAll('#api-chips button').forEach((x) => x.classList.toggle('on', x === b));
-      showApi(b.dataset.v);
-    });
-    showApi('month');
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
-      avoid: [document.getElementById('demo'), document.getElementById('anywhere')],
+      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.chapter')],
       ground: document.querySelector('footer'),
     });
 
@@ -176,6 +164,7 @@
     wireCopy(document.getElementById('copy'), document.getElementById('cmd').textContent);
 
     const data = fetchActivity('bicrick').catch(() => null);
+    mountChapters(data);
     const show = async () => {
       const d = await data;
       if (!d) {
@@ -191,8 +180,8 @@
       body: document.getElementById('term-body'),
       data,
       onReveal: show,
+      skipButton: document.getElementById('skip'),
     });
-    document.getElementById('replay').addEventListener('click', () => demo.replay());
     document.getElementById('replay2').addEventListener('click', () => demo.replay());
   </script>
 </body>

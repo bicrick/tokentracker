@@ -125,54 +125,71 @@ function renderTerminal(steps, p) {
   return out.map((l) => `<div>${l || '&nbsp;'}</div>`).join('');
 }
 
-const DURATION = 5200; // ms for the whole onboarding before the reveal
+const DURATION = 5200;
+const UNLOCK_AFTER = 1400; // let the dither wipe and heatmap fill finish first
 
-export function mountDemo({ demo, body, data, onReveal }) {
+// Hold the page still while the onboarding plays, so the story lands before
+// people scroll past it. A skip button always ends it immediately.
+const lock = (on) => document.documentElement.classList.toggle('demo-locked', on);
+
+export function mountDemo({ demo, body, data, onReveal, skipButton }) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const term = demo.querySelector('.term');
   let steps = timeline(null);
   let profileReady = false;
   let run = 0;
+  let skipping = false;
 
   data.then((d) => {
     steps = timeline(d?.totals);
   });
 
-  const reveal = async () => {
+  const reveal = async (id) => {
     if (!reduced) ditherWipe(demo, term);
     demo.classList.add('revealed');
     if (!profileReady) {
       profileReady = true;
       await onReveal();
     }
+    setTimeout(() => id === run && lock(false), UNLOCK_AFTER);
   };
 
-  // Plays on its own once visible; rendering is a pure function of elapsed time
-  const play = () => {
+  const play = ({ hold = false } = {}) => {
     const id = ++run;
+    skipping = false;
     demo.classList.remove('revealed');
+    if (hold) lock(true);
+    if (skipButton) skipButton.hidden = false;
     const start = performance.now();
     const tick = () => {
       if (id !== run) return;
-      const p = Math.min(1, (performance.now() - start) / DURATION);
+      const p = skipping ? 1 : Math.min(1, (performance.now() - start) / DURATION);
       body.innerHTML = renderTerminal(steps, p);
       body.scrollTop = body.scrollHeight; // follow the latest line, like a real terminal
       if (p < 1) setTimeout(tick, 33);
-      else setTimeout(() => id === run && reveal(), 900);
+      else {
+        if (skipButton) skipButton.hidden = true;
+        setTimeout(() => id === run && reveal(id), skipping ? 150 : 900);
+      }
     };
     tick();
   };
 
+  skipButton?.addEventListener('click', () => {
+    skipping = true;
+  });
+
   if (reduced) {
     demo.classList.add('revealed', 'instant');
+    if (skipButton) skipButton.hidden = true;
     onReveal();
     return { replay() {} };
   }
 
-  // Already on screen at load (the usual case): start right away
-  if (demo.getBoundingClientRect().top < window.innerHeight * 0.85) {
-    play();
-    return { replay: play };
+  // On screen at load (the usual case): play and hold the page until it's done
+  if (demo.getBoundingClientRect().top < window.innerHeight * 0.85 && window.scrollY < 40) {
+    play({ hold: true });
+    return { replay: () => play() };
   }
 
   const io = new IntersectionObserver(([entry]) => {
@@ -183,5 +200,5 @@ export function mountDemo({ demo, body, data, onReveal }) {
   }, { threshold: 0.25 });
   io.observe(demo);
 
-  return { replay: play };
+  return { replay: () => play() };
 }

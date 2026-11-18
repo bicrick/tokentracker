@@ -137,3 +137,12 @@ footer {
 .showcase figure { padding: 12px; }
 .anywhere .docs-cta a { display: block; }
 .anywhere .docs-cta a + a { margin: 6px 0 0; }
+
+.chapter { margin-top: 80px; }
+.chapter h2 { font-size: 22px; }
+.graph-row, .api-split { grid-template-columns: 1fr; }
+.badge-row { gap: 18px; }
+.api-body { height: 220px; font-size: 10px; }
+.lib-bars { height: 140px; }
+.chapter .docs-cta a { display: block; }
+.chapter .docs-cta a + a { margin: 6px 0 0; }
