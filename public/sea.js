@@ -1,6 +1,8 @@
-// Page background: a dithered sea of gold tokens at the bottom of the viewport,
-// fed by waterfalls of tumbling coins that pour in as you scroll. Everything is
-// drawn on a coarse square-pixel grid with 8×8 ordered (Bayer) dithering.
+// Page background: a dragon's hoard of dithered gold tokens. Hidden at the top
+// of the page; scrolling raises it from below (tall stacks in the side gutters,
+// lower heaped piles across the floor) and pours waterfalls of coins onto it.
+// Drawn on a coarse square-pixel grid with 8×8 ordered (Bayer) dithering, and
+// clipped so it never draws over the content's charts.
 
 const BAYER8 = [
   0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26,
@@ -16,7 +18,9 @@ const BLUE = [[0x16, 0x21, 0x3a], [0x1e, 0x3a, 0x6e], [0x2b, 0x5c, 0xb0], [0x4d,
 const CELL = 4;        // screen px per dithered pixel
 const COIN_W = 13;
 const COIN_H = 4;
-const GRAVITY = 0.09;  // cells per frame²
+const STEP = 2;        // stacked coin spacing
+const GRAVITY = 0.09;
+const START = 160;     // px of scroll before anything appears
 
 function rng(seed) {
   let s = seed % 2147483647 || 1;
@@ -26,19 +30,50 @@ function rng(seed) {
   };
 }
 
-export function mountTokenSea(canvas, { content } = {}) {
+export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
   const ctx = canvas.getContext('2d', { alpha: true });
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let W = 0;
   let H = 0;
   let img = null;
-  let bumps = new Float32Array(0);   // landed coins raise the sea locally
-  let seaCoins = [];
+  let stacks = [];
+  let piles = [];
+  let bumps = new Float32Array(0);
+  let lanes = [[0, 0]];
   const falling = [];
-  let scrollP = 0;
+  let reveal = 0;
   let raf = 0;
   let lastY = window.scrollY;
+  let clip = { from: 0, to: 0, y: -1 }; // columns of content, and the y above which they stay clear
+
+  const inGutter = (x) => lanes.length > 1 && (x < lanes[0][1] || x > lanes[1][0]);
+
+  const build = () => {
+    const rand = rng(29);
+    const rect = content?.getBoundingClientRect();
+    const wide = window.innerWidth >= 1000 && rect;
+    lanes = wide
+      ? [[2, rect.left / CELL - 4], [rect.right / CELL + 4, W - 2]]
+      : [[0, W]];
+
+    // Tall, tidy stacks stand in the gutters; short ones dot the floor
+    stacks = [];
+    for (const [a, b] of lanes) {
+      for (let x = a + 6; x < b - 6; x += 11 + rand() * 9) {
+        const tall = wide;
+        const count = Math.round((tall ? 18 + rand() * 46 : 3 + rand() * 9) * (0.55 + 0.45 * Math.sin(x / 13) ** 2));
+        stacks.push({ x, count, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
+      }
+    }
+    // Heaped piles: a coin bed under a lumpy mound profile
+    piles = [];
+    for (let row = 0; row < 40; row += 1) {
+      for (let x = -COIN_W; x < W + COIN_W; x += 11 + rand() * 6) {
+        piles.push({ x: x + (row % 2) * 6, depth: row * 2.6 + rand() * 1.4, light: rand() * 0.9 - 0.45 });
+      }
+    }
+  };
 
   const resize = () => {
     W = Math.ceil(window.innerWidth / CELL);
@@ -47,35 +82,22 @@ export function mountTokenSea(canvas, { content } = {}) {
     canvas.height = H;
     img = ctx.createImageData(W, H);
     bumps = new Float32Array(W);
-    // A staggered bed of coins; only those below the surface get drawn
-    const rand = rng(11);
-    seaCoins = [];
-    for (let row = 0; row < Math.ceil(H / 3); row += 1) {
-      for (let x = -COIN_W; x < W + COIN_W; x += 12 + Math.floor(rand() * 5)) {
-        seaCoins.push({ x: x + (row % 2) * 7 + rand() * 4, depth: row * 3 + rand() * 1.5, light: rand() * 0.9 - 0.45 });
-      }
-    }
-    schedule();
+    build();
+    update();
   };
 
-  // Content column: waterfalls pour in the gutters beside it on wide screens
-  const gutters = () => {
-    const rect = content?.getBoundingClientRect();
-    if (!rect || window.innerWidth < 1000) return [[0, W]];
-    const l = rect.left / CELL;
-    const r = rect.right / CELL;
-    return [[2, Math.max(4, l - 6)], [Math.min(W - 4, r + 6), W - 2]];
-  };
-
-  const surfaceAt = (x) => {
-    const base = H * (0.08 + 0.17 * scrollP);
-    // Mounds, like a hoard heaped in piles
-    const wave = Math.sin(x / 41) * 6 + Math.sin(x / 17 + 1.3) * 2.5 + Math.sin(x / 7 + 0.4) * 0.8;
-    return H - base - wave - (bumps[Math.max(0, Math.min(W - 1, Math.round(x)))] || 0);
+  // Scene rises from below the fold as the page scrolls
+  const offset = () => (1 - reveal) * H * 0.75;
+  const floorY = () => H - 2 + offset();
+  const pileTop = (x) => {
+    const mound = Math.max(0, Math.sin(x / 31 + 0.7)) * 9 + Math.max(0, Math.sin(x / 13 + 2)) * 4 + 2;
+    const lower = inGutter(x) ? 2.4 : 0.45; // keep the middle low and calm
+    return floorY() - mound * lower - (bumps[Math.max(0, Math.min(W - 1, Math.round(x)))] || 0);
   };
 
   const put = (x, y, rgb) => {
     if (x < 0 || y < 0 || x >= W || y >= H) return;
+    if (x >= clip.from && x < clip.to && y < clip.y) return; // never over the charts
     const i = (y * W + x) * 4;
     img.data[i] = rgb[0];
     img.data[i + 1] = rgb[1];
@@ -89,8 +111,8 @@ export function mountTokenSea(canvas, { content } = {}) {
     return ramp[Math.max(0, Math.min(ramp.length - 1, idx))];
   };
 
-  // A coin seen at an angle; `turn` squashes it horizontally as it tumbles
   const coin = (cx, cy, light, turn = 1) => {
+    if (cy < -4 || cy > H + 4) return;
     const a = Math.max(1, (COIN_W / 2) * Math.abs(turn));
     const b = COIN_H / 2;
     for (let y = Math.floor(cy - b); y <= Math.ceil(cy + b + 1.5); y += 1) {
@@ -110,26 +132,54 @@ export function mountTokenSea(canvas, { content } = {}) {
 
   const draw = () => {
     img.data.fill(0);
+    if (reveal <= 0) {
+      ctx.putImageData(img, 0, 0);
+      return;
+    }
 
-    // Blue glow rising from the bottom
-    const glowTop = H * (0.55 - 0.2 * scrollP);
-    for (let y = Math.max(0, Math.floor(glowTop)); y < H; y += 1) {
-      const t = (y - glowTop) / (H - glowTop);
+    // Low blue band along the bottom only
+    const band = H * 0.18;
+    const top = H - band * reveal;
+    for (let y = Math.max(0, Math.floor(top)); y < H; y += 1) {
+      const t = (y - top) / (H - top || 1);
       for (let x = 0; x < W; x += 1) {
-        const v = t ** 2.2 * 2.6 - 0.4 + Math.sin(x / 19) * 0.12;
+        const v = t ** 1.8 * 2.4 - 0.5 + Math.sin(x / 19) * 0.12;
         if (v > bayer(x, y)) put(x, y, pick(BLUE, v, x, y));
       }
     }
 
-    // The sea: draw back rows first so nearer coins overlap them
-    for (let i = seaCoins.length - 1; i >= 0; i -= 1) {
-      const c = seaCoins[i];
-      const y = surfaceAt(c.x) + c.depth;
-      if (y < H + 4) coin(c.x, y, c.depth < 4 ? c.light + 0.35 : c.light - Math.min(1.6, c.depth / 22));
+    // Back to front: stacks behind, then the heaped piles, then falling coins
+    for (const s of stacks) {
+      const base = floorY() - 3;
+      for (let i = 0; i < s.count; i += 1) {
+        coin(s.x + s.wobble[i % s.wobble.length], base - i * STEP, i === s.count - 1 ? 0.5 : (i % 5 === 0 ? -0.25 : 0));
+      }
     }
-
+    for (let i = piles.length - 1; i >= 0; i -= 1) {
+      const p = piles[i];
+      const y = pileTop(p.x) + p.depth;
+      if (y < H + 4) coin(p.x, y, p.depth < 3 ? p.light + 0.35 : p.light - Math.min(1.6, p.depth / 20));
+    }
     for (const f of falling) coin(f.x, f.y, f.light, Math.cos(f.spin));
     ctx.putImageData(img, 0, 0);
+  };
+
+  const land = (f) => {
+    const stack = stacks.find((s) => Math.abs(s.x - f.x) < COIN_W * 0.4);
+    if (stack && stack.count < 120) {
+      stack.count += 1;
+      return;
+    }
+    for (let dx = -8; dx <= 8; dx += 1) {
+      const x = Math.round(f.x) + dx;
+      if (x >= 0 && x < W) bumps[x] = Math.min(H * 0.1, bumps[x] + 0.4 * Math.exp(-(dx * dx) / 18));
+    }
+  };
+
+  const surfaceAt = (x) => {
+    const stack = stacks.find((s) => Math.abs(s.x - x) < COIN_W * 0.4);
+    const stackTop = stack ? floorY() - 3 - stack.count * STEP : Infinity;
+    return Math.min(stackTop, pileTop(x));
   };
 
   const step = () => {
@@ -142,15 +192,10 @@ export function mountTokenSea(canvas, { content } = {}) {
       f.x += f.vx;
       f.spin += f.vs;
       if (f.y >= surfaceAt(f.x) - 1) {
-        // Land: raise the sea a little around the impact
-        for (let dx = -8; dx <= 8; dx += 1) {
-          const x = Math.round(f.x) + dx;
-          if (x >= 0 && x < W) bumps[x] = Math.min(H * 0.12, bumps[x] + 0.35 * Math.exp(-(dx * dx) / 18));
-        }
+        land(f);
         falling.splice(i, 1);
       }
     }
-    // Landed coins slowly settle back into the sea
     for (let x = 0; x < W; x += 1) {
       if (bumps[x] > 0.01) {
         bumps[x] *= 0.997;
@@ -165,14 +210,11 @@ export function mountTokenSea(canvas, { content } = {}) {
     if (!raf) raf = requestAnimationFrame(step);
   }
 
-  // Each gutter gets one narrow stream, so falling coins read as a waterfall
-  const streams = () => gutters().map(([a, b]) => a + (b - a) * 0.5);
-
   const pour = (amount) => {
-    const lanes = streams();
     const rand = Math.random;
     for (let n = 0; n < amount; n += 1) {
-      const center = lanes[Math.floor(rand() * lanes.length)];
+      const [a, b] = lanes[Math.floor(rand() * lanes.length)];
+      const center = a + (b - a) * 0.5;
       const spread = (rand() + rand() + rand() - 1.5) * 7;
       falling.push({
         x: center + spread,
@@ -184,24 +226,37 @@ export function mountTokenSea(canvas, { content } = {}) {
         light: rand() * 0.6 - 0.2,
       });
     }
-    if (falling.length > 220) falling.splice(0, falling.length - 220);
+    if (falling.length > 200) falling.splice(0, falling.length - 200);
     schedule();
   };
 
+  function update() {
+    const vh = window.innerHeight;
+    reveal = Math.max(0, Math.min(1, (window.scrollY - START) / (vh * 0.9)));
+
+    // Clear zone: the content column stays empty above the lowest visible chart
+    const rect = content?.getBoundingClientRect();
+    let clearY = -1;
+    for (const el of avoid) {
+      const r = el.getBoundingClientRect();
+      if (r.bottom > 0 && r.top < vh) clearY = Math.max(clearY, Math.ceil((r.bottom + 12) / CELL));
+    }
+    clip = rect
+      ? { from: Math.floor((rect.left - 16) / CELL), to: Math.ceil((rect.right + 16) / CELL), y: clearY }
+      : { from: 0, to: 0, y: -1 };
+  }
+
   const onScroll = () => {
-    const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    scrollP = Math.min(1, window.scrollY / max);
+    update();
     const dy = Math.abs(window.scrollY - lastY);
     lastY = window.scrollY;
-    if (!reduced && dy > 0) pour(Math.min(12, Math.ceil(dy / 45)));
+    // Waterfalls only once the hoard is in view
+    if (!reduced && reveal > 0.15 && dy > 0) pour(Math.min(10, Math.ceil(dy / 50)));
     else schedule();
   };
 
   window.addEventListener('resize', resize);
   window.addEventListener('scroll', onScroll, { passive: true });
   resize();
-  onScroll();
-  // A first trickle so the waterfalls are visible before anyone scrolls
-  if (!reduced) pour(14);
   draw();
 }

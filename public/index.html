@@ -110,7 +110,7 @@
     </section>
 
     <footer>
-      <span>open source · MIT · logos belong to their owners</span>
+      <span>by <a href="https://patrickbrown.dev">bicrick</a> · open source · MIT · logos belong to their owners</span>
       <a href="https://github.com/bicrick/tokentracker">github.com/bicrick/tokentracker</a>
     </footer>
   </div>
@@ -121,7 +121,10 @@
     import { mountCoin } from '/coin.js';
     import { mountTokenSea } from '/sea.js';
 
-    mountTokenSea(document.getElementById('sea'), { content: document.querySelector('.wrap') });
+    mountTokenSea(document.getElementById('sea'), {
+      content: document.querySelector('.wrap'),
+      avoid: [document.getElementById('demo')],
+    });
 
 
 
