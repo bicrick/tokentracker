@@ -20,7 +20,6 @@ const COIN_W = 13;
 const COIN_H = 4;
 const STEP = 2;        // stacked coin spacing
 const GRAVITY = 0.09;
-const START = 160;     // px of scroll before anything appears
 
 function rng(seed) {
   let s = seed % 2147483647 || 1;
@@ -30,7 +29,7 @@ function rng(seed) {
   };
 }
 
-export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
+export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
   const ctx = canvas.getContext('2d', { alpha: true });
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -75,20 +74,25 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
     }
   };
 
+  let groundCells = 0;
+
+  // The canvas sits in the page above the footer, so the hoard scrolls in with
+  // the content instead of fading in on a fixed layer.
   const resize = () => {
-    W = Math.ceil(window.innerWidth / CELL);
-    H = Math.ceil(window.innerHeight / CELL);
+    W = Math.ceil(canvas.clientWidth / CELL);
+    H = Math.ceil(canvas.clientHeight / CELL);
+    groundCells = ground ? Math.ceil(ground.offsetHeight / CELL) : 0;
     canvas.width = W;
     canvas.height = H;
     img = ctx.createImageData(W, H);
     bumps = new Float32Array(W);
     build();
     update();
+    draw(); // resizing a canvas clears it
   };
 
-  // Scene rises from below the fold as the page scrolls
-  const offset = () => (1 - reveal) * H * 0.75;
-  const floorY = () => H - 2 + offset();
+  // Stacks stand on the footer's top edge
+  const floorY = () => H - groundCells - 1;
   const pileTop = (x) => {
     const mound = Math.max(0, Math.sin(x / 31 + 0.7)) * 9 + Math.max(0, Math.sin(x / 13 + 2)) * 4 + 2;
     const lower = inGutter(x) ? 2.4 : 0.45; // keep the middle low and calm
@@ -96,7 +100,7 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
   };
 
   const put = (x, y, rgb) => {
-    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    if (x < 0 || y < 0 || x >= W || y > H - groundCells - 1) return; // nothing below the ground line
     if (x >= clip.from && x < clip.to && y < clip.y) return; // never over the charts
     const i = (y * W + x) * 4;
     img.data[i] = rgb[0];
@@ -132,16 +136,13 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
 
   const draw = () => {
     img.data.fill(0);
-    if (reveal <= 0) {
-      ctx.putImageData(img, 0, 0);
-      return;
-    }
 
-    // Low blue band along the bottom only
-    const band = H * 0.18;
-    const top = H - band * reveal;
-    for (let y = Math.max(0, Math.floor(top)); y < H; y += 1) {
-      const t = (y - top) / (H - top || 1);
+    // Low blue band rising from the ground
+    const floor = floorY();
+    const band = H * 0.2;
+    const top = floor - band;
+    for (let y = Math.max(0, Math.floor(top)); y <= floor; y += 1) {
+      const t = (y - top) / (floor - top || 1);
       for (let x = 0; x < W; x += 1) {
         const v = t ** 1.8 * 2.4 - 0.5 + Math.sin(x / 19) * 0.12;
         if (v > bayer(x, y)) put(x, y, pick(BLUE, v, x, y));
@@ -218,7 +219,8 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
       const spread = (rand() + rand() + rand() - 1.5) * 7;
       falling.push({
         x: center + spread,
-        y: -8 - rand() * 30,
+        // Start just above the visible part of the canvas
+        y: Math.max(-8, -canvas.getBoundingClientRect().top / CELL) - 8 - rand() * 20,
         vx: spread * 0.006,
         vy: rand() * 0.6,
         spin: rand() * Math.PI * 2,
@@ -232,16 +234,16 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
 
   function update() {
     const vh = window.innerHeight;
-    // Only near the bottom of the page: the hoard is the payoff for scrolling
-    const remaining = document.documentElement.scrollHeight - vh - window.scrollY;
-    reveal = Math.max(0, Math.min(1, 1 - (remaining - START) / (vh * 0.9)));
+    // How much of the hoard is on screen; waterfalls only pour once it's visible
+    const cr = canvas.getBoundingClientRect();
+    reveal = Math.max(0, Math.min(1, (vh - cr.top) / cr.height));
 
     // Clear zone: the content column stays empty above the lowest visible chart
     const rect = content?.getBoundingClientRect();
     let clearY = -1;
     for (const el of avoid) {
       const r = el.getBoundingClientRect();
-      if (r.bottom > 0 && r.top < vh) clearY = Math.max(clearY, Math.ceil((r.bottom + 12) / CELL));
+      if (r.bottom > cr.top) clearY = Math.max(clearY, Math.ceil((r.bottom - cr.top + 12) / CELL));
     }
     clip = rect
       ? { from: Math.floor((rect.left - 16) / CELL), to: Math.ceil((rect.right + 16) / CELL), y: clearY }
@@ -253,7 +255,7 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
     const dy = Math.abs(window.scrollY - lastY);
     lastY = window.scrollY;
     // Waterfalls only once the hoard is in view
-    if (!reduced && reveal > 0.15 && dy > 0) pour(Math.min(10, Math.ceil(dy / 50)));
+    if (!reduced && reveal > 0.25 && dy > 0) pour(Math.min(10, Math.ceil(dy / 50)));
     else schedule();
   };
 
@@ -261,4 +263,5 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
   window.addEventListener('scroll', onScroll, { passive: true });
   resize();
   draw();
+  return { resize };
 }

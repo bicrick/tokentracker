@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=9">
+  <link rel="stylesheet" href="/style.css?v=10">
 </head>
 <body>
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -118,14 +118,15 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=9';
-    import { mountDemo } from '/demo.js?v=9';
-    import { mountCoin } from '/coin.js?v=9';
-    import { mountTokenSea } from '/sea.js?v=9';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=10';
+    import { mountDemo } from '/demo.js?v=10';
+    import { mountCoin } from '/coin.js?v=10';
+    import { mountTokenSea } from '/sea.js?v=10';
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
       avoid: [document.getElementById('demo')],
+      ground: document.querySelector('footer'),
     });
 
 
