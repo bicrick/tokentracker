@@ -126,9 +126,19 @@ export async function task(text, fn, done) {
 function readLine(prompt) {
   return new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin, output: out });
+    let answered = false;
     rl.question(prompt, (answer) => {
+      answered = true;
       rl.close();
       resolve(answer);
+    });
+    // stdin ended (no terminal, nothing piped): fail clearly instead of hanging
+    rl.on('close', () => {
+      if (answered) return;
+      line();
+      line(`  ${c.red('No input available.')} Run this in a terminal, or pass flags, e.g.`);
+      line(`  ${c.gray('init --yes --device <name> --hosted --handle <handle> --email <you@example.com>')}`);
+      process.exit(1);
     });
   });
 }
