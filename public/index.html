@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>tokentracker · your AI tokens, in one place</title>
+  <title>tokentracker · track your AI tokens, in one place</title>
   <meta name="description" content="Track token usage across Cursor, Claude Code, OpenCode and GitHub Copilot on all your computers. One public profile. Only daily counts leave your machine.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=12">
+  <link rel="stylesheet" href="/style.css?v=13">
 </head>
 <body>
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -22,10 +22,10 @@
 
     <div class="hero">
       <div class="hero-copy">
-    <h1>Your AI tokens, in one place.</h1>
+    <h1>Track your AI tokens, in one place.</h1>
     <p class="lede">
-      Track token usage across Cursor, Claude Code, OpenCode and GitHub Copilot
-      on all your computers. Share one public profile.
+      Every token you spend, across all your coding tools and computers.
+      Share it as one public profile.
     </p>
 
     <div class="cmd">
@@ -116,10 +116,10 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=12';
-    import { mountDemo } from '/demo.js?v=12';
-    import { mountCoin } from '/coin.js?v=12';
-    import { mountTokenSea } from '/sea.js?v=12';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=13';
+    import { mountDemo } from '/demo.js?v=13';
+    import { mountCoin } from '/coin.js?v=13';
+    import { mountTokenSea } from '/sea.js?v=13';
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
