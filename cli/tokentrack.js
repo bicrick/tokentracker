@@ -14,6 +14,13 @@ const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.
 const LOG_PATH = path.join(os.homedir(), 'Library', 'Logs', 'tokentrack.log');
 const SELF = fileURLToPath(import.meta.url);
 
+// node:sqlite is stable enough for read-only use; hide its experimental warning
+const emitWarning = process.emitWarning.bind(process);
+process.emitWarning = (warning, ...args) => {
+  if (String(warning).includes('SQLite')) return;
+  emitWarning(warning, ...args);
+};
+
 function readConfig() {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
@@ -50,9 +57,9 @@ function formatTokens(n) {
   return String(n);
 }
 
-function collect() {
+async function collect() {
   const rows = new Map();
-  const report = [collectOpencode(rows), collectClaude(rows)];
+  const report = [await collectOpencode(rows), collectClaude(rows)];
   return {
     report,
     sources: report.filter((r) => !r.skipped).map((r) => r.source),
@@ -62,7 +69,7 @@ function collect() {
 
 async function sync(flags) {
   const config = readConfig();
-  const { report, sources, rows } = collect();
+  const { report, sources, rows } = await collect();
 
   const totals = {};
   for (const r of rows) {

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
 import { addRow, dayOf } from '../day.js';
 
 const DB_PATH = process.env.OPENCODE_DB
@@ -10,9 +10,10 @@ const DB_PATH = process.env.OPENCODE_DB
 // OpenCode stores assistant messages (with token counts) in `session_message`
 // (current schema) and `message` (legacy schema). Messages from the legacy
 // table were migrated, so we prefer v2 and only fall back when it's missing.
-export function collectOpencode(rows) {
+export async function collectOpencode(rows) {
   if (!fs.existsSync(DB_PATH)) return { source: 'opencode', skipped: 'db not found' };
 
+  const { DatabaseSync } = await import('node:sqlite');
   const db = new DatabaseSync(DB_PATH, { readOnly: true });
   const hasTable = (name) => !!db
     .prepare("select 1 from sqlite_master where type='table' and name=?")
