@@ -71,7 +71,7 @@ function timeline(totals) {
   const W = 46;
   const row = (plain, html) => `  ${span('t-gray', '│')}  ${html}${' '.repeat(Math.max(0, W - 2 - plain.length))}${span('t-gray', '│')}`;
   return [
-    { type: 'type', prefix: `${span('t-gray', '$')} `, text: 'npx github:bicrick/tokentracker init', w: 3 },
+    { type: 'type', prefix: `${span('t-gray', '$')} `, text: 'npx github:bicrick/tokentracker init', w: 6 },
     { type: 'lines', w: 0.8, lines: [
       '',
       `  ${span('t-gray', `╭${'─'.repeat(W)}╮`)}`,

@@ -209,7 +209,7 @@ h1 {
 .demo-track::after {
   content: '';
   display: block;
-  height: 140vh;
+  height: 175vh;
 }
 
 .demo-track.static::after { display: none; }
