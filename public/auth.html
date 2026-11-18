@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Confirm · tokentracker</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=28">
+  <link rel="stylesheet" href="/mobile.css?v=28" media="(max-width: 720px)">
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
+    </nav>
+
+    <main class="auth-card" id="card">
+      <h1 id="title">Checking your link…</h1>
+      <p class="lede" id="detail"></p>
+      <button type="button" class="auth-button" id="confirm" hidden>Confirm</button>
+      <p class="note" id="after"></p>
+    </main>
+  </div>
+
+  <script type="module">
+    // The email link only opens this page; nothing happens until the button is
+    // pressed, so email scanners that prefetch links can't sign anyone in.
+    const token = new URLSearchParams(location.search).get('token') || '';
+    const title = document.getElementById('title');
+    const detail = document.getElementById('detail');
+    const button = document.getElementById('confirm');
+    const after = document.getElementById('after');
+    history.replaceState(null, '', '/auth'); // keep the token out of history
+
+    const fail = (msg) => {
+      title.textContent = 'This link has expired';
+      detail.textContent = msg || 'Links work once and expire after 15 minutes. Request a new one from the terminal or the settings page.';
+      button.hidden = true;
+    };
+
+    const res = await fetch(`/api/auth/describe?token=${encodeURIComponent(token)}`).catch(() => null);
+    const info = res?.ok ? await res.json() : null;
+    if (!info?.usable) {
+      fail();
+    } else {
+      if (info.purpose === 'signup') {
+        title.textContent = `Create @${info.handle}?`;
+        detail.textContent = `For ${info.email}. Your terminal${info.device ? ` on ${info.device}` : ''} will finish setting up as soon as you confirm.`;
+        button.textContent = 'Create account';
+      } else if (info.purpose === 'login') {
+        title.textContent = `Sign in${info.device ? ` on ${info.device}` : ''}?`;
+        detail.textContent = `For ${info.email}. This gives that machine its own key, which you can revoke later in settings.`;
+        button.textContent = 'Sign in';
+      } else {
+        title.textContent = 'Open your settings?';
+        detail.textContent = `Signed in as ${info.email} on this browser for 30 days.`;
+        button.textContent = 'Continue';
+      }
+      button.hidden = false;
+    }
+
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'One moment…';
+      const r = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token }),
+      }).catch(() => null);
+      const out = r ? await r.json().catch(() => ({})) : {};
+      if (!r?.ok) return fail(out.error);
+      if (out.purpose === 'web') {
+        location.href = '/settings';
+        return;
+      }
+      button.hidden = true;
+      title.textContent = out.purpose === 'signup' ? `@${out.handle} is ready` : `Signed in as @${out.handle}`;
+      detail.textContent = 'You can close this tab. Your terminal is finishing up.';
+      after.innerHTML = `Your profile: <a href="/u/${out.handle}">/u/${out.handle}</a> · <a href="/settings">settings</a>`;
+    });
+  </script>
+</body>
+</html>

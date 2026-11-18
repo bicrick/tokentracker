@@ -200,6 +200,44 @@ async function sync(flags) {
     });
 }
 
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+
+/**
+ * Email sign-in: ask the server to send a link, then wait while the user clicks
+ * it. Returns { key, handle } (a key for this machine only) or null.
+ */
+async function emailSignIn({ email, purpose, handle, cursorHandle, device }) {
+  const start = await task('Sending a sign-in link', () => api(HOSTED, '/api/auth/start', {
+    method: 'POST',
+    body: { email, purpose, handle, cursorHandle: cursorHandle || null, device },
+  }).catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Sent a link to ${c.blue(email)}` : 'Could not send the link'));
+  if (!start.ok) {
+    line(`    ${c.red(start.json.error || `status ${start.status}`)}`);
+    return null;
+  }
+
+  const wait = spinner(`Waiting for you to click the link in your email ${c.gray('(ctrl+c to cancel)')}`);
+  const deadline = Date.now() + (start.json.expiresIn || 900) * 1000;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, (start.json.interval || 3) * 1000));
+    let res;
+    try {
+      res = await api(HOSTED, '/api/auth/poll', { method: 'POST', body: { deviceCode: start.json.deviceCode } });
+    } catch {
+      continue; // transient network blip: keep waiting
+    }
+    const status = res.json.status;
+    if (status === 'approved') {
+      wait.succeed(purpose === 'signup' ? `Created ${c.blue(`@${res.json.handle}`)}` : `Signed in as ${c.blue(`@${res.json.handle}`)}`);
+      return { key: res.json.key, handle: res.json.handle };
+    }
+    if (status !== 'pending' || Date.now() > deadline) {
+      wait.fail(status === 'expired' || Date.now() > deadline ? 'The link expired. Run init again.' : `Sign-in failed (${status})`);
+      return null;
+    }
+  }
+}
+
 // ─── init ──────────────────────────────────────────────────────────────────────
 
 async function init(flags) {
@@ -232,7 +270,15 @@ async function init(flags) {
     line();
   }
 
-  // 3. Account
+  // 3. Machine name (sign-in emails mention it, and each machine gets its own key)
+  const device = flags.device && flags.device !== true ? flags.device
+    : existing.device && !flags.reset ? existing.device
+      : await input('Name this machine', {
+        initial: defaultDevice(),
+        validate: (v) => (/^[\w.-]{1,40}$/.test(v) ? null : 'Use up to 40 letters, numbers, dots or dashes'),
+      });
+
+  // 4. Account
   let { server, key, handle } = existing;
   let cursorHandle = null;
 
@@ -240,12 +286,15 @@ async function init(flags) {
     line(`  ${sym.ok} Already connected as ${c.blue(`@${handle || 'unknown'}`)} ${c.gray(`on ${new URL(server).host}`)}`);
     line(`    ${c.gray('run with --reset to start over')}`);
   } else {
-    const mode = flags.server || flags.key ? 'existing'
+    line();
+    const mode = flags.server || flags.key ? 'key'
       : flags.hosted ? 'hosted'
-        : await select('Where should your usage live?', [
-          { value: 'hosted', label: 'Create a free account', hint: `tokentracker cloud · ${new URL(HOSTED).host}` },
-          { value: 'existing', label: 'Connect an existing account', hint: 'another machine of yours, or your own self-hosted server' },
-        ]);
+        : flags.email ? 'email'
+          : await select('Where should your usage live?', [
+            { value: 'hosted', label: 'Create a free account', hint: `tokentracker cloud · ${new URL(HOSTED).host}` },
+            { value: 'email', label: 'Sign in with email', hint: 'you already have an account (another machine)' },
+            { value: 'key', label: 'Use a key or my own server', hint: 'paste a key, or point at a self-hosted server' },
+          ]);
     line();
 
     if (mode === 'hosted') {
@@ -258,19 +307,44 @@ async function init(flags) {
         handle = handle.toLowerCase();
         cursorHandle = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
           : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
+        const email = flags.email !== undefined ? (flags.email === true ? '' : flags.email)
+          : await input('Email', {
+            placeholder: 'to sign in on other machines and recover your account · enter to skip',
+            validate: (v) => (!v || EMAIL_RE.test(v) ? null : 'That doesn\'t look like an email address'),
+          });
 
+        if (email) {
+          const out = await emailSignIn({ email, purpose: 'signup', handle, cursorHandle, device });
+          if (out) {
+            ({ key } = out);
+            handle = out.handle;
+            break;
+          }
+          if (flags.handle) process.exit(1);
+          continue;
+        }
+
+        // No email: an instant account with a single key (no recovery)
         const res = await task('Creating your account', () => api(server, '/api/signup', {
           method: 'POST',
           body: { handle, cursorHandle: cursorHandle || null },
         }).catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Created ${c.blue(`@${handle}`)}` : 'Signup failed'));
-
         if (res.ok) {
           key = res.json.key;
+          line(`    ${c.gray('No email: keep your config safe, it is the only way back into this account.')}`);
           break;
         }
         line(`    ${c.red(res.json.error || `status ${res.status}`)}`);
         if (flags.handle) process.exit(1);
       }
+    } else if (mode === 'email') {
+      server = HOSTED;
+      const email = flags.email && flags.email !== true ? flags.email : await input('Email on your account', {
+        validate: (v) => (EMAIL_RE.test(v) ? null : 'That doesn\'t look like an email address'),
+      });
+      const out = await emailSignIn({ email, purpose: 'login', device });
+      if (!out) process.exit(1);
+      ({ key, handle } = out);
     } else {
       server = flags.server && flags.server !== true ? flags.server
         : await input('Server URL', { initial: HOSTED });
@@ -285,15 +359,6 @@ async function init(flags) {
       handle = me.json.handle;
     }
   }
-
-  // 4. Machine
-  line();
-  const device = flags.device && flags.device !== true ? flags.device
-    : existing.device && !flags.reset ? existing.device
-      : await input('Name this machine', {
-        initial: defaultDevice(),
-        validate: (v) => (/^[\w.-]{1,40}$/.test(v) ? null : 'Use up to 40 letters, numbers, dots or dashes'),
-      });
 
   writeConfig({ server, key, handle, device, connections: connectionSettings });
   const config = readConfig();
@@ -325,7 +390,8 @@ async function init(flags) {
   line(`  ${c.bold('Next')}`);
   line(`  ${sym.dot} More embed styles: ${c.blue(new URL('/embed', server).toString())}`);
   line(`  ${sym.dot} Add another machine: run ${c.blue('npx github:bicrick/tokentracker init')} there and`);
-  line(`    choose ${c.italic('Connect an existing account')} with the key from your config`);
+  line(`    choose ${c.italic('Sign in with email')}`);
+  line(`  ${sym.dot} Manage machines and settings: ${c.blue(new URL('/settings', server).toString())}`);
   line(`  ${sym.dot} Add or change tools: ${c.blue('tokentrack connect')}`);
   line(`  ${sym.dot} See exactly what gets sent: ${c.blue('tokentrack sync --dry')}`);
   line();
@@ -495,7 +561,8 @@ const HELP = `
     tokentrack delete-account    delete your account and all data
 
   ${c.bold('init flags')}
-    --hosted --handle <h> [--cursor <h>]   create a cloud account without prompts
+    --hosted --handle <h> [--cursor <h>] [--email <e>]   create a cloud account
+    --email <e>                            sign in on this machine with email
     --server <url> --key <key>             connect an existing account
     --device <name>  --reset  --no-install  --yes (accept detected tools)
 `;

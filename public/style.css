@@ -1182,3 +1182,70 @@ html.demo-locked body { overflow: hidden; }
 /* profile heatmap and playground cells already outline on hover; keep links lively */
 .chapter a,
 .docs-cta a { transition: color 0.2s ease; }
+
+/* auth + settings */
+.auth-card { max-width: 520px; margin: 88px 0 0; }
+.auth-card h1, .settings h1 { margin-top: 0; white-space: normal; font-size: 32px; }
+.settings { margin-top: 64px; }
+
+.auth-button {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  padding: 11px 18px;
+  background: var(--link);
+  color: var(--on-link);
+  font-family: var(--mono);
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.auth-button:hover { opacity: 0.88; }
+.auth-button:disabled { opacity: 0.6; cursor: default; }
+
+.auth-form { display: flex; gap: 0; max-width: 460px; }
+.auth-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  border-right: 0;
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.nav-button, .link-button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--link);
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+}
+.link-button:hover, .nav-button:hover { text-decoration: underline; }
+
+.settings-block { margin-top: 48px; }
+.settings-block h2 { margin: 0 0 8px; }
+.settings-block .muted { margin: 0 0 14px; font-size: 14px; }
+
+.devices { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.devices li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.devices li .muted { margin: 0; font-size: 12px; }
+.devices li.revoked .device-name { text-decoration: line-through; color: var(--muted); }
+
+.danger-button { background: #c2412d; color: #fff; }

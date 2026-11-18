@@ -35,7 +35,7 @@
         <p>Using your data</p>
         <a href="#profile">Profile</a>
         <a href="#embed">Embed and API</a>
-        <a href="#accounts">Accounts and keys</a>
+        <a href="#accounts">Accounts and sign-in</a>
         <a href="#self-host">Self-hosting</a>
         <p>Reference</p>
         <a href="#cli">CLI</a>
@@ -74,9 +74,8 @@
         <section id="more-computers">
           <h2>More computers</h2>
           <p>
-            Run the same command on each computer and choose <b>Connect an existing account</b>. Paste the key from
-            <code>~/.config/tokentrack/config.json</code> on your first machine, and give each computer its own name.
-            Totals from every machine add up on your profile.
+            Run the same command on each computer and choose <b>Sign in with email</b>. Click the link, and that computer
+            gets its own key. Give each computer its own name; totals from every machine add up on your profile.
           </p>
         </section>
 
@@ -245,13 +244,14 @@ GET /u/you.csv?range=year&amp;group=day</pre>
         </section>
 
         <section id="accounts">
-          <h2>Accounts and keys</h2>
+          <h2>Accounts and sign-in</h2>
           <ul>
             <li><b>Reading is public.</b> Profiles, cards, the web component and the raw API need no login or key.</li>
-            <li><b>Publishing needs an account,</b> which <code>tokentrack init</code> creates for you: you pick a handle and the server returns a secret key once. There's no email or password.</li>
-            <li><b>The key is the only credential.</b> It lives in <code>~/.config/tokentrack/config.json</code> on your machines, is sent as <code>Authorization: Bearer …</code> to upload or change settings, and is stored hashed on the server.</li>
-            <li><b>Lost your key?</b> Copy it from another of your machines' config. If you've lost every copy, the account can't be recovered, so you'd create a new handle.</li>
-            <li><b>Limits:</b> 5 sign-ups per hour per IP address and 120 uploads per hour per account, to keep the free service healthy.</li>
+            <li><b>Sign in with email.</b> <code>init</code> asks for your email and sends a link. Click it, confirm, and your terminal finishes on its own. There are no passwords.</li>
+            <li><b>Each machine gets its own key,</b> stored in <code>~/.config/tokentrack/config.json</code> and kept hashed on the server. On another computer, run <code>init</code> and choose <b>Sign in with email</b>.</li>
+            <li><b>Settings</b> at <a href="/settings">/settings</a> (also by email link): see your machines and revoke one, connect Cursor, or delete your account.</li>
+            <li><b>Skipping email</b> is allowed: you get a single key and no recovery, so keep that config file safe.</li>
+            <li><b>Limits:</b> 5 sign-in emails per hour per address, 10 per hour per IP, 120 uploads per hour per account.</li>
           </ul>
         </section>
 

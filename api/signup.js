@@ -1,4 +1,4 @@
-import { cors, hashKey, newKey, validHandle } from '../lib/auth.js';
+import { cors, hashKey, newKey, OWNER, validHandle } from '../lib/auth.js';
 import { createAccount, ensureSchema } from '../lib/db.js';
 import { refreshCursor } from '../lib/cursor.js';
 import { clientIp, rateLimit, tooMany } from '../lib/ratelimit.js';
@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   const handle = String(req.body?.handle || '').toLowerCase();
   const cursorHandle = req.body?.cursorHandle ? String(req.body.cursorHandle) : null;
 
+  if (handle === OWNER) return res.status(409).json({ error: 'Handle is taken' });
   if (!validHandle(handle)) {
     return res.status(400).json({ error: 'Handle must be 1-30 lowercase letters, numbers or dashes' });
   }

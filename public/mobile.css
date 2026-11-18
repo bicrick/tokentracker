@@ -155,3 +155,6 @@ footer {
 .pg-code { font-size: 10px; }
 
 .reveal-intro h2 { font-size: 22px; }
+
+.auth-card { margin-top: 48px; }
+.devices li { grid-template-columns: 1fr; gap: 4px; }
