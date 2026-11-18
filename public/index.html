@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tokentracker · one heatmap for every AI token you spend</title>
+  <meta name="description" content="Track tokens across Cursor, Claude Code, OpenCode and GitHub Copilot on every machine. One command to set up. Only daily totals leave your machine.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="/">tokentracker</a>
+      <div class="links">
+        <a href="#how">how</a>
+        <a href="#privacy">privacy</a>
+        <a href="https://github.com/bicrick/tokentracker">github</a>
+      </div>
+    </nav>
+
+    <h1>One heatmap for every<br>AI token you spend.</h1>
+    <p class="lede">
+      Cursor, Claude Code, OpenCode, GitHub Copilot. Every tool, every machine,
+      added up in one place. Set up from your terminal in a minute.
+    </p>
+
+    <div class="cmd">
+      <code id="cmd">npx github:bicrick/tokentracker init</code>
+      <button type="button" id="copy">copy</button>
+    </div>
+    <p class="note">Needs Node 22.13+. macOS and Linux.</p>
+
+    <h2>/ live example</h2>
+    <div class="panel">
+      <div class="panel-head">
+        <a href="/u/bicrick">@bicrick</a>
+        <span><span class="big" id="ex-total">…</span> <span class="muted">tokens this year</span></span>
+      </div>
+      <div id="ex-heatmap"></div>
+      <div id="ex-split"></div>
+    </div>
+
+    <h2 id="how">/ how it works</h2>
+    <div class="cells">
+      <div>
+        <span class="num">01</span>
+        <h3>Run init</h3>
+        <p>It finds your local Cursor, Claude Code and OpenCode usage and shows you what it found before anything is sent.</p>
+      </div>
+      <div>
+        <span class="num">02</span>
+        <h3>Pick where it lives</h3>
+        <p>Free on tokentracker cloud, or on your own server. Self-hosting is one Vercel deploy with a free Postgres database.</p>
+      </div>
+      <div>
+        <span class="num">03</span>
+        <h3>It syncs itself</h3>
+        <p>An hourly background job keeps your profile current. Run init on each machine and the totals add up.</p>
+      </div>
+    </div>
+
+    <h2>/ sources</h2>
+    <table>
+      <tr><th>tool</th><th>how</th><th>read from</th></tr>
+      <tr><td>OpenCode<br><span class="muted">incl. GitHub Copilot, any provider</span></td><td>local collector</td><td><code>~/.local/share/opencode/opencode.db</code></td></tr>
+      <tr><td>Claude Code</td><td>local collector</td><td><code>~/.claude/projects/**/*.jsonl</code></td></tr>
+      <tr><td>Cursor</td><td>public profile</td><td><code>cursor.com/@handle</code></td></tr>
+    </table>
+    <p class="note">Next up: Codex CLI, Gemini CLI, and API usage via local admin keys.</p>
+
+    <h2 id="privacy">/ privacy</h2>
+    <p>
+      The collector runs on your machine and uploads <b>only daily token counts per tool and model</b>.
+      Never prompts, code, file paths or API keys. The server rejects any upload with other fields,
+      and <code>tokentrack sync --dry</code> prints the exact payload. This is all of it:
+    </p>
+    <pre>{
+  "device": "laptop",
+  "sources": ["opencode", "claude-code"],
+  "rows": [
+    { "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
+      "input": 381, "output": 138, "reasoning": 63, "cacheRead": 8448, "cacheWrite": 0, "messages": 1 }
+  ]
+}</pre>
+    <p class="note">Your key is stored hashed. <code>tokentrack delete-account</code> removes everything.</p>
+
+    <h2>/ commands</h2>
+    <table>
+      <tr><td><code>tokentrack init</code></td><td>guided setup: sign up or connect an existing account</td></tr>
+      <tr><td><code>tokentrack sync --dry</code></td><td>show exactly what would be uploaded</td></tr>
+      <tr><td><code>tokentrack status</code></td><td>config and recent sync logs</td></tr>
+      <tr><td><code>tokentrack uninstall</code></td><td>stop the hourly sync</td></tr>
+      <tr><td><code>tokentrack delete-account</code></td><td>delete your account and all data</td></tr>
+    </table>
+
+    <h2>/ put it on your site</h2>
+    <pre>const res = await fetch('https://tokentracker-nu.vercel.app/api/activity?handle=you');
+const { activityCounts } = await res.json();
+// [{ date: "2026-11-17", count: 259485947, sources: { cursor: 3853940, opencode: 255632007 } }]</pre>
+
+    <footer>
+      <span>open source · MIT</span>
+      <a href="https://github.com/bicrick/tokentracker">github.com/bicrick/tokentracker</a>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { fetchActivity, renderHeatmap, renderSplit, wireCopy, yearTotals, formatCount } from '/app.js';
+    wireCopy(document.getElementById('copy'), document.getElementById('cmd').textContent);
+    fetchActivity('bicrick').then((data) => {
+      const { total, sources } = yearTotals(data);
+      document.getElementById('ex-total').textContent = formatCount(total);
+      renderHeatmap(document.getElementById('ex-heatmap'), data);
+      renderSplit(document.getElementById('ex-split'), sources);
+    }).catch(() => {});
+  </script>
+</body>
+</html>

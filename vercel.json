@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/u/:handle", "destination": "/u.html" }
+  ],
   "crons": [
     { "path": "/api/cron/cursor", "schedule": "0 6 * * *" }
   ]

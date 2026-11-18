@@ -1,4 +1,4 @@
-import { ACCOUNT, cors, isAuthorizedIngest } from '../lib/auth.js';
+import { accountFromRequest, cors } from '../lib/auth.js';
 import { ensureSchema, replaceUsage } from '../lib/db.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,15 +31,16 @@ export default async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!isAuthorizedIngest(req)) return res.status(401).json({ error: 'Unauthorized' });
-
   const error = validate(req.body);
   if (error) return res.status(400).json({ error });
 
   try {
     await ensureSchema();
-    await replaceUsage({ account: ACCOUNT, ...req.body });
-    return res.status(200).json({ ok: true, rows: req.body.rows.length });
+    const account = await accountFromRequest(req);
+    if (!account) return res.status(401).json({ error: 'Unauthorized' });
+    const { device, sources, rows } = req.body;
+    await replaceUsage({ account: account.handle, device, sources, rows });
+    return res.status(200).json({ ok: true, account: account.handle, rows: rows.length });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to store usage' });

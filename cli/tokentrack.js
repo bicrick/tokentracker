@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
+import readline from 'node:readline/promises';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,6 +14,9 @@ const LABEL = 'com.tokentrack.sync';
 const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
 const LOG_PATH = path.join(os.homedir(), 'Library', 'Logs', 'tokentrack.log');
 const SELF = fileURLToPath(import.meta.url);
+const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker-nu.vercel.app';
+// Stable copy of the CLI for the background job, so it survives npx cache cleanup
+const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
 
 // node:sqlite is stable enough for read-only use; hide its experimental warning
 const emitWarning = process.emitWarning.bind(process);
@@ -106,6 +110,127 @@ async function sync(flags) {
   if (!res.ok) process.exit(1);
 }
 
+async function api(server, pathname, { method = 'GET', key, body } = {}) {
+  const res = await fetch(new URL(pathname, server), {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...(key ? { authorization: `Bearer ${key}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, json };
+}
+
+function defaultDevice() {
+  return os.hostname().replace(/\.local$/, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 40);
+}
+
+async function init(flags) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const ask = async (q, fallback = '') => {
+    const answer = (await rl.question(fallback ? `${q} (${fallback}): ` : `${q}: `)).trim();
+    return answer || fallback;
+  };
+
+  console.log('\ntokentrack: one heatmap for every AI token you spend.');
+  console.log('Only daily token counts leave this machine. Never prompts, code, or keys.\n');
+
+  // Preview what this machine would contribute before asking anything else
+  const { report, rows } = await collect();
+  for (const r of report) {
+    console.log(r.skipped ? `  ${r.source}: not found` : `  ${r.source}: ${r.messages} messages found`);
+  }
+  console.log(`  ${rows.length} day/model rows ready to upload\n`);
+
+  const existing = readConfig();
+  let { server, key } = existing;
+  let handle = existing.handle;
+
+  if (server && key && !flags.reset) {
+    console.log(`Already connected to ${server} as ${handle || 'unknown'}. Use --reset to start over.\n`);
+  } else {
+    let mode = flags.server ? 'self' : flags.hosted ? 'hosted' : '';
+    while (!['hosted', 'self'].includes(mode)) {
+      console.log('Where should your usage be stored?');
+      console.log(`  1) new free account on tokentracker cloud (${HOSTED})`);
+      console.log('  2) existing account: another machine, or your own self-hosted server');
+      const choice = await ask('Choose 1 or 2', '1');
+      mode = choice === '2' ? 'self' : choice === '1' ? 'hosted' : '';
+    }
+
+    if (mode === 'hosted') {
+      server = HOSTED;
+      for (;;) {
+        handle = (flags.handle || await ask('Pick a public handle (letters, numbers, dashes)')).toLowerCase();
+        const cursorHandle = flags.cursor ?? await ask('Your Cursor handle from cursor.com/@handle (blank to skip)', '');
+        const res = await api(server, '/api/signup', {
+          method: 'POST',
+          body: { handle, cursorHandle: cursorHandle || null },
+        });
+        if (res.ok) {
+          key = res.json.key;
+          break;
+        }
+        console.log(`  ${res.json.error || `signup failed (${res.status})`}`);
+        flags.handle = undefined;
+        flags.cursor = undefined;
+      }
+    } else {
+      server = flags.server || await ask('Server URL', HOSTED);
+      key = flags.key || await ask('Ingest key');
+      const me = await api(server, '/api/account', { key });
+      if (!me.ok) {
+        console.error(`Could not authenticate with ${server} (${me.status}).`);
+        rl.close();
+        process.exit(1);
+      }
+      handle = me.json.handle;
+    }
+  }
+
+  const device = flags.device || existing.device || await ask('Name this machine', defaultDevice());
+  rl.close();
+
+  writeConfig({ server, key, handle, device });
+  console.log(`\nSaved ${CONFIG_PATH} (keep it private, it holds your key)`);
+
+  await sync({});
+
+  if (process.platform === 'darwin' && !flags['no-install']) {
+    install();
+  } else if (process.platform !== 'darwin') {
+    console.log('\nTo sync hourly, add this to your crontab:');
+    console.log(`  0 * * * * ${process.execPath} ${copyCli()} sync`);
+  }
+
+  console.log(`\nDone. Your profile: ${new URL(`/u/${handle}`, server)}`);
+  console.log(`On another machine: run init, choose "existing account", and paste your key`);
+  console.log(`(it's in ${CONFIG_PATH}). Give each machine a different name.`);
+}
+
+async function deleteAccount() {
+  const { server, key, handle } = readConfig();
+  if (!server || !key) {
+    console.error('Not logged in.');
+    process.exit(1);
+  }
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = (await rl.question(`Delete ${handle} and all its data from ${server}? Type the handle to confirm: `)).trim();
+  rl.close();
+  if (answer !== handle) {
+    console.log('Cancelled.');
+    return;
+  }
+  const res = await api(server, '/api/account', { method: 'DELETE', key });
+  console.log(res.ok ? 'Account deleted.' : `Failed: ${res.json.error || res.status}`);
+  if (res.ok) {
+    uninstall();
+    fs.rmSync(CONFIG_PATH, { force: true });
+  }
+}
+
 function login(flags) {
   if (!flags.server || !flags.key) {
     console.error('Usage: tokentrack login --server <url> --key <key> [--device <name>]');
@@ -117,8 +242,20 @@ function login(flags) {
   console.log(`Saved ${CONFIG_PATH}`);
 }
 
-function plist() {
-  const args = [process.execPath, SELF, 'sync'];
+function copyCli() {
+  const src = path.dirname(SELF);
+  const dest = path.join(INSTALL_DIR, 'cli');
+  if (src === dest) return path.join(dest, 'tokentrack.js');
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(INSTALL_DIR, { recursive: true });
+  fs.cpSync(src, dest, { recursive: true });
+  // node needs to know these are ES modules
+  fs.writeFileSync(path.join(INSTALL_DIR, 'package.json'), '{ "type": "module" }\n');
+  return path.join(dest, 'tokentrack.js');
+}
+
+function plist(entry) {
+  const args = [process.execPath, entry, 'sync'];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -158,7 +295,7 @@ function install() {
   } catch {
     // not loaded yet
   }
-  fs.writeFileSync(PLIST_PATH, plist());
+  fs.writeFileSync(PLIST_PATH, plist(copyCli()));
   execFileSync('launchctl', ['load', PLIST_PATH]);
   console.log(`Installed hourly sync (${PLIST_PATH})\nLogs: ${LOG_PATH}`);
 }
@@ -179,6 +316,7 @@ function status() {
   const config = readConfig();
   console.log(`config:  ${CONFIG_PATH}`);
   console.log(`server:  ${config.server || '(not set)'}`);
+  console.log(`handle:  ${config.handle || '(unknown)'}`);
   console.log(`device:  ${config.device || os.hostname()}`);
   console.log(`key:     ${config.key ? `${config.key.slice(0, 4)}…` : '(not set)'}`);
   console.log(`hourly:  ${fs.existsSync(PLIST_PATH) ? 'installed' : 'not installed'}`);
@@ -191,11 +329,13 @@ function status() {
 const HELP = `tokentrack - track AI token usage across tools and devices
 
 Usage:
+  tokentrack init             guided setup: sign up (free) or connect your own server
   tokentrack login --server <url> --key <key> [--device <name>]
   tokentrack sync [--dry]     collect local usage and upload daily totals
   tokentrack install          run sync hourly in the background (macOS)
   tokentrack uninstall        stop the hourly sync
   tokentrack status           show config and recent sync logs
+  tokentrack delete-account   delete your account and all data on the server
 
 Only daily token counts per tool and model are uploaded.
 Run \`tokentrack sync --dry\` to see the exact payload.`;
@@ -204,7 +344,9 @@ const [command, ...rest] = process.argv.slice(2);
 const flags = parseFlags(rest);
 
 switch (command) {
+  case 'init': await init(flags); break;
   case 'login': login(flags); break;
+  case 'delete-account': await deleteAccount(); break;
   case 'sync': await sync(flags); break;
   case 'install': install(); break;
   case 'uninstall': uninstall(); break;

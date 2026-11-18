@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tokentracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="/">tokentracker</a>
+      <div class="links">
+        <a href="/">get your own</a>
+        <a href="https://github.com/bicrick/tokentracker">github</a>
+      </div>
+    </nav>
+
+    <h1 id="handle">…</h1>
+    <p class="lede" id="summary">&nbsp;</p>
+
+    <div class="panel" id="panel">
+      <div id="heatmap"></div>
+      <div id="split"></div>
+    </div>
+
+    <h2>/ embed</h2>
+    <pre id="embed"></pre>
+
+    <footer>
+      <span id="devices"></span>
+      <a href="/">tokentracker</a>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { fetchActivity, renderHeatmap, renderSplit, yearTotals, formatCount } from '/app.js';
+
+    const handle = location.pathname.split('/').filter(Boolean)[1] || '';
+    document.getElementById('handle').textContent = `@${handle}`;
+    document.title = `@${handle} · tokentracker`;
+    document.getElementById('embed').textContent =
+      `fetch('${location.origin}/api/activity?handle=${handle}')`;
+
+    fetchActivity(handle).then((data) => {
+      const { total, sources, days } = yearTotals(data);
+      const active = days.filter((d) => d.count > 0).length;
+      document.getElementById('summary').textContent =
+        `${formatCount(total)} tokens this year across ${Object.keys(sources).length} tools, ${active} active days.`;
+      renderHeatmap(document.getElementById('heatmap'), data);
+      renderSplit(document.getElementById('split'), sources);
+      const machines = new Set((data.devices || []).map((d) => d.device).filter((d) => d !== 'cursor.com'));
+      document.getElementById('devices').textContent =
+        machines.size ? `${machines.size} machine${machines.size > 1 ? 's' : ''} syncing` : '';
+    }).catch((err) => {
+      document.getElementById('summary').textContent =
+        err.message === 'not found' ? 'No profile with that handle yet.' : 'Could not load this profile.';
+      document.getElementById('panel').hidden = true;
+    });
+  </script>
+</body>
+</html>
