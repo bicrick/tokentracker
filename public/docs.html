@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docs · tokentracker</title>
+  <meta name="description" content="How tokentracker works: installation, supported tools, connections, background sync, privacy, embedding, self-hosting and CLI reference.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/style.css?v=16">
+</head>
+<body class="docs-page">
+  <div class="wrap wide">
+    <nav>
+      <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
+      <div class="links">
+        <a href="/docs" aria-current="page">Docs</a>
+        <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
+      </div>
+    </nav>
+
+    <div class="docs">
+      <aside class="docs-nav" aria-label="Docs">
+        <p>Getting started</p>
+        <a href="#introduction">Introduction</a>
+        <a href="#installation">Installation</a>
+        <a href="#more-computers">More computers</a>
+        <p>Concepts</p>
+        <a href="#tools">Supported tools</a>
+        <a href="#connections">Connections</a>
+        <a href="#sync">Background sync</a>
+        <a href="#privacy">Privacy</a>
+        <p>Using your data</p>
+        <a href="#profile">Profile</a>
+        <a href="#embed">Embed and API</a>
+        <a href="#self-host">Self-hosting</a>
+        <p>Reference</p>
+        <a href="#cli">CLI</a>
+        <a href="#config">Config file</a>
+        <a href="#api">HTTP API</a>
+        <a href="#faq">FAQ</a>
+      </aside>
+
+      <main class="docs-body">
+        <section id="introduction">
+          <h1>Introduction</h1>
+          <p>
+            tokentracker adds up every AI token you spend across your coding tools and every computer you use,
+            into one public profile and heatmap you can put on your site.
+          </p>
+          <p>
+            A small collector runs on your machine, reads the usage your tools already record locally, and uploads
+            only daily totals per tool and model. It's free and open source (MIT).
+          </p>
+        </section>
+
+        <section id="installation">
+          <h2>Installation</h2>
+          <p>Needs <b>Node 22.13 or newer</b>. Works on macOS, Linux and Windows.</p>
+          <pre>npx github:bicrick/tokentracker init</pre>
+          <p><code>init</code> walks you through setup:</p>
+          <ol>
+            <li>Finds the AI tools on this machine and shows how many tokens it found, before anything is sent.</li>
+            <li>Lets you choose which tools to track. Detected tools are on by default.</li>
+            <li>Creates your free account and picks a public handle, or connects an existing account or your own server.</li>
+            <li>Names this machine, uploads your history, and turns on hourly background sync.</li>
+          </ol>
+          <p>When it finishes you get your profile link, for example <code>tokentracker-nu.vercel.app/u/you</code>.</p>
+        </section>
+
+        <section id="more-computers">
+          <h2>More computers</h2>
+          <p>
+            Run the same command on each computer and choose <b>Connect an existing account</b>. Paste the key from
+            <code>~/.config/tokentrack/config.json</code> on your first machine, and give each computer its own name.
+            Totals from every machine add up on your profile.
+          </p>
+        </section>
+
+        <section id="tools">
+          <h2>Supported tools</h2>
+          <table>
+            <tr><th>Tool</th><th>How</th><th>Read from</th></tr>
+            <tr><td>Claude Code</td><td>local</td><td><code>~/.claude/projects</code>, <code>~/.config/claude</code>, <code>$CLAUDE_CONFIG_DIR</code></td></tr>
+            <tr><td>Codex (CLI, IDE, app)</td><td>local</td><td><code>~/.codex/sessions</code>, <code>archived_sessions</code>, <code>$CODEX_HOME</code></td></tr>
+            <tr><td>OpenCode (incl. GitHub Copilot)</td><td>local</td><td><code>~/.local/share/opencode/opencode*.db</code></td></tr>
+            <tr><td>Gemini CLI</td><td>local</td><td><code>~/.gemini/tmp/*/chats</code></td></tr>
+            <tr><td>Copilot CLI</td><td>local</td><td><code>~/.copilot/session-state</code></td></tr>
+            <tr><td>Cline, Roo Code, Kilo Code</td><td>local</td><td>Extension storage in VS Code, Insiders, Cursor, Windsurf, VSCodium, Kiro</td></tr>
+            <tr><td>Cursor</td><td>server</td><td>Your public <code>cursor.com/@handle</code> profile</td></tr>
+          </table>
+          <p class="muted">Planned: Qwen Code, Factory Droid, Goose, Amp, Zed. Copilot inside VS Code and Windsurf don't record token usage locally.</p>
+        </section>
+
+        <section id="connections">
+          <h2>Connections</h2>
+          <p>
+            Each tool is a connection. By default every connection is <b>Auto</b>: on whenever the tool is found on this
+            machine, so newly installed tools are picked up automatically.
+          </p>
+          <pre>tokentrack connect</pre>
+          <p>From there you can:</p>
+          <ul>
+            <li>Turn tools on or off.</li>
+            <li>Add a custom folder for a tool installed somewhere unusual.</li>
+            <li>Connect Cursor by entering your <code>cursor.com</code> handle.</li>
+          </ul>
+        </section>
+
+        <section id="sync">
+          <h2>Background sync</h2>
+          <p><code>init</code> installs a per-user job that syncs every hour. It needs no admin rights and shows no permission prompts.</p>
+          <table>
+            <tr><th>OS</th><th>Mechanism</th><th>Logs</th></tr>
+            <tr><td>macOS</td><td>launchd agent, hourly and at login</td><td><code>~/Library/Logs/tokentrack.log</code></td></tr>
+            <tr><td>Linux</td><td>systemd user timer, cron fallback</td><td><code>~/.local/state/tokentrack/sync.log</code></td></tr>
+            <tr><td>Windows</td><td>Task Scheduler, per user</td><td><code>%LOCALAPPDATA%\tokentrack\sync.log</code></td></tr>
+          </table>
+          <p>
+            The first sync uploads your full history. Later syncs send only the last 7 days. Claude Code deletes
+            transcripts after 30 days by default, so the hourly sync also keeps that history safe.
+          </p>
+          <p>Turn it off with <code>tokentrack uninstall</code> and back on with <code>tokentrack install</code>.</p>
+        </section>
+
+        <section id="privacy">
+          <h2>Privacy</h2>
+          <ul>
+            <li>Only <b>daily token counts per tool and model</b> leave your machine. Never prompts, code, file paths or API keys.</li>
+            <li>The server rejects any upload that contains anything else.</li>
+            <li>Your key is stored hashed on the server.</li>
+            <li><code>tokentrack delete-account</code> removes your account and all its data.</li>
+          </ul>
+          <p>See exactly what would be sent:</p>
+          <pre>tokentrack sync --dry</pre>
+          <pre>{ "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
+  "input": 381, "output": 138, "reasoning": 63, "cacheRead": 8448, "cacheWrite": 0, "messages": 1 }</pre>
+        </section>
+
+        <section id="profile">
+          <h2>Profile</h2>
+          <p>
+            Every account gets a public page at <code>/u/&lt;handle&gt;</code> with your yearly total and heatmap.
+            Cursor usage is added from your public Cursor profile if you connect it.
+          </p>
+        </section>
+
+        <section id="embed">
+          <h2>Embed and API</h2>
+          <p>Fetch your data and render it however you like. The endpoint allows cross-origin requests and is cached at the edge.</p>
+          <pre>const res = await fetch('https://tokentracker-nu.vercel.app/api/activity?handle=you');
+const { activityCounts, totals, models } = await res.json();
+// activityCounts: [{ date: "2026-11-17", count: 259485947, sources: { cursor: 3853940, opencode: 255632007 } }]</pre>
+          <p class="muted">Coming soon: ready-made embeds (image cards for READMEs, a themeable web component, and a small library that does the heatmap maths for custom designs).</p>
+        </section>
+
+        <section id="self-host">
+          <h2>Self-hosting</h2>
+          <p>Prefer to keep your data in your own database? Deploy your own server and point <code>init</code> at it.</p>
+          <ol>
+            <li>Deploy the repo to Vercel and add a Neon Postgres database.</li>
+            <li>Set <code>TOKENTRACK_INGEST_KEYS</code> (comma-separated, <code>openssl rand -hex 24</code>), <code>TOKENTRACK_ACCOUNT</code>, <code>CURSOR_HANDLE</code> and <code>CRON_SECRET</code>.</li>
+            <li>Run <code>init</code>, choose <b>Connect an existing account</b>, and enter your server URL and one of your keys.</li>
+          </ol>
+          <p><a href="https://github.com/bicrick/tokentracker#self-hosting">Deploy button and details on GitHub ↗</a></p>
+        </section>
+
+        <section id="cli">
+          <h2>CLI</h2>
+          <table>
+            <tr><td><code>tokentrack init</code></td><td>Guided setup</td></tr>
+            <tr><td><code>tokentrack connect</code></td><td>Choose tools, add custom folders, connect Cursor</td></tr>
+            <tr><td><code>tokentrack sync</code></td><td>Upload daily totals now. <code>--dry</code> prints the payload, <code>--full</code> resends all history</td></tr>
+            <tr><td><code>tokentrack status</code></td><td>Account, machine, tools and recent syncs</td></tr>
+            <tr><td><code>tokentrack install</code></td><td>Turn on background sync</td></tr>
+            <tr><td><code>tokentrack uninstall</code></td><td>Turn off background sync</td></tr>
+            <tr><td><code>tokentrack delete-account</code></td><td>Delete your account and all data</td></tr>
+          </table>
+          <p><code>init</code> flags: <code>--hosted --handle &lt;h&gt; [--cursor &lt;h&gt;]</code>, <code>--server &lt;url&gt; --key &lt;key&gt;</code>, <code>--device &lt;name&gt;</code>, <code>--reset</code>, <code>--no-install</code>, <code>--yes</code>.</p>
+        </section>
+
+        <section id="config">
+          <h2>Config file</h2>
+          <p>Stored at <code>~/.config/tokentrack/config.json</code>. Keep it private: it holds your key.</p>
+          <pre>{
+  "server": "https://tokentracker-nu.vercel.app",
+  "handle": "you",
+  "device": "laptop",
+  "connections": {
+    "claude-code": { "enabled": "auto" },
+    "codex": { "enabled": true, "paths": ["~/work/.codex/sessions"] },
+    "cline": { "enabled": false }
+  }
+}</pre>
+        </section>
+
+        <section id="api">
+          <h2>HTTP API</h2>
+          <table>
+            <tr><th>Method</th><th>Path</th><th>Auth</th><th></th></tr>
+            <tr><td><code>GET</code></td><td><code>/api/activity?handle=</code></td><td>public</td><td>Daily totals by tool, per-model totals, machines</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/signup</code></td><td>public</td><td>Create an account; returns a key once</td></tr>
+            <tr><td><code>GET POST DELETE</code></td><td><code>/api/account</code></td><td>key</td><td>Who am I, set Cursor handle, delete account</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/ingest</code></td><td>key</td><td>Upload daily totals (optional <code>since</code>)</td></tr>
+          </table>
+        </section>
+
+        <section id="faq">
+          <h2>FAQ</h2>
+          <h3>Do you need my API keys?</h3>
+          <p>No. Nothing reads, stores or uploads API keys.</p>
+          <h3>Does it cost anything?</h3>
+          <p>No. tokentracker is free and open source.</p>
+          <h3>Why is cache most of my total?</h3>
+          <p>Agents reread their context every turn, and providers count those reads as tokens. For agentic coding it's normal for 95%+ of tokens to be cache reads.</p>
+          <h3>A tool isn't detected</h3>
+          <p>Run <code>tokentrack connect</code> and add its folder as a custom path, or <a href="https://github.com/bicrick/tokentracker/issues">open an issue</a>.</p>
+          <h3>Sync fails with a certificate error</h3>
+          <p>You're probably behind a corporate proxy. Run with <code>NODE_USE_SYSTEM_CA=1</code>. Background sync sets this automatically.</p>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <span>by <a href="https://patrickbrown.dev">bicrick</a> · open source · MIT</span>
+      <a href="https://github.com/bicrick/tokentracker">github.com/bicrick/tokentracker</a>
+    </footer>
+  </div>
+
+  <script>
+    // Highlight the section in view
+    const links = [...document.querySelectorAll('.docs-nav a')];
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `#${e.target.id}`));
+      }
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('.docs-body section').forEach((s) => io.observe(s));
+  </script>
+</body>
+</html>

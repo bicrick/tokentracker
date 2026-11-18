@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=15">
+  <link rel="stylesheet" href="/style.css?v=16">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -16,6 +16,7 @@
     <nav>
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
       <div class="links">
+        <a href="/docs">Docs</a>
         <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
       </div>
     </nav>
@@ -81,44 +82,7 @@
       </div>
     </div>
 
-    <section class="block" aria-labelledby="how">
-      <h2 id="how">how it works</h2>
-      <ul class="rows">
-        <li><span>1. run init</span><p>It finds your local usage and shows you what it found before anything is sent.</p></li>
-        <li><span>2. choose storage</span><p>A free account on tokentracker cloud, or your own server. Self-hosting is one Vercel deploy.</p></li>
-        <li><span>3. that's it</span><p>A background job syncs every hour with no admin rights or permission prompts. Run init on each computer and the totals add up. Change tools any time with <code>tokentrack connect</code>.</p></li>
-      </ul>
-    </section>
-
-    <section class="block" aria-labelledby="sources">
-      <h2 id="sources">sources</h2>
-      <ul class="rows">
-        <li><span>claude code</span><p>Read from <code>~/.claude/projects</code>.</p></li>
-        <li><span>codex</span><p>CLI, IDE extension and app. Read from <code>~/.codex/sessions</code>.</p></li>
-        <li><span>opencode</span><p>Including GitHub Copilot and any provider. Read from <code>~/.local/share/opencode</code>.</p></li>
-        <li><span>gemini cli</span><p>Read from <code>~/.gemini/tmp</code>.</p></li>
-        <li><span>copilot cli</span><p>Read from <code>~/.copilot/session-state</code>.</p></li>
-        <li><span>cline · roo · kilo</span><p>In VS Code, Cursor, Windsurf and VSCodium. Read from each editor's extension storage.</p></li>
-        <li><span>cursor</span><p>Pulled from your public <code>cursor.com/@handle</code> profile.</p></li>
-      </ul>
-    </section>
-
-    <section class="block" aria-labelledby="privacy">
-      <h2 id="privacy">privacy</h2>
-      <p>
-        Uploads contain only a date, tool, model and token counts. The server rejects anything else.
-        Run <code>tokentrack sync --dry</code> to see the exact payload:
-      </p>
-      <pre>{ "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
-  "input": 381, "output": 138, "cacheRead": 8448, "messages": 1 }</pre>
-      <p>Keys are stored hashed. <code>tokentrack delete-account</code> removes everything.</p>
-    </section>
-
-    <section class="block" aria-labelledby="embed">
-      <h2 id="embed">put it on your site</h2>
-      <pre>fetch('https://tokentracker-nu.vercel.app/api/activity?handle=you')</pre>
-      <p>Returns daily totals per tool in the same shape as GitHub-style heatmaps.</p>
-    </section>
+    <p class="docs-cta"><a href="/docs">Read the docs →</a> <span class="muted">installation, supported tools, privacy, embedding, self-hosting</span></p>
 
     <footer>
       <span>by <a href="https://patrickbrown.dev">bicrick</a> · open source · MIT · logos belong to their owners</span>
@@ -127,10 +91,10 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=15';
-    import { mountDemo } from '/demo.js?v=15';
-    import { mountCoin } from '/coin.js?v=15';
-    import { mountTokenSea } from '/sea.js?v=15';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=16';
+    import { mountDemo } from '/demo.js?v=16';
+    import { mountCoin } from '/coin.js?v=16';
+    import { mountTokenSea } from '/sea.js?v=16';
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
