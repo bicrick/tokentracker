@@ -8,8 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=18">
-  <link rel="stylesheet" href="/mobile.css?v=18" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=20">
+  <link rel="stylesheet" href="/mobile.css?v=20" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -28,7 +28,7 @@
       <div class="hero-copy">
     <p class="lede">
       Every token you spend, across all your coding tools and computers.
-      Share it as one public profile.
+      Embed it on your site or query it with an API.
     </p>
 
     <div class="cmd">
@@ -84,7 +84,50 @@
       </div>
     </div>
 
-    <p class="docs-cta"><a href="/docs">Read the docs →</a> <span class="muted">installation, supported tools, privacy, embedding, self-hosting</span></p>
+    <section class="anywhere" id="anywhere" aria-labelledby="anywhere-title">
+      <h2 id="anywhere-title">put it anywhere</h2>
+      <p class="anywhere-lede">Your profile is public data. Drop it into a README or your personal site, or pull the raw numbers into your own charts. No API key needed.</p>
+
+      <div class="showcase">
+        <figure class="wide">
+          <img src="/u/bicrick.svg?cells=dither&amp;theme=gold" alt="Dithered gold heatmap card" loading="lazy">
+          <figcaption><code>/u/you.svg?cells=dither&amp;theme=gold</code></figcaption>
+        </figure>
+        <figure>
+          <img src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy">
+          <figcaption><code>?type=stats</code></figcaption>
+        </figure>
+        <figure>
+          <img src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy">
+          <figcaption><code>?type=breakdown</code></figcaption>
+        </figure>
+        <figure>
+          <img src="/u/bicrick.svg?type=line&amp;accent=f0c463" alt="Cumulative tokens chart" loading="lazy">
+          <figcaption><code>?type=line</code></figcaption>
+        </figure>
+        <figure>
+          <img src="/u/bicrick.svg?cells=round&amp;theme=light&amp;hide=legend,months" alt="Light rounded heatmap" loading="lazy">
+          <figcaption><code>?cells=round&amp;theme=light</code></figcaption>
+        </figure>
+        <figure class="wide live">
+          <token-heatmap handle="bicrick" range="90d"></token-heatmap>
+          <figcaption><code>&lt;token-heatmap&gt;</code> live web component, styled with your CSS · <img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"></figcaption>
+        </figure>
+      </div>
+
+      <div class="api-demo">
+        <div class="api-head">
+          <span class="mono">GET /u/bicrick.json?group=<b id="api-group">month</b></span>
+          <span class="chips" id="api-chips"><button data-v="month" class="on">month</button><button data-v="tool">tool</button><button data-v="week">week</button></span>
+        </div>
+        <pre id="api-result">loading…</pre>
+      </div>
+
+      <p class="docs-cta">
+        <a href="/embed">Build your embed →</a>
+        <a href="/docs#embed">API and embed docs →</a>
+      </p>
+    </section>
 
     <footer>
       <span>by <a href="https://patrickbrown.dev">bicrick</a> · open source · MIT · logos belong to their owners</span>
@@ -93,14 +136,36 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=18';
-    import { mountDemo } from '/demo.js?v=18';
-    import { mountCoin } from '/coin.js?v=18';
-    import { mountTokenSea } from '/sea.js?v=18';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=20';
+    import { mountDemo } from '/demo.js?v=20';
+    import { mountCoin } from '/coin.js?v=20';
+    import { mountTokenSea } from '/sea.js?v=20';
+    import '/embed.js?v=20';
+
+    // Live API example
+    const apiOut = document.getElementById('api-result');
+    const showApi = async (group) => {
+      document.getElementById('api-group').textContent = group;
+      apiOut.textContent = 'loading…';
+      try {
+        const j = await (await fetch(`/u/bicrick.json?group=${group}`)).json();
+        const rows = j.rows.slice(-6).map((r) => `    ${JSON.stringify(r).replace(/,"/g, ', "').replace(/":/g, '": ')}`);
+        apiOut.textContent = `{\n  "handle": "${j.handle}",\n  "group": "${j.group}",\n  "total": ${j.total},\n  "rows": [\n${rows.join(',\n')}\n  ]\n}`;
+      } catch {
+        apiOut.textContent = 'Could not load the example.';
+      }
+    };
+    document.getElementById('api-chips').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      document.querySelectorAll('#api-chips button').forEach((x) => x.classList.toggle('on', x === b));
+      showApi(b.dataset.v);
+    });
+    showApi('month');
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
-      avoid: [document.getElementById('demo')],
+      avoid: [document.getElementById('demo'), document.getElementById('anywhere')],
       ground: document.querySelector('footer'),
     });
 

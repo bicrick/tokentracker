@@ -132,3 +132,8 @@ footer {
 
 .try-grid { grid-template-columns: 1fr; }
 .try-bar input:not([type=range]):not([type=color]) { width: 100px; }
+
+.showcase { grid-template-columns: 1fr; }
+.showcase figure { padding: 12px; }
+.anywhere .docs-cta a { display: block; }
+.anywhere .docs-cta a + a { margin: 6px 0 0; }

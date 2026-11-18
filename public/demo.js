@@ -69,7 +69,7 @@ function timeline(totals) {
   const W = 46;
   const row = (plain, html) => `  ${span('t-gray', '│')}  ${html}${' '.repeat(Math.max(0, W - 2 - plain.length))}${span('t-gray', '│')}`;
   return [
-    { type: 'type', prefix: `${span('t-gray', '$')} `, text: 'npx github:bicrick/tokentracker init', w: 6 },
+    { type: 'type', prefix: `${span('t-gray', '$')} `, text: 'npx github:bicrick/tokentracker init', w: 3 },
     { type: 'lines', w: 0.8, lines: [
       '',
       `  ${span('t-gray', `╭${'─'.repeat(W)}╮`)}`,
@@ -89,7 +89,15 @@ function timeline(totals) {
     { type: 'lines', w: 0.2, lines: [''] },
     { type: 'spin', text: 'Uploading your history', done: 'Uploaded 412 day/model rows', w: 0.9 },
     { type: 'spin', text: 'Turning on background sync', done: `Background sync on ${span('t-gray', '(hourly, no admin needed)')}`, w: 0.7 },
-    { type: 'lines', w: 0.6, lines: ['', ok(`${span('t-bold', "You're all set")}  ${span('t-blue t-under', 'tokentracker-nu.vercel.app/u/you')}`)] },
+    { type: 'lines', w: 1.2, lines: [
+      '',
+      `  ${span('t-gray', `╭${'─'.repeat(W)}╮`)}`,
+      row("✓ You're all set", `${span('t-green', '✓')} ${span('t-bold', "You're all set")}`),
+      row('profile  tokentracker-nu.vercel.app/u/you', `${span('t-gray', 'profile ')} ${span('t-blue t-under', 'tokentracker-nu.vercel.app/u/you')}`),
+      row('embed    ![AI tokens](…/u/you.svg)', `${span('t-gray', 'embed   ')} ![AI tokens](…/u/you.svg)`),
+      row('api      …/u/you.json', `${span('t-gray', 'api     ')} …/u/you.json`),
+      `  ${span('t-gray', `╰${'─'.repeat(W)}╯`)}`,
+    ] },
   ];
 }
 
@@ -117,7 +125,7 @@ function renderTerminal(steps, p) {
   return out.map((l) => `<div>${l || '&nbsp;'}</div>`).join('');
 }
 
-const DURATION = 7500; // ms for the whole onboarding before the reveal
+const DURATION = 5200; // ms for the whole onboarding before the reveal
 
 export function mountDemo({ demo, body, data, onReveal }) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -148,6 +156,7 @@ export function mountDemo({ demo, body, data, onReveal }) {
       if (id !== run) return;
       const p = Math.min(1, (performance.now() - start) / DURATION);
       body.innerHTML = renderTerminal(steps, p);
+      body.scrollTop = body.scrollHeight; // follow the latest line, like a real terminal
       if (p < 1) setTimeout(tick, 33);
       else setTimeout(() => id === run && reveal(), 900);
     };
