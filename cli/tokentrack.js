@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import readline from 'node:readline/promises';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectOpencode } from './sources/opencode.js';
 import { collectClaude } from './sources/claude.js';
+import { box, c, formatTokens, input, isTTY, line, logo, select, spinner, sym, task } from './ui.js';
 
-const CONFIG_DIR = path.join(os.homedir(), '.config', 'tokentrack');
+const CONFIG_DIR = process.env.TOKENTRACK_CONFIG_DIR || path.join(os.homedir(), '.config', 'tokentrack');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 const LABEL = 'com.tokentrack.sync';
 const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
@@ -17,6 +17,8 @@ const SELF = fileURLToPath(import.meta.url);
 const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker-nu.vercel.app';
 // Stable copy of the CLI for the background job, so it survives npx cache cleanup
 const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
+const HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;
+const SOURCE_NAMES = { opencode: 'opencode', 'claude-code': 'claude code', cursor: 'cursor' };
 
 // node:sqlite is stable enough for read-only use; hide its experimental warning
 const emitWarning = process.emitWarning.bind(process);
@@ -44,7 +46,7 @@ function parseFlags(args) {
     if (!args[i].startsWith('--')) continue;
     const name = args[i].slice(2);
     const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
+    if (next !== undefined && !next.startsWith('--')) {
       flags[name] = next;
       i += 1;
     } else {
@@ -54,60 +56,22 @@ function parseFlags(args) {
   return flags;
 }
 
-function formatTokens(n) {
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return String(n);
+function tildify(p) {
+  return p.startsWith(os.homedir()) ? `~${p.slice(os.homedir().length)}` : p;
 }
 
 async function collect() {
   const rows = new Map();
   const report = [await collectOpencode(rows), collectClaude(rows)];
+  const totals = {};
+  for (const r of rows.values()) {
+    totals[r.source] = (totals[r.source] || 0) + r.input + r.output + r.reasoning + r.cacheRead + r.cacheWrite;
+  }
   return {
-    report,
+    report: report.map((r) => ({ ...r, tokens: totals[r.source] || 0 })),
     sources: report.filter((r) => !r.skipped).map((r) => r.source),
     rows: [...rows.values()],
   };
-}
-
-async function sync(flags) {
-  const config = readConfig();
-  const { report, sources, rows } = await collect();
-
-  const totals = {};
-  for (const r of rows) {
-    totals[r.source] = (totals[r.source] || 0)
-      + r.input + r.output + r.reasoning + r.cacheRead + r.cacheWrite;
-  }
-
-  console.log(`[${new Date().toISOString()}] tokentrack sync`);
-  for (const r of report) {
-    if (r.skipped) console.log(`  ${r.source}: skipped (${r.skipped})`);
-    else console.log(`  ${r.source}: ${r.messages} messages, ${formatTokens(totals[r.source] || 0)} tokens`);
-  }
-
-  const payload = { device: config.device || os.hostname(), sources, rows };
-
-  if (flags.dry) {
-    console.log('\nDry run. This is exactly what would be uploaded:\n');
-    console.log(JSON.stringify(payload, null, 2));
-    return;
-  }
-
-  if (!config.server || !config.key) {
-    console.error('\nNot logged in. Run: tokentrack login --server <url> --key <key>');
-    process.exit(1);
-  }
-
-  const res = await fetch(new URL('/api/ingest', config.server), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${config.key}` },
-    body: JSON.stringify(payload),
-  });
-  const text = await res.text();
-  console.log(`  upload: ${res.status} ${text}`);
-  if (!res.ok) process.exit(1);
 }
 
 async function api(server, pathname, { method = 'GET', key, body } = {}) {
@@ -123,124 +87,235 @@ async function api(server, pathname, { method = 'GET', key, body } = {}) {
   return { ok: res.ok, status: res.status, json };
 }
 
-function defaultDevice() {
-  return os.hostname().replace(/\.local$/, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 40);
+async function upload(config, { sources, rows }) {
+  const res = await api(config.server, '/api/ingest', {
+    method: 'POST',
+    key: config.key,
+    body: { device: config.device || defaultDevice(), sources, rows },
+  });
+  if (!res.ok) throw new Error(res.json.error || `upload failed (${res.status})`);
+  return res.json;
 }
 
-async function init(flags) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const ask = async (q, fallback = '') => {
-    const answer = (await rl.question(fallback ? `${q} (${fallback}): ` : `${q}: `)).trim();
-    return answer || fallback;
-  };
+function defaultDevice() {
+  return os.hostname().replace(/\.local$/, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 40) || 'computer';
+}
 
-  console.log('\ntokentrack: one heatmap for every AI token you spend.');
-  console.log('Only daily token counts leave this machine. Never prompts, code, or keys.\n');
-
-  // Preview what this machine would contribute before asking anything else
-  const { report, rows } = await collect();
-  for (const r of report) {
-    console.log(r.skipped ? `  ${r.source}: not found` : `  ${r.source}: ${r.messages} messages found`);
+function networkHint(err) {
+  const code = err?.cause?.code || '';
+  if (code.includes('CERT') || code.includes('ISSUER')) {
+    return 'TLS certificate error. Behind a corporate proxy? Re-run with NODE_USE_SYSTEM_CA=1';
   }
-  console.log(`  ${rows.length} day/model rows ready to upload\n`);
+  return err?.cause?.message || err.message;
+}
 
+// ─── sync ──────────────────────────────────────────────────────────────────────
+
+async function sync(flags) {
+  const config = readConfig();
+  const data = await collect();
+
+  if (flags.dry) {
+    for (const r of data.report) {
+      line(r.skipped
+        ? `  ${sym.skip} ${c.gray(`${SOURCE_NAMES[r.source]}: ${r.skipped}`)}`
+        : `  ${sym.ok} ${SOURCE_NAMES[r.source]} ${c.gray(`${r.messages} responses · ${formatTokens(r.tokens)} tokens`)}`);
+    }
+    line(`\n  ${c.bold('Dry run.')} This is exactly what would be uploaded:\n`);
+    line(JSON.stringify({ device: config.device || defaultDevice(), sources: data.sources, rows: data.rows }, null, 2));
+    return;
+  }
+
+  if (!config.server || !config.key) {
+    line(`  ${sym.fail} Not set up yet. Run ${c.blue('tokentrack init')}`);
+    process.exit(1);
+  }
+
+  // Background runs log plain lines; interactive runs get spinners
+  if (!isTTY) {
+    const summary = data.report.map((r) => `${r.source}=${r.skipped ? 'skipped' : formatTokens(r.tokens)}`).join(' ');
+    try {
+      const res = await upload(config, data);
+      line(`[${new Date().toISOString()}] sync ok ${summary} rows=${res.rows}`);
+    } catch (err) {
+      line(`[${new Date().toISOString()}] sync failed ${summary}: ${networkHint(err)}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  for (const r of data.report) {
+    if (!r.skipped) line(`  ${sym.ok} ${SOURCE_NAMES[r.source]} ${c.gray(`${formatTokens(r.tokens)} tokens`)}`);
+  }
+  await task('Uploading daily totals', () => upload(config, data), (res) => `Synced ${res.rows} day/model rows to ${c.gray(new URL(config.server).host)}`)
+    .catch((err) => {
+      line(`    ${c.gray(networkHint(err))}`);
+      process.exit(1);
+    });
+}
+
+// ─── init ──────────────────────────────────────────────────────────────────────
+
+async function init(flags) {
+  line();
+  const mark = logo();
+  box([
+    `${mark[0]}   ${sym.star} ${c.bold('Welcome to tokentracker')}`,
+    `${mark[1]}   ${c.gray('every AI token you spend, every tool,')}`,
+    `${mark[2]}   ${c.gray('every machine, in one place')}`,
+  ], { pad: 2 });
+  line();
+  line(`  ${c.gray('Only daily token counts leave this machine. Never prompts, code, or keys.')}`);
+  line();
+
+  // 1. Scan
+  line(`  ${c.bold('Looking for usage on this machine')}`);
+  const scan = spinner('Reading local logs…');
+  const data = await collect();
+  scan.succeed(`Found ${data.rows.length} day/model rows`);
+  for (const r of data.report) {
+    line(r.skipped
+      ? `    ${sym.skip} ${c.gray(`${SOURCE_NAMES[r.source]}  not found`)}`
+      : `    ${sym.dot} ${SOURCE_NAMES[r.source].padEnd(12)} ${c.blue(formatTokens(r.tokens).padStart(7))} ${c.gray(`tokens · ${r.messages.toLocaleString()} responses`)}`);
+  }
+  line();
+
+  // 2. Account
   const existing = readConfig();
-  let { server, key } = existing;
-  let handle = existing.handle;
+  let { server, key, handle } = existing;
+  let cursorHandle = null;
 
   if (server && key && !flags.reset) {
-    console.log(`Already connected to ${server} as ${handle || 'unknown'}. Use --reset to start over.\n`);
+    line(`  ${sym.ok} Already connected as ${c.blue(`@${handle || 'unknown'}`)} ${c.gray(`on ${new URL(server).host}`)}`);
+    line(`    ${c.gray('run with --reset to start over')}`);
   } else {
-    let mode = flags.server ? 'self' : flags.hosted ? 'hosted' : '';
-    while (!['hosted', 'self'].includes(mode)) {
-      console.log('Where should your usage be stored?');
-      console.log(`  1) new free account on tokentracker cloud (${HOSTED})`);
-      console.log('  2) existing account: another machine, or your own self-hosted server');
-      const choice = await ask('Choose 1 or 2', '1');
-      mode = choice === '2' ? 'self' : choice === '1' ? 'hosted' : '';
-    }
+    const mode = flags.server || flags.key ? 'existing'
+      : flags.hosted ? 'hosted'
+        : await select('Where should your usage live?', [
+          { value: 'hosted', label: 'Create a free account', hint: `tokentracker cloud · ${new URL(HOSTED).host}` },
+          { value: 'existing', label: 'Connect an existing account', hint: 'another machine of yours, or your own self-hosted server' },
+        ]);
+    line();
 
     if (mode === 'hosted') {
       server = HOSTED;
       for (;;) {
-        handle = (flags.handle || await ask('Pick a public handle (letters, numbers, dashes)')).toLowerCase();
-        const cursorHandle = flags.cursor ?? await ask('Your Cursor handle from cursor.com/@handle (blank to skip)', '');
-        const res = await api(server, '/api/signup', {
+        handle = flags.handle || await input('Pick a public handle', {
+          placeholder: 'letters, numbers, dashes',
+          validate: (v) => (HANDLE_RE.test(v.toLowerCase()) ? null : 'Use 1-30 lowercase letters, numbers or dashes'),
+        });
+        handle = handle.toLowerCase();
+        cursorHandle = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
+          : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
+
+        const res = await task('Creating your account', () => api(server, '/api/signup', {
           method: 'POST',
           body: { handle, cursorHandle: cursorHandle || null },
-        });
+        }).catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Created ${c.blue(`@${handle}`)}` : 'Signup failed'));
+
         if (res.ok) {
           key = res.json.key;
           break;
         }
-        console.log(`  ${res.json.error || `signup failed (${res.status})`}`);
-        flags.handle = undefined;
-        flags.cursor = undefined;
+        line(`    ${c.red(res.json.error || `status ${res.status}`)}`);
+        if (flags.handle) process.exit(1);
       }
     } else {
-      server = flags.server || await ask('Server URL', HOSTED);
-      key = flags.key || await ask('Ingest key');
-      const me = await api(server, '/api/account', { key });
+      server = flags.server && flags.server !== true ? flags.server
+        : await input('Server URL', { initial: HOSTED });
+      key = flags.key && flags.key !== true ? flags.key
+        : await input('Account key', { placeholder: `from ${tildify(CONFIG_PATH)} on your other machine` });
+      const me = await task('Checking your key', () => api(server, '/api/account', { key })
+        .catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Signed in as ${c.blue(`@${r.json.handle}`)}` : 'Key rejected'));
       if (!me.ok) {
-        console.error(`Could not authenticate with ${server} (${me.status}).`);
-        rl.close();
+        line(`    ${c.gray('Double-check the server URL and key, then run init again.')}`);
         process.exit(1);
       }
       handle = me.json.handle;
     }
   }
 
-  const device = flags.device || existing.device || await ask('Name this machine', defaultDevice());
-  rl.close();
+  // 3. Machine
+  line();
+  const device = flags.device && flags.device !== true ? flags.device
+    : existing.device && !flags.reset ? existing.device
+      : await input('Name this machine', {
+        initial: defaultDevice(),
+        validate: (v) => (/^[\w.-]{1,40}$/.test(v) ? null : 'Use up to 40 letters, numbers, dots or dashes'),
+      });
 
-  writeConfig({ server, key, handle, device });
-  console.log(`\nSaved ${CONFIG_PATH} (keep it private, it holds your key)`);
+  const config = { server, key, handle, device };
+  writeConfig(config);
 
-  await sync({});
+  // 4. Sync + background
+  line();
+  await task('Uploading your history', () => upload(config, data)
+    .catch((err) => { throw new Error(networkHint(err)); }), (res) => `Uploaded ${res.rows} day/model rows`)
+    .catch(() => process.exit(1));
 
   if (process.platform === 'darwin' && !flags['no-install']) {
-    install();
+    await task('Installing hourly sync', async () => installLaunchd(), 'Hourly sync installed');
   } else if (process.platform !== 'darwin') {
-    console.log('\nTo sync hourly, add this to your crontab:');
-    console.log(`  0 * * * * ${process.execPath} ${copyCli()} sync`);
+    const entry = copyCli();
+    line(`  ${sym.skip} ${c.gray('Hourly sync: add this to your crontab')}`);
+    line(`    ${c.blue(`0 * * * * ${process.execPath} ${entry} sync`)}`);
   }
 
-  console.log(`\nDone. Your profile: ${new URL(`/u/${handle}`, server)}`);
-  console.log(`On another machine: run init, choose "existing account", and paste your key`);
-  console.log(`(it's in ${CONFIG_PATH}). Give each machine a different name.`);
+  // 5. Done
+  const profile = new URL(`/u/${handle}`, server).toString();
+  line();
+  box([
+    `${sym.ok} ${c.bold("You're all set")}`,
+    '',
+    `${c.gray('profile ')} ${c.blue(c.under(profile))}`,
+    `${c.gray('api     ')} ${new URL(`/api/activity?handle=${handle}`, server)}`,
+    `${c.gray('config  ')} ${tildify(CONFIG_PATH)} ${c.gray('(keep private)')}`,
+  ], { pad: 2 });
+  line();
+  line(`  ${c.bold('Next')}`);
+  line(`  ${sym.dot} Add another machine: run ${c.blue('npx github:bicrick/tokentracker init')} there and`);
+  line(`    choose ${c.italic('Connect an existing account')} with the key from your config`);
+  line(`  ${sym.dot} See exactly what gets sent: ${c.blue('tokentrack sync --dry')}`);
+  line();
 }
 
-async function deleteAccount() {
+// ─── account ───────────────────────────────────────────────────────────────────
+
+async function deleteAccount(flags) {
   const { server, key, handle } = readConfig();
   if (!server || !key) {
-    console.error('Not logged in.');
+    line(`  ${sym.fail} Not set up.`);
     process.exit(1);
   }
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const answer = (await rl.question(`Delete ${handle} and all its data from ${server}? Type the handle to confirm: `)).trim();
-  rl.close();
-  if (answer !== handle) {
-    console.log('Cancelled.');
-    return;
+  if (!flags.yes) {
+    line(`  ${c.red('This deletes')} ${c.bold(`@${handle}`)} ${c.red('and all its data from')} ${new URL(server).host}.`);
+    const answer = await input('Type your handle to confirm');
+    if (answer !== handle) {
+      line(`  ${sym.skip} Cancelled.`);
+      return;
+    }
   }
-  const res = await api(server, '/api/account', { method: 'DELETE', key });
-  console.log(res.ok ? 'Account deleted.' : `Failed: ${res.json.error || res.status}`);
+  const res = await task('Deleting account', () => api(server, '/api/account', { method: 'DELETE', key }), 'Account deleted');
   if (res.ok) {
-    uninstall();
+    removeLaunchd({ onlyOwn: true });
     fs.rmSync(CONFIG_PATH, { force: true });
+  } else {
+    line(`  ${sym.fail} ${res.json.error || res.status}`);
   }
 }
 
 function login(flags) {
   if (!flags.server || !flags.key) {
-    console.error('Usage: tokentrack login --server <url> --key <key> [--device <name>]');
+    line('Usage: tokentrack login --server <url> --key <key> [--device <name>]');
     process.exit(1);
   }
   const config = { ...readConfig(), server: flags.server, key: flags.key };
   if (flags.device) config.device = flags.device;
   writeConfig(config);
-  console.log(`Saved ${CONFIG_PATH}`);
+  line(`  ${sym.ok} Saved ${tildify(CONFIG_PATH)}`);
 }
+
+// ─── background sync ───────────────────────────────────────────────────────────
 
 function copyCli() {
   const src = path.dirname(SELF);
@@ -269,6 +344,7 @@ ${args.map((a) => `    <string>${a}</string>`).join('\n')}
   <dict>
     <key>NODE_USE_SYSTEM_CA</key><string>1</string>
     <key>NODE_NO_WARNINGS</key><string>1</string>
+    <key>TOKENTRACK_CONFIG_DIR</key><string>${CONFIG_DIR}</string>
   </dict>
   <key>StartInterval</key><integer>3600</integer>
   <key>RunAtLoad</key><true/>
@@ -279,16 +355,7 @@ ${args.map((a) => `    <string>${a}</string>`).join('\n')}
 `;
 }
 
-function install() {
-  if (process.platform !== 'darwin') {
-    console.error('install currently supports macOS (launchd). On Linux, add `tokentrack sync` to cron hourly.');
-    process.exit(1);
-  }
-  const config = readConfig();
-  if (!config.server || !config.key) {
-    console.error('Run `tokentrack login` first.');
-    process.exit(1);
-  }
+function installLaunchd() {
   fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
   try {
     execFileSync('launchctl', ['unload', PLIST_PATH], { stdio: 'ignore' });
@@ -297,48 +364,73 @@ function install() {
   }
   fs.writeFileSync(PLIST_PATH, plist(copyCli()));
   execFileSync('launchctl', ['load', PLIST_PATH]);
-  console.log(`Installed hourly sync (${PLIST_PATH})\nLogs: ${LOG_PATH}`);
+}
+
+function removeLaunchd({ onlyOwn = false } = {}) {
+  if (!fs.existsSync(PLIST_PATH)) return false;
+  // Don't remove a job that syncs a different config (e.g. another account on this machine)
+  if (onlyOwn && !fs.readFileSync(PLIST_PATH, 'utf8').includes(`<string>${CONFIG_DIR}</string>`)) return false;
+  try {
+    execFileSync('launchctl', ['unload', PLIST_PATH], { stdio: 'ignore' });
+  } catch {
+    // already unloaded
+  }
+  fs.unlinkSync(PLIST_PATH);
+  return true;
+}
+
+function install() {
+  if (process.platform !== 'darwin') {
+    line(`  ${sym.skip} install supports macOS. On Linux, run ${c.blue('tokentrack sync')} hourly from cron.`);
+    process.exit(1);
+  }
+  const config = readConfig();
+  if (!config.server || !config.key) {
+    line(`  ${sym.fail} Run ${c.blue('tokentrack init')} first.`);
+    process.exit(1);
+  }
+  installLaunchd();
+  line(`  ${sym.ok} Hourly sync installed ${c.gray(`· logs: ${tildify(LOG_PATH)}`)}`);
 }
 
 function uninstall() {
-  if (fs.existsSync(PLIST_PATH)) {
-    try {
-      execFileSync('launchctl', ['unload', PLIST_PATH], { stdio: 'ignore' });
-    } catch {
-      // already unloaded
-    }
-    fs.unlinkSync(PLIST_PATH);
-  }
-  console.log('Removed hourly sync.');
+  line(removeLaunchd() ? `  ${sym.ok} Hourly sync removed` : `  ${sym.skip} Hourly sync was not installed`);
 }
 
 function status() {
   const config = readConfig();
-  console.log(`config:  ${CONFIG_PATH}`);
-  console.log(`server:  ${config.server || '(not set)'}`);
-  console.log(`handle:  ${config.handle || '(unknown)'}`);
-  console.log(`device:  ${config.device || os.hostname()}`);
-  console.log(`key:     ${config.key ? `${config.key.slice(0, 4)}…` : '(not set)'}`);
-  console.log(`hourly:  ${fs.existsSync(PLIST_PATH) ? 'installed' : 'not installed'}`);
+  const row = (k, v) => line(`  ${c.gray(k.padEnd(9))}${v}`);
+  line();
+  row('account', config.handle ? c.blue(`@${config.handle}`) : c.gray('not set up'));
+  row('server', config.server || c.gray('-'));
+  row('machine', config.device || defaultDevice());
+  row('hourly', fs.existsSync(PLIST_PATH) ? `${sym.ok} installed` : `${sym.skip} not installed`);
+  row('config', tildify(CONFIG_PATH));
+  if (config.server && config.handle) row('profile', c.blue(new URL(`/u/${config.handle}`, config.server).toString()));
   if (fs.existsSync(LOG_PATH)) {
-    const lines = fs.readFileSync(LOG_PATH, 'utf8').trim().split('\n');
-    console.log(`\nlast log lines:\n${lines.slice(-5).join('\n')}`);
+    const lines = fs.readFileSync(LOG_PATH, 'utf8').trim().split('\n').slice(-3);
+    line(`\n  ${c.gray('recent syncs')}`);
+    for (const l of lines) line(`  ${c.gray(l)}`);
   }
+  line();
 }
 
-const HELP = `tokentrack - track AI token usage across tools and devices
+const HELP = `
+  ${c.bold('tokentrack')} ${c.gray('· every AI token you spend, in one place')}
 
-Usage:
-  tokentrack init             guided setup: sign up (free) or connect your own server
-  tokentrack login --server <url> --key <key> [--device <name>]
-  tokentrack sync [--dry]     collect local usage and upload daily totals
-  tokentrack install          run sync hourly in the background (macOS)
-  tokentrack uninstall        stop the hourly sync
-  tokentrack status           show config and recent sync logs
-  tokentrack delete-account   delete your account and all data on the server
+  ${c.bold('Usage')}
+    tokentrack init              guided setup
+    tokentrack sync [--dry]      upload daily totals (--dry prints the payload)
+    tokentrack status            account, machine and recent syncs
+    tokentrack install           run sync hourly in the background (macOS)
+    tokentrack uninstall         stop the hourly sync
+    tokentrack delete-account    delete your account and all data
 
-Only daily token counts per tool and model are uploaded.
-Run \`tokentrack sync --dry\` to see the exact payload.`;
+  ${c.bold('init flags')}
+    --hosted --handle <h> [--cursor <h>]   create a cloud account without prompts
+    --server <url> --key <key>             connect an existing account
+    --device <name>  --reset  --no-install
+`;
 
 const [command, ...rest] = process.argv.slice(2);
 const flags = parseFlags(rest);
@@ -346,10 +438,10 @@ const flags = parseFlags(rest);
 switch (command) {
   case 'init': await init(flags); break;
   case 'login': login(flags); break;
-  case 'delete-account': await deleteAccount(); break;
+  case 'delete-account': await deleteAccount(flags); break;
   case 'sync': await sync(flags); break;
   case 'install': install(); break;
   case 'uninstall': uninstall(); break;
   case 'status': status(); break;
-  default: console.log(HELP);
+  default: line(HELP);
 }

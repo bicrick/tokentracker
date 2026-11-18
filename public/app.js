@@ -52,7 +52,8 @@ export function renderHeatmap(container, data) {
 
   const start = new Date(jan1);
   start.setUTCDate(start.getUTCDate() - start.getUTCDay());
-  const end = new Date(today);
+  const dec31 = new Date(Date.UTC(today.getUTCFullYear(), 11, 31));
+  const end = new Date(dec31);
   end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
   const weeks = Math.round((end - start) / 86400000 + 1) / 7;
 
@@ -72,11 +73,13 @@ export function renderHeatmap(container, data) {
   for (const d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
     const key = iso(d);
     const cell = document.createElement('span');
-    if (d < jan1 || d > today) {
+    if (d < jan1 || d > dec31) {
       cell.className = 'out';
+    } else if (d > today) {
+      cell.className = 'l0';
     } else {
       const count = byDate.get(key) || 0;
-      cell.className = `l${level(count)}`;
+      cell.className = `l${level(count)} live`;
       const label = `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} · ${formatCount(count)}`;
       cell.addEventListener('mouseenter', () => {
         const r = cell.getBoundingClientRect();
@@ -86,18 +89,24 @@ export function renderHeatmap(container, data) {
         tip.hidden = false;
       });
       cell.addEventListener('mouseleave', () => { tip.hidden = true; });
-      if (d.getUTCDate() === 1) {
-        const m = document.createElement('span');
-        m.textContent = MONTHS[d.getUTCMonth()];
-        m.style.left = `${(week / weeks) * 100}%`;
-        months.appendChild(m);
-      }
+    }
+    if (d >= jan1 && d <= dec31 && d.getUTCDate() === 1) {
+      const m = document.createElement('span');
+      m.textContent = MONTHS[d.getUTCMonth()];
+      m.style.left = `${(week / weeks) * 100}%`;
+      months.appendChild(m);
     }
     grid.appendChild(cell);
     if (d.getUTCDay() === 6) week += 1;
   }
 
-  container.replaceChildren(months, grid);
+  const legend = document.createElement('div');
+  legend.className = 'hm-legend';
+  legend.innerHTML = '<span class="lbl">less</span>'
+    + [0, 1, 2, 3, 4].map((l) => `<i style="background:var(--l${l})"></i>`).join('')
+    + '<span class="lbl">more</span>';
+
+  container.replaceChildren(months, grid, legend);
 }
 
 export function renderSplit(container, sources) {
