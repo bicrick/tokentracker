@@ -109,6 +109,14 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
     img.data[i + 3] = 255;
   };
 
+  const putGround = (x, y, rgb) => {
+    const i = (y * W + x) * 4;
+    img.data[i] = rgb[0];
+    img.data[i + 1] = rgb[1];
+    img.data[i + 2] = rgb[2];
+    img.data[i + 3] = 255;
+  };
+
   const pick = (ramp, v, x, y) => {
     const lo = Math.floor(v);
     const idx = v - lo > bayer(x, y) ? lo + 1 : lo;
@@ -146,6 +154,16 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
       for (let x = 0; x < W; x += 1) {
         const v = t ** 1.8 * 2.4 - 0.5 + Math.sin(x / 19) * 0.12;
         if (v > bayer(x, y)) put(x, y, pick(BLUE, v, x, y));
+      }
+    }
+
+    // Below the ground line: deep blue water the footer sits in, darkening
+    // with depth and dithered into the page background at the very bottom
+    for (let y = floor + 1; y < H; y += 1) {
+      const t = (y - floor) / (H - floor || 1);
+      for (let x = 0; x < W; x += 1) {
+        const v = 1.5 - t * 1.9 + Math.sin(x / 23 + y / 3) * 0.08;
+        if (v > -0.6 * bayer(x, y)) putGround(x, y, pick(BLUE, Math.max(0, v), x, y));
       }
     }
 

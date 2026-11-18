@@ -589,6 +589,17 @@ footer {
   color: var(--muted);
 }
 
+/* Landing page: the footer sits in the hoard's deep water */
+.has-sea footer {
+  /* Open stage above the footer, so the hoard never sits under text */
+  margin-top: 42vh;
+  padding: 26px 0 48px;
+  border-top: 0;
+  color: #b9c6e4;
+}
+
+.has-sea footer a { color: #f0c463; }
+
 @media (max-width: 640px) {
   .term-body { font-size: 11px; height: 360px; padding: 12px; }
   h1 { margin-top: 56px; font-size: 32px; }
