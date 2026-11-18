@@ -126,136 +126,55 @@ function renderTerminal(steps, p) {
 }
 
 const DURATION = 5200;
-const SKIP_DISTANCE = 500; // px of attempted scrolling that fills the skip bar
-
-// While the onboarding plays, scroll attempts don't move the page. They fill a
-// bar behind the skip button instead; a full bar skips straight to the heatmap.
-// Scrolling is released the moment the heatmap starts rendering.
-function scrollToSkip(button, onSkip) {
-  let intent = 0;
-  let lastTouch = null;
-  const fill = (dy) => {
-    intent = Math.max(0, intent + dy);
-    const p = Math.min(1, intent / SKIP_DISTANCE);
-    button?.style.setProperty('--fill', `${p * 100}%`);
-    if (p >= 1) onSkip();
-  };
-  const onWheel = (e) => {
-    e.preventDefault();
-    fill(Math.abs(e.deltaY) * (e.deltaMode === 1 ? 16 : 1));
-  };
-  const onTouchStart = (e) => { lastTouch = e.touches[0]?.clientY ?? null; };
-  const onTouchMove = (e) => {
-    const y = e.touches[0]?.clientY;
-    if (lastTouch != null && y != null) fill(Math.abs(lastTouch - y) * 1.5);
-    lastTouch = y;
-    e.preventDefault();
-  };
-  const KEYS = new Set(['ArrowDown', 'PageDown', ' ', 'End', 'ArrowUp', 'PageUp', 'Home']);
-  const onKey = (e) => {
-    if (!KEYS.has(e.key) || e.target.closest?.('input, textarea, select, button')) return;
-    e.preventDefault();
-    fill(SKIP_DISTANCE / 3);
-  };
-  const opts = { passive: false };
-  window.addEventListener('wheel', onWheel, opts);
-  window.addEventListener('touchstart', onTouchStart, { passive: true });
-  window.addEventListener('touchmove', onTouchMove, opts);
-  window.addEventListener('keydown', onKey);
-  return () => {
-    window.removeEventListener('wheel', onWheel, opts);
-    window.removeEventListener('touchstart', onTouchStart);
-    window.removeEventListener('touchmove', onTouchMove, opts);
-    window.removeEventListener('keydown', onKey);
-    button?.style.setProperty('--fill', '0%');
-  };
-}
-
-export function mountDemo({ demo, body, data, onReveal, skipButton }) {
+export function mountDemo({ demo, body, data, skipButton }) {
+  // The terminal plays the setup once and stays on its final screen. The page
+  // scrolls freely the whole time; the skip button jumps to the end, then
+  // becomes a replay button.
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const term = demo.querySelector('.term');
   let steps = timeline(null);
-  let profileReady = false;
   let run = 0;
   let skipping = false;
-  let release = null;
-  const unhold = () => {
-    release?.();
-    release = null;
-  };
+  let finished = false;
 
   data.then((d) => {
     steps = timeline(d?.totals);
   });
 
-  const reveal = async (id) => {
-    unhold(); // scrolling is back as soon as the heatmap starts rendering
-    if (!reduced) ditherWipe(demo, term);
-    demo.classList.add('revealed');
-    if (!profileReady) {
-      profileReady = true;
-      await onReveal();
-    }
+  const setButton = (done) => {
+    finished = done;
+    if (skipButton) skipButton.textContent = done ? 'replay ↺' : 'skip →';
   };
 
-  const play = ({ hold = false } = {}) => {
+  const play = () => {
     const id = ++run;
     skipping = false;
-    demo.classList.remove('revealed');
-    if (hold) {
-      // On short screens the demo starts below the fold: centre it first
-      const r = demo.getBoundingClientRect();
-      if (r.top < 0 || r.bottom > window.innerHeight) {
-        const top = window.scrollY + r.top - Math.max(12, (window.innerHeight - r.height) / 2);
-        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-        setTimeout(() => {
-          if (id === run && !demo.classList.contains('revealed')) release = scrollToSkip(skipButton, () => { skipping = true; });
-        }, 600);
-      } else {
-        release = scrollToSkip(skipButton, () => { skipping = true; });
-      }
-    }
-    if (skipButton) skipButton.hidden = false;
+    setButton(false);
     const start = performance.now();
     const tick = () => {
       if (id !== run) return;
-      const p = skipping ? 1 : Math.min(1, (performance.now() - start) / DURATION);
+      const p = skipping || reduced ? 1 : Math.min(1, (performance.now() - start) / DURATION);
       body.innerHTML = renderTerminal(steps, p);
       body.scrollTop = body.scrollHeight; // follow the latest line, like a real terminal
       if (p < 1) setTimeout(tick, 33);
-      else {
-        if (skipButton) skipButton.hidden = true;
-        if (skipping) unhold();
-        setTimeout(() => id === run && reveal(id), skipping ? 60 : 900);
-      }
+      else setButton(true);
     };
     tick();
   };
 
   skipButton?.addEventListener('click', () => {
-    skipping = true;
+    if (finished) play();
+    else skipping = true;
   });
 
-  if (reduced) {
-    demo.classList.add('revealed', 'instant');
-    if (skipButton) skipButton.hidden = true;
-    onReveal();
-    return { replay() {} };
+  if (window.scrollY < 40 || reduced) play();
+  else {
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        io.disconnect();
+        play();
+      }
+    }, { threshold: 0.25 });
+    io.observe(demo);
   }
-
-  // On screen at load (the usual case): play and hold the page until it's done
-  if (window.scrollY < 40) {
-    play({ hold: true });
-    return { replay: () => play() };
-  }
-
-  const io = new IntersectionObserver(([entry]) => {
-    if (entry.isIntersecting) {
-      io.disconnect();
-      play();
-    }
-  }, { threshold: 0.25 });
-  io.observe(demo);
-
-  return { replay: () => play() };
+  return { replay: play };
 }

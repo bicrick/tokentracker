@@ -1,6 +1,6 @@
 // Landing sections: each one is a single request to the public v1 API,
 // rendered into a component. Skeletons hold the layout until data arrives.
-import { api, formatCount } from '/app.js?v=32';
+import { api, formatCount } from '/app.js?v=33';
 
 const HANDLE = 'bicrick';
 const COLORS = ['#6b9eff', '#f0c463', '#d97757', '#6fd39b', '#c58af9', '#4fd1c5', '#f687b3', '#a0aec0'];

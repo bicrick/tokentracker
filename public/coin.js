@@ -78,7 +78,10 @@ export function renderCoin(ctx, cells, angle) {
         const threshold = (BAYER8[(py % 8) * 8 + (px % 8)] + 0.5) / 64;
 
         // Face coordinates after undoing the horizontal squash of the turn
-        const fx = sx / squash;
+        // Past 90° we're looking at the back: mirror it so the turn reads as one
+        // continuous revolution instead of bouncing back off the edge
+        const back = c < 0;
+        const fx = (sx / squash) * (back ? -1 : 1);
         const r = Math.hypot(fx, ny);
 
         let level = -1;
@@ -88,7 +91,7 @@ export function renderCoin(ctx, cells, angle) {
           if (inStar(fx, ny)) continue; // see-through star
           const base = r > INNER ? 3 : 2;
           // Diagonal gradient plus the moving highlight
-          shade = (-fx * 0.35 - ny * 0.45) * 0.6 + (light - 0.5) * 0.9 * (c >= 0 ? 1 : -1);
+          shade = (-fx * 0.35 - ny * 0.45) * 0.6 + (light - 0.5) * 0.9 * (back ? -1 : 1) - (back ? 0.35 : 0);
           if (r > INNER && r < INNER + 0.05) shade -= 0.6; // bevel line
           level = base;
         } else if (Math.abs(ny) < 1 && thick > 0.005) {
