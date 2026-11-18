@@ -7,6 +7,7 @@ import { formatCount } from '/app.js';
 const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const NAMES = { 'claude-code': 'Claude Code', opencode: 'OpenCode', codex: 'Codex', 'gemini-cli': 'Gemini CLI', 'copilot-cli': 'Copilot CLI', cline: 'Cline' };
 const REVEAL_AT = 0.72;
+const FILL_MS = 1300; // dither wipe + heatmap fill-in; scrolling down waits for it
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const span = (cls, s) => `<span class="${cls}">${esc(s)}</span>`;
@@ -124,6 +125,13 @@ export function mountDemo({ track, demo, body, data, onReveal }) {
   let steps = timeline(null);
   let revealed = false;
   let profileReady = false;
+  let lockUntil = 0;
+  let lockY = 0;
+
+  // Pin in the vertical middle of the screen
+  const center = () => {
+    demo.style.top = `${Math.max(64, Math.round((window.innerHeight - demo.offsetHeight) / 2))}px`;
+  };
 
   data.then((d) => {
     steps = timeline(d?.totals);
@@ -134,6 +142,9 @@ export function mountDemo({ track, demo, body, data, onReveal }) {
     if (on === revealed) return;
     revealed = on;
     if (on) {
+      // Hold the page here until the heatmap has finished drawing
+      lockUntil = performance.now() + FILL_MS;
+      lockY = window.scrollY;
       if (!reduced) ditherWipe(demo, term);
       demo.classList.add('revealed');
       if (!profileReady) {
@@ -177,10 +188,18 @@ export function mountDemo({ track, demo, body, data, onReveal }) {
 
   let raf = 0;
   window.addEventListener('scroll', () => {
+    if (performance.now() < lockUntil && window.scrollY > lockY) {
+      window.scrollTo(0, lockY);
+      return;
+    }
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(update);
   }, { passive: true });
-  window.addEventListener('resize', update);
+  window.addEventListener('resize', () => {
+    center();
+    update();
+  });
+  center();
   update();
 
   return {

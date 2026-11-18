@@ -256,7 +256,7 @@ h1 {
   border-bottom: 1px solid #23262d;
 }
 
-.term-bar > span {
+.term-bar > span:not(.scroll-hint) {
   width: 9px;
   height: 9px;
   background: #2c3038;
@@ -264,6 +264,8 @@ h1 {
 
 .scroll-hint {
   margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: #7c818c;
   font-family: var(--mono);
   font-size: 11px;
