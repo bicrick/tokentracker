@@ -117,7 +117,7 @@ function renderTerminal(steps, p) {
   return out.map((l) => `<div>${l || '&nbsp;'}</div>`).join('');
 }
 
-const DURATION = 9000; // ms for the whole onboarding before the reveal
+const DURATION = 7500; // ms for the whole onboarding before the reveal
 
 export function mountDemo({ demo, body, data, onReveal }) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
