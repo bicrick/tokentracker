@@ -1,24 +1,20 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectOpencode } from './sources/opencode.js';
-import { collectClaude } from './sources/claude.js';
-import { box, c, formatTokens, input, isTTY, line, logo, select, spinner, sym, task } from './ui.js';
+import { collectAll, CONNECTORS, resolveConnections } from './sources/index.js';
+import { installSchedule, LOG_PATH, removeSchedule, scheduleInstalled, supported as scheduleSupported } from './scheduler.js';
+import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, spinner, sym, task } from './ui.js';
 
 const CONFIG_DIR = process.env.TOKENTRACK_CONFIG_DIR || path.join(os.homedir(), '.config', 'tokentrack');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
-const LABEL = 'com.tokentrack.sync';
-const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
-const LOG_PATH = path.join(os.homedir(), 'Library', 'Logs', 'tokentrack.log');
 const SELF = fileURLToPath(import.meta.url);
 const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker-nu.vercel.app';
 // Stable copy of the CLI for the background job, so it survives npx cache cleanup
 const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
 const HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;
-const SOURCE_NAMES = { opencode: 'opencode', 'claude-code': 'claude code', cursor: 'cursor' };
+const RECENT_DAYS = 7;
 
 // node:sqlite is stable enough for read-only use; hide its experimental warning
 const emitWarning = process.emitWarning.bind(process);
@@ -60,18 +56,26 @@ function tildify(p) {
   return p.startsWith(os.homedir()) ? `~${p.slice(os.homedir().length)}` : p;
 }
 
-async function collect() {
+async function collect(config = readConfig()) {
+  const connections = resolveConnections(config);
   const rows = new Map();
-  const report = [await collectOpencode(rows), collectClaude(rows)];
+  const report = await collectAll(connections, rows);
   const totals = {};
   for (const r of rows.values()) {
     totals[r.source] = (totals[r.source] || 0) + r.input + r.output + r.reasoning + r.cacheRead + r.cacheWrite;
   }
   return {
-    report: report.map((r) => ({ ...r, tokens: totals[r.source] || 0 })),
-    sources: report.filter((r) => !r.skipped).map((r) => r.source),
+    connections,
+    report: report.map((r) => ({ ...r, tokens: totals[r.id] || 0 })),
+    sources: report.filter((r) => r.messages !== undefined).map((r) => r.id),
     rows: [...rows.values()],
   };
+}
+
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
 }
 
 async function api(server, pathname, { method = 'GET', key, body } = {}) {
@@ -87,14 +91,27 @@ async function api(server, pathname, { method = 'GET', key, body } = {}) {
   return { ok: res.ok, status: res.status, json };
 }
 
-async function upload(config, { sources, rows }) {
-  const res = await api(config.server, '/api/ingest', {
-    method: 'POST',
-    key: config.key,
-    body: { device: config.device || defaultDevice(), sources, rows },
-  });
+// The first upload sends full history; later ones send only recent days and
+// ask the server to replace just that window, which keeps syncs small.
+async function upload(config, { sources, rows }, { full = false } = {}) {
+  const incremental = !full && config.fullSyncAt;
+  const since = incremental ? daysAgo(RECENT_DAYS) : undefined;
+  const body = {
+    device: config.device || defaultDevice(),
+    sources,
+    rows: since ? rows.filter((r) => r.date >= since) : rows,
+    ...(since ? { since } : {}),
+  };
+  const res = await api(config.server, '/api/ingest', { method: 'POST', key: config.key, body });
   if (!res.ok) throw new Error(res.json.error || `upload failed (${res.status})`);
-  return res.json;
+  const updates = incremental ? {} : { fullSyncAt: new Date().toISOString() };
+  // Configs from older versions don't know their handle; learn it once
+  if (!config.handle) {
+    const me = await api(config.server, '/api/account', { key: config.key }).catch(() => null);
+    if (me?.ok) updates.handle = me.json.handle;
+  }
+  if (Object.keys(updates).length) writeConfig({ ...readConfig(), ...updates });
+  return { ...res.json, since };
 }
 
 function defaultDevice() {
@@ -109,6 +126,40 @@ function networkHint(err) {
   return err?.cause?.message || err.message;
 }
 
+function printReport(report, { hideMissing = false } = {}) {
+  for (const r of report) {
+    if (r.error) line(`    ${sym.fail} ${r.name.padEnd(12)} ${c.red(r.error)}`);
+    else if (r.skipped) {
+      if (!hideMissing) line(`    ${sym.skip} ${c.gray(`${r.name.padEnd(12)} ${r.skipped}`)}`);
+    } else {
+      line(`    ${sym.dot} ${r.name.padEnd(12)} ${c.blue(formatTokens(r.tokens).padStart(7))} ${c.gray(`tokens · ${r.messages.toLocaleString()} responses`)}`);
+    }
+  }
+}
+
+/** Interactive checklist of connections; saves choices to config. */
+async function chooseConnections(config) {
+  const connections = resolveConnections(config);
+  const options = connections.map((conn) => ({
+    value: conn.id,
+    label: conn.name,
+    checked: conn.enabled,
+    disabled: conn.paths.length === 0,
+    hint: conn.paths.length
+      ? `${conn.mode === 'auto' ? c.green('Auto') : 'Manual'} · ${conn.displayPaths[0]}${conn.paths.length > 1 ? ` +${conn.paths.length - 1}` : ''}`
+      : 'not found on this machine',
+  }));
+  const picked = new Set(await multiselect('Which tools should be tracked?', options));
+  const settings = { ...(config.connections || {}) };
+  for (const conn of connections) {
+    if (!conn.paths.length) continue;
+    const on = picked.has(conn.id);
+    // Stay on auto when the choice matches detection, so new installs keep working
+    settings[conn.id] = { ...settings[conn.id], enabled: on === conn.detected && (settings[conn.id]?.enabled ?? 'auto') === 'auto' ? 'auto' : on };
+  }
+  return { ...config, connections: settings };
+}
+
 // ─── sync ──────────────────────────────────────────────────────────────────────
 
 async function sync(flags) {
@@ -116,11 +167,7 @@ async function sync(flags) {
   const data = await collect();
 
   if (flags.dry) {
-    for (const r of data.report) {
-      line(r.skipped
-        ? `  ${sym.skip} ${c.gray(`${SOURCE_NAMES[r.source]}: ${r.skipped}`)}`
-        : `  ${sym.ok} ${SOURCE_NAMES[r.source]} ${c.gray(`${r.messages} responses · ${formatTokens(r.tokens)} tokens`)}`);
-    }
+    printReport(data.report);
     line(`\n  ${c.bold('Dry run.')} This is exactly what would be uploaded:\n`);
     line(JSON.stringify({ device: config.device || defaultDevice(), sources: data.sources, rows: data.rows }, null, 2));
     return;
@@ -133,10 +180,10 @@ async function sync(flags) {
 
   // Background runs log plain lines; interactive runs get spinners
   if (!isTTY) {
-    const summary = data.report.map((r) => `${r.source}=${r.skipped ? 'skipped' : formatTokens(r.tokens)}`).join(' ');
+    const summary = data.report.filter((r) => !r.skipped).map((r) => `${r.id}=${r.error ? 'error' : formatTokens(r.tokens)}`).join(' ');
     try {
-      const res = await upload(config, data);
-      line(`[${new Date().toISOString()}] sync ok ${summary} rows=${res.rows}`);
+      const res = await upload(config, data, { full: !!flags.full });
+      line(`[${new Date().toISOString()}] sync ok ${summary} rows=${res.rows}${res.since ? ` since=${res.since}` : ' full'}`);
     } catch (err) {
       line(`[${new Date().toISOString()}] sync failed ${summary}: ${networkHint(err)}`);
       process.exit(1);
@@ -144,10 +191,9 @@ async function sync(flags) {
     return;
   }
 
-  for (const r of data.report) {
-    if (!r.skipped) line(`  ${sym.ok} ${SOURCE_NAMES[r.source]} ${c.gray(`${formatTokens(r.tokens)} tokens`)}`);
-  }
-  await task('Uploading daily totals', () => upload(config, data), (res) => `Synced ${res.rows} day/model rows to ${c.gray(new URL(config.server).host)}`)
+  printReport(data.report, { hideMissing: true });
+  await task('Uploading daily totals', () => upload(config, data, { full: !!flags.full }),
+    (res) => `Synced ${res.rows} day/model rows ${c.gray(res.since ? `(since ${res.since})` : '(full history)')}`)
     .catch((err) => {
       line(`    ${c.gray(networkHint(err))}`);
       process.exit(1);
@@ -169,19 +215,24 @@ async function init(flags) {
   line();
 
   // 1. Scan
-  line(`  ${c.bold('Looking for usage on this machine')}`);
-  const scan = spinner('Reading local logs…');
-  const data = await collect();
-  scan.succeed(`Found ${data.rows.length} day/model rows`);
-  for (const r of data.report) {
-    line(r.skipped
-      ? `    ${sym.skip} ${c.gray(`${SOURCE_NAMES[r.source]}  not found`)}`
-      : `    ${sym.dot} ${SOURCE_NAMES[r.source].padEnd(12)} ${c.blue(formatTokens(r.tokens).padStart(7))} ${c.gray(`tokens · ${r.messages.toLocaleString()} responses`)}`);
-  }
+  const existing = readConfig();
+  line(`  ${c.bold('Looking for AI tools on this machine')}`);
+  const scan = spinner('Checking Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI, Cline, Roo, Kilo…');
+  let data = await collect(existing);
+  const found = data.connections.filter((conn) => conn.paths.length).length;
+  scan.succeed(`Found ${found} tool${found === 1 ? '' : 's'} with usage`);
+  printReport(data.report, { hideMissing: true });
   line();
 
-  // 2. Account
-  const existing = readConfig();
+  // 2. Connections
+  let connectionSettings = existing.connections;
+  if (isTTY && found > 0 && !flags.yes) {
+    connectionSettings = (await chooseConnections(existing)).connections;
+    data = await collect({ ...existing, connections: connectionSettings });
+    line();
+  }
+
+  // 3. Account
   let { server, key, handle } = existing;
   let cursorHandle = null;
 
@@ -235,7 +286,7 @@ async function init(flags) {
     }
   }
 
-  // 3. Machine
+  // 4. Machine
   line();
   const device = flags.device && flags.device !== true ? flags.device
     : existing.device && !flags.reset ? existing.device
@@ -244,21 +295,19 @@ async function init(flags) {
         validate: (v) => (/^[\w.-]{1,40}$/.test(v) ? null : 'Use up to 40 letters, numbers, dots or dashes'),
       });
 
-  const config = { server, key, handle, device };
-  writeConfig(config);
+  writeConfig({ server, key, handle, device, connections: connectionSettings });
+  const config = readConfig();
 
-  // 4. Sync + background
+  // 5. Sync + background
   line();
-  await task('Uploading your history', () => upload(config, data)
+  await task('Uploading your history', () => upload(config, data, { full: true })
     .catch((err) => { throw new Error(networkHint(err)); }), (res) => `Uploaded ${res.rows} day/model rows`)
     .catch(() => process.exit(1));
 
-  if (process.platform === 'darwin' && !flags['no-install']) {
-    await task('Installing hourly sync', async () => installLaunchd(), 'Hourly sync installed');
-  } else if (process.platform !== 'darwin') {
-    const entry = copyCli();
-    line(`  ${sym.skip} ${c.gray('Hourly sync: add this to your crontab')}`);
-    line(`    ${c.blue(`0 * * * * ${process.execPath} ${entry} sync`)}`);
+  if (!flags['no-install'] && scheduleSupported) {
+    await task('Turning on background sync', async () => installSchedule({ node: process.execPath, entry: copyCli(), configDir: CONFIG_DIR }),
+      (r) => `Background sync on ${c.gray(`(${r.method}, ${r.detail}, no admin needed)`)}`)
+      .catch(() => line(`    ${c.gray('Run tokentrack install later to retry.')}`));
   }
 
   // 5. Done
@@ -275,6 +324,7 @@ async function init(flags) {
   line(`  ${c.bold('Next')}`);
   line(`  ${sym.dot} Add another machine: run ${c.blue('npx github:bicrick/tokentracker init')} there and`);
   line(`    choose ${c.italic('Connect an existing account')} with the key from your config`);
+  line(`  ${sym.dot} Add or change tools: ${c.blue('tokentrack connect')}`);
   line(`  ${sym.dot} See exactly what gets sent: ${c.blue('tokentrack sync --dry')}`);
   line();
 }
@@ -297,7 +347,7 @@ async function deleteAccount(flags) {
   }
   const res = await task('Deleting account', () => api(server, '/api/account', { method: 'DELETE', key }), 'Account deleted');
   if (res.ok) {
-    removeLaunchd({ onlyOwn: true });
+    removeSchedule(CONFIG_DIR);
     fs.rmSync(CONFIG_PATH, { force: true });
   } else {
     line(`  ${sym.fail} ${res.json.error || res.status}`);
@@ -329,72 +379,82 @@ function copyCli() {
   return path.join(dest, 'tokentrack.js');
 }
 
-function plist(entry) {
-  const args = [process.execPath, entry, 'sync'];
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>${LABEL}</string>
-  <key>ProgramArguments</key>
-  <array>
-${args.map((a) => `    <string>${a}</string>`).join('\n')}
-  </array>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>NODE_USE_SYSTEM_CA</key><string>1</string>
-    <key>NODE_NO_WARNINGS</key><string>1</string>
-    <key>TOKENTRACK_CONFIG_DIR</key><string>${CONFIG_DIR}</string>
-  </dict>
-  <key>StartInterval</key><integer>3600</integer>
-  <key>RunAtLoad</key><true/>
-  <key>StandardOutPath</key><string>${LOG_PATH}</string>
-  <key>StandardErrorPath</key><string>${LOG_PATH}</string>
-</dict>
-</plist>
-`;
-}
-
-function installLaunchd() {
-  fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
-  try {
-    execFileSync('launchctl', ['unload', PLIST_PATH], { stdio: 'ignore' });
-  } catch {
-    // not loaded yet
-  }
-  fs.writeFileSync(PLIST_PATH, plist(copyCli()));
-  execFileSync('launchctl', ['load', PLIST_PATH]);
-}
-
-function removeLaunchd({ onlyOwn = false } = {}) {
-  if (!fs.existsSync(PLIST_PATH)) return false;
-  // Don't remove a job that syncs a different config (e.g. another account on this machine)
-  if (onlyOwn && !fs.readFileSync(PLIST_PATH, 'utf8').includes(`<string>${CONFIG_DIR}</string>`)) return false;
-  try {
-    execFileSync('launchctl', ['unload', PLIST_PATH], { stdio: 'ignore' });
-  } catch {
-    // already unloaded
-  }
-  fs.unlinkSync(PLIST_PATH);
-  return true;
-}
-
 function install() {
-  if (process.platform !== 'darwin') {
-    line(`  ${sym.skip} install supports macOS. On Linux, run ${c.blue('tokentrack sync')} hourly from cron.`);
-    process.exit(1);
-  }
   const config = readConfig();
   if (!config.server || !config.key) {
     line(`  ${sym.fail} Run ${c.blue('tokentrack init')} first.`);
     process.exit(1);
   }
-  installLaunchd();
-  line(`  ${sym.ok} Hourly sync installed ${c.gray(`· logs: ${tildify(LOG_PATH)}`)}`);
+  const r = installSchedule({ node: process.execPath, entry: copyCli(), configDir: CONFIG_DIR });
+  line(`  ${sym.ok} Background sync on ${c.gray(`(${r.method}, ${r.detail}) · logs: ${tildify(LOG_PATH)}`)}`);
 }
 
 function uninstall() {
-  line(removeLaunchd() ? `  ${sym.ok} Hourly sync removed` : `  ${sym.skip} Hourly sync was not installed`);
+  line(removeSchedule() ? `  ${sym.ok} Background sync off` : `  ${sym.skip} Background sync was not on`);
+}
+
+// ─── connect ───────────────────────────────────────────────────────────────────
+
+async function connect(flags) {
+  let config = readConfig();
+  line();
+
+  if (flags.add) {
+    // tokentrack connect --add <tool> <path>
+    const id = flags.add;
+    const target = rest.find((a) => !a.startsWith('--') && a !== id);
+    if (!CONNECTORS.some((conn) => conn.id === id) || !target) {
+      line(`  Usage: tokentrack connect --add <${CONNECTORS.map((conn) => conn.id).join('|')}> <path>`);
+      process.exit(1);
+    }
+    const s = config.connections?.[id] || {};
+    config.connections = { ...config.connections, [id]: { ...s, enabled: true, paths: [...new Set([...(s.paths || []), target])] } };
+    writeConfig(config);
+    line(`  ${sym.ok} Added ${target} to ${id}`);
+    return;
+  }
+
+  if (!isTTY) {
+    for (const conn of resolveConnections(config)) {
+      line(`  ${conn.enabled ? sym.ok : sym.skip} ${conn.name.padEnd(12)} ${c.gray(conn.paths.length ? `${conn.mode} · ${conn.displayPaths.join(', ')}` : 'not found')}`);
+    }
+    return;
+  }
+
+  const action = await select('Connections', [
+    { value: 'tools', label: 'Choose which tools to track', hint: 'auto-detected on this machine' },
+    { value: 'path', label: 'Add a custom folder', hint: 'for tools installed somewhere unusual' },
+    { value: 'cursor', label: 'Connect Cursor', hint: config.cursorHandle ? `@${config.cursorHandle}` : 'via your public cursor.com profile' },
+  ]);
+  line();
+
+  if (action === 'tools') {
+    config = await chooseConnections(config);
+  } else if (action === 'path') {
+    const id = await select('Which tool?', CONNECTORS.map((conn) => ({ value: conn.id, label: conn.name })));
+    const target = await input('Folder path', { validate: (v) => (fs.existsSync(v.replace(/^~/, os.homedir())) ? null : 'That path does not exist') });
+    const s = config.connections?.[id] || {};
+    config.connections = { ...config.connections, [id]: { ...s, enabled: true, paths: [...new Set([...(s.paths || []), target])] } };
+  } else if (action === 'cursor') {
+    if (!config.server || !config.key) {
+      line(`  ${sym.fail} Run ${c.blue('tokentrack init')} first.`);
+      return;
+    }
+    const cursorHandle = await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to disconnect' });
+    const res = await task('Saving', () => api(config.server, '/api/account', { method: 'POST', key: config.key, body: { cursorHandle: cursorHandle || null } }),
+      (r) => (r.ok ? (cursorHandle ? `Cursor connected as @${cursorHandle}` : 'Cursor disconnected') : 'Could not save'));
+    if (!res.ok) line(`    ${c.red(res.json.error || res.status)}`);
+    else config.cursorHandle = cursorHandle || undefined;
+  }
+
+  writeConfig(config);
+  if (config.server && config.key && action !== 'cursor') {
+    line();
+    const data = await collect(config);
+    printReport(data.report, { hideMissing: true });
+    await task('Syncing', () => upload(config, data, { full: true }), (r) => `Synced ${r.rows} day/model rows`);
+  }
+  line();
 }
 
 function status() {
@@ -404,9 +464,14 @@ function status() {
   row('account', config.handle ? c.blue(`@${config.handle}`) : c.gray('not set up'));
   row('server', config.server || c.gray('-'));
   row('machine', config.device || defaultDevice());
-  row('hourly', fs.existsSync(PLIST_PATH) ? `${sym.ok} installed` : `${sym.skip} not installed`);
+  row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(tokentrack install)')}`);
   row('config', tildify(CONFIG_PATH));
   if (config.server && config.handle) row('profile', c.blue(new URL(`/u/${config.handle}`, config.server).toString()));
+  line(`\n  ${c.gray('tools')}`);
+  for (const conn of resolveConnections(config)) {
+    if (!conn.paths.length) continue;
+    line(`  ${conn.enabled ? sym.ok : sym.skip} ${conn.name.padEnd(12)} ${c.gray(`${conn.mode === 'auto' ? 'Auto' : conn.enabled ? 'On' : 'Off'} · ${conn.displayPaths.join(', ')}`)}`);
+  }
   if (fs.existsSync(LOG_PATH)) {
     const lines = fs.readFileSync(LOG_PATH, 'utf8').trim().split('\n').slice(-3);
     line(`\n  ${c.gray('recent syncs')}`);
@@ -420,16 +485,17 @@ const HELP = `
 
   ${c.bold('Usage')}
     tokentrack init              guided setup
-    tokentrack sync [--dry]      upload daily totals (--dry prints the payload)
+    tokentrack connect           choose tools, add folders, connect Cursor
+    tokentrack sync [--dry]      upload daily totals (--dry prints the payload, --full resends history)
     tokentrack status            account, machine and recent syncs
-    tokentrack install           run sync hourly in the background (macOS)
-    tokentrack uninstall         stop the hourly sync
+    tokentrack install           sync hourly in the background (macOS, Linux, Windows)
+    tokentrack uninstall         stop background sync
     tokentrack delete-account    delete your account and all data
 
   ${c.bold('init flags')}
     --hosted --handle <h> [--cursor <h>]   create a cloud account without prompts
     --server <url> --key <key>             connect an existing account
-    --device <name>  --reset  --no-install
+    --device <name>  --reset  --no-install  --yes (accept detected tools)
 `;
 
 const [command, ...rest] = process.argv.slice(2);
@@ -438,6 +504,8 @@ const flags = parseFlags(rest);
 switch (command) {
   case 'init': await init(flags); break;
   case 'login': login(flags); break;
+  case 'connect':
+  case 'connections': await connect(flags); break;
   case 'delete-account': await deleteAccount(flags); break;
   case 'sync': await sync(flags); break;
   case 'install': install(); break;

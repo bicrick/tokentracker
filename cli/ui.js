@@ -25,6 +25,12 @@ const SHOW = '\x1b[?25h';
 const strip = (s) => String(s).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
 const width = (s) => [...strip(s)].length;
 
+// Exit quietly when piped into something that closes early (e.g. `| head`)
+out.on('error', (err) => {
+  if (err.code === 'EPIPE') process.exit(0);
+  throw err;
+});
+
 let cursorHidden = false;
 function hideCursor() {
   if (isTTY && !cursorHidden) {
@@ -195,6 +201,70 @@ export async function select(question, options, { initial = 0 } = {}) {
         line(`  ${sym.ok} ${question} ${c.blue(options[index].label)}`);
         showCursor();
         resolve(options[index].value);
+        return;
+      } else return;
+      render();
+    };
+    process.stdin.on('keypress', onKey);
+  });
+}
+
+/**
+ * Checklist: ↑/↓ to move, space to toggle, enter to confirm.
+ * options: [{ value, label, hint, checked, disabled }]. Returns checked values.
+ */
+export async function multiselect(question, options) {
+  const state = options.map((o) => !!o.checked);
+  if (!isTTY) return options.filter((_, i) => state[i]).map((o) => o.value);
+
+  return new Promise((resolve) => {
+    let index = Math.max(0, options.findIndex((o) => !o.disabled));
+    let drawn = 0;
+    const render = () => {
+      if (drawn) out.write(`\x1b[${drawn}A\r\x1b[J`);
+      const lines = [`  ${c.bold(question)}`];
+      options.forEach((o, i) => {
+        const active = i === index;
+        const box = o.disabled ? c.gray('·') : state[i] ? c.green('◼') : c.gray('◻');
+        const label = o.disabled ? c.gray(o.label) : active ? c.blue(o.label) : o.label;
+        lines.push(`  ${active ? sym.arrow : ' '} ${box} ${label}${o.hint ? `  ${c.gray(o.hint)}` : ''}`);
+      });
+      lines.push(c.gray('    ↑/↓ move · space toggle · enter confirm'));
+      out.write(`${lines.join('\n')}\n`);
+      drawn = lines.length;
+    };
+
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    hideCursor();
+    render();
+
+    const move = (step) => {
+      for (let n = 0; n < options.length; n += 1) {
+        index = (index + step + options.length) % options.length;
+        if (!options[index].disabled) break;
+      }
+    };
+
+    const onKey = (_, key = {}) => {
+      if (key.ctrl && key.name === 'c') {
+        showCursor();
+        out.write('\n');
+        process.exit(130);
+      }
+      if (key.name === 'up' || key.name === 'k') move(-1);
+      else if (key.name === 'down' || key.name === 'j') move(1);
+      else if (key.name === 'space' && !options[index].disabled) state[index] = !state[index];
+      else if (key.name === 'return') {
+        process.stdin.off('keypress', onKey);
+        process.stdin.setRawMode(false);
+        process.stdin.pause();
+        out.write(`\x1b[${drawn}A\r\x1b[J`);
+        const picked = options.filter((_, i) => state[i]);
+        line(`  ${sym.ok} ${question} ${c.blue(picked.map((o) => o.label).join(', ') || 'none')}`);
+        showCursor();
+        resolve(picked.map((o) => o.value));
         return;
       } else return;
       render();
