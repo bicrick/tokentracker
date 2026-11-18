@@ -151,6 +151,26 @@ h1 {
   color: var(--muted);
 }
 
+/* hero with the dithered coin */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 176px;
+  gap: 32px;
+  align-items: end;
+}
+
+.coin {
+  width: 176px;
+  margin-bottom: 30px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@media (max-width: 720px) {
+  .hero { grid-template-columns: 1fr; }
+  .coin { display: none; }
+}
+
 /* supported tools */
 .tools {
   display: flex;
@@ -426,6 +446,48 @@ h1 {
   font-size: 13px;
   color: var(--ink-soft);
 }
+
+/* the hoard */
+.hoard-block {
+  margin-top: 88px;
+}
+
+.hoard-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.hoard-head h2 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.hoard-head .muted { font-size: 12px; }
+
+.hoard {
+  display: block;
+  width: 100%;
+  aspect-ratio: 240 / 110;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.hoard-months {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.hoard-months .future { opacity: 0.4; }
 
 /* sections */
 section.block {

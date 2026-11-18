@@ -19,6 +19,8 @@
       </div>
     </nav>
 
+    <div class="hero">
+      <div class="hero-copy">
     <h1>Your AI tokens, in one place.</h1>
     <p class="lede">
       Track token usage across Cursor, Claude Code, OpenCode and GitHub Copilot
@@ -30,6 +32,9 @@
       <button type="button" id="copy">Copy command</button>
     </div>
     <p class="note">Free and open source. Needs Node 22.13+ on macOS, Linux or Windows.</p>
+      </div>
+      <canvas class="coin" id="coin" aria-hidden="true"></canvas>
+    </div>
 
     <ul class="tools" aria-label="Supported tools">
       <li><i style="--logo:url(/logos/claude.svg)"></i>Claude Code</li>
@@ -63,6 +68,15 @@
         <p class="privacy-line">Only daily token counts leave your machine. Prompts and code stay local.</p>
       </div>
     </div>
+
+    <section class="hoard-block" aria-labelledby="hoard-title">
+      <div class="hoard-head">
+        <h2 id="hoard-title">the hoard</h2>
+        <span class="muted mono" id="hoard-caption">each coin is 50M tokens</span>
+      </div>
+      <canvas class="hoard" id="hoard" role="img" aria-label="Stacks of coins, one per month, sized by tokens used"></canvas>
+      <div class="hoard-months" id="hoard-months"></div>
+    </section>
 
     <section class="block" aria-labelledby="how">
       <h2 id="how">how it works</h2>
@@ -112,10 +126,20 @@
   <script type="module">
     import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js';
     import { playDemo } from '/demo.js';
+    import { mountCoin } from '/coin.js';
+    import { mountHoard } from '/hoard.js';
+
+
+
+    if (window.matchMedia('(min-width: 720px)').matches) mountCoin(document.getElementById('coin'));
 
     wireCopy(document.getElementById('copy'), document.getElementById('cmd').textContent);
 
     const data = fetchActivity('bicrick').catch(() => null);
+    data.then((d) => {
+      if (d) mountHoard(document.getElementById('hoard'), document.getElementById('hoard-months'), d);
+      else document.querySelector('.hoard-block').hidden = true;
+    });
     const show = async () => {
       const d = await data;
       if (!d) {
