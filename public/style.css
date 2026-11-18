@@ -199,9 +199,25 @@ h1 {
 }
 
 /* demo: terminal then profile */
-.demo {
-  display: grid;
+/* The demo pins while the track scrolls past; scroll position drives it */
+.demo-track {
   margin-top: 56px;
+}
+
+/* Scroll room for the pinned demo. A spacer, not padding: sticky elements can
+   only travel within their parent's content box. */
+.demo-track::after {
+  content: '';
+  display: block;
+  height: 140vh;
+}
+
+.demo-track.static::after { display: none; }
+
+.demo {
+  position: sticky;
+  top: 72px;
+  display: grid;
 }
 
 /* Ordered-dither wipe canvas sits over the shared cell during the hand-off */
@@ -246,18 +262,12 @@ h1 {
   background: #2c3038;
 }
 
-.replay {
-  appearance: none;
+.scroll-hint {
   margin-left: auto;
-  border: 0;
-  background: none;
   color: #7c818c;
   font-family: var(--mono);
   font-size: 11px;
-  cursor: pointer;
 }
-
-.replay:hover { color: #e6e6e1; }
 
 .term-body {
   margin: 0;

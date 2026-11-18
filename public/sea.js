@@ -232,7 +232,9 @@ export function mountTokenSea(canvas, { content, avoid = [] } = {}) {
 
   function update() {
     const vh = window.innerHeight;
-    reveal = Math.max(0, Math.min(1, (window.scrollY - START) / (vh * 0.9)));
+    // Only near the bottom of the page: the hoard is the payoff for scrolling
+    const remaining = document.documentElement.scrollHeight - vh - window.scrollY;
+    reveal = Math.max(0, Math.min(1, 1 - (remaining - START) / (vh * 0.9)));
 
     // Clear zone: the content column stays empty above the lowest visible chart
     const rect = content?.getBoundingClientRect();
