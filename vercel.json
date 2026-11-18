@@ -3,9 +3,21 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/u/:handle([a-z0-9-]+).svg", "destination": "/api/card?handle=:handle" },
+    { "source": "/u/:handle([a-z0-9-]+).json", "destination": "/api/tokens?handle=:handle" },
+    { "source": "/u/:handle([a-z0-9-]+).csv", "destination": "/api/tokens?handle=:handle&format=csv" },
     { "source": "/u/:handle", "destination": "/u" }
   ],
+  "headers": [
+    {
+      "source": "/(embed.js|lib/heatmap.js)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800" }
+      ]
+    }
+  ],
   "crons": [
-    { "path": "/api/cron/cursor", "schedule": "0 6 * * *" }
+    { "path": "/api/cron/cursor", "schedule": "0 * * * *" }
   ]
 }

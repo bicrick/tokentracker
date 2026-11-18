@@ -7,14 +7,15 @@
   <meta name="description" content="How tokentracker works: installation, supported tools, connections, background sync, privacy, embedding, self-hosting and CLI reference.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="stylesheet" href="/style.css?v=17">
-  <link rel="stylesheet" href="/mobile.css?v=17" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=18">
+  <link rel="stylesheet" href="/mobile.css?v=18" media="(max-width: 720px)">
 </head>
 <body class="docs-page">
   <div class="wrap wide">
     <nav>
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
       <div class="links">
+        <a href="/embed">Embed</a>
         <a href="/docs" aria-current="page">Docs</a>
         <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
       </div>
@@ -34,6 +35,7 @@
         <p>Using your data</p>
         <a href="#profile">Profile</a>
         <a href="#embed">Embed and API</a>
+        <a href="#accounts">Accounts and keys</a>
         <a href="#self-host">Self-hosting</a>
         <p>Reference</p>
         <a href="#cli">CLI</a>
@@ -148,11 +150,65 @@
 
         <section id="embed">
           <h2>Embed and API</h2>
-          <p>Fetch your data and render it however you like. The endpoint allows cross-origin requests and is cached at the edge.</p>
-          <pre>const res = await fetch('https://tokentracker-nu.vercel.app/api/activity?handle=you');
-const { activityCounts, totals, models } = await res.json();
-// activityCounts: [{ date: "2026-11-17", count: 259485947, sources: { cursor: 3853940, opencode: 255632007 } }]</pre>
-          <p class="muted">Coming soon: ready-made embeds (image cards for READMEs, a themeable web component, and a small library that does the heatmap maths for custom designs).</p>
+          <p>Profiles are public, so embedding needs no account or key. Try every option live in the <a href="/embed">embed builder</a>.</p>
+
+          <h3>Image cards</h3>
+          <p>An SVG that works anywhere images do, including GitHub READMEs. Cached for an hour.</p>
+          <pre>[![AI tokens](https://tokentracker-nu.vercel.app/u/you.svg)](https://tokentracker-nu.vercel.app/u/you)</pre>
+          <table>
+            <tr><th>Option</th><th>Values</th></tr>
+            <tr><td><code>type</code></td><td><code>heatmap</code> (default), <code>stats</code>, <code>breakdown</code>, <code>line</code>, <code>badge</code></td></tr>
+            <tr><td><code>cells</code></td><td><code>square</code>, <code>round</code>, <code>dot</code>, <code>dither</code> (heatmap only)</td></tr>
+            <tr><td><code>theme</code></td><td><code>dark</code>, <code>light</code>, <code>gold</code>, <code>transparent</code></td></tr>
+            <tr><td><code>accent</code> <code>bg</code> <code>text</code> <code>muted</code> <code>empty</code></td><td>Hex colours without <code>#</code>, e.g. <code>accent=e11d48</code></td></tr>
+            <tr><td><code>range</code></td><td><code>year</code>, <code>365d</code>, <code>90d</code>, <code>30d</code>, any <code>Nd</code>, or a year like <code>2025</code></td></tr>
+            <tr><td><code>tools</code></td><td>Comma-separated tool ids, e.g. <code>claude-code,codex</code></td></tr>
+            <tr><td><code>hide</code></td><td><code>title</code>, <code>total</code>, <code>months</code>, <code>legend</code></td></tr>
+            <tr><td><code>week</code></td><td><code>mon</code> to start weeks on Monday</td></tr>
+            <tr><td><code>label</code></td><td>Badge label text (default "AI tokens")</td></tr>
+          </table>
+
+          <h3>Web component</h3>
+          <p>Live and interactive, with hover tooltips. It inherits your page's text colour; theme it with CSS variables or <code>::part()</code>.</p>
+          <pre>&lt;script type="module" src="https://tokentracker-nu.vercel.app/embed.js"&gt;&lt;/script&gt;
+&lt;token-heatmap handle="you" range="year" tools="claude-code,codex"&gt;&lt;/token-heatmap&gt;
+&lt;token-total handle="you"&gt;&lt;/token-total&gt; tokens this year</pre>
+          <pre>token-heatmap {
+  --tt-cell-0: #f1f5f9;  --tt-cell-1: #c7d2fe;  --tt-cell-2: #a5b4fc;
+  --tt-cell-3: #6366f1;  --tt-cell-4: #3730a3;
+  --tt-gap: 2px;  --tt-radius: 2px;  --tt-font: 'Inter', sans-serif;
+}</pre>
+          <p>Attributes: <code>handle</code>, <code>range</code>, <code>tools</code>, <code>week-start="mon"</code>, <code>theme="light|dark"</code>, <code>hide="months,legend"</code>. Parts: <code>cell</code>, <code>level-0…4</code>, <code>months</code>, <code>grid</code>, <code>legend</code>. It fires a <code>tokentracker:load</code> event with the data.</p>
+
+          <h3>Headless library: build your own</h3>
+          <p>For a heatmap styled exactly like your site. The library does the grid, colour levels, totals and streaks; you write the markup.</p>
+          <pre>import { getHeatmap } from 'https://tokentracker-nu.vercel.app/lib/heatmap.js';
+
+const hm = await getHeatmap('you', { range: 'year', weekStart: 'mon', levels: 5 });
+// hm.weeks[w][d]: { date, count, level, sources, future } or null outside the range
+// hm.months: [{ label, week }]   hm.total, hm.max, hm.maxDay
+// hm.activeDays, hm.longestStreak, hm.currentStreak
+// hm.tools: [{ id, name, tokens, share }]</pre>
+          <p>Also exported: <code>buildHeatmap(data, options)</code> and <code>buildSeries(data, options)</code> for data you already have, <code>fetchActivity</code>, <code>formatTokens</code> and <code>resolveRange</code>. It has no dependencies and works in browsers, Node and edge functions.</p>
+
+          <h3>Raw tokens</h3>
+          <pre>GET /u/you.json?range=90d&amp;group=day       # or /api/tokens?handle=you&amp;…
+GET /u/you.json?group=month
+GET /u/you.json?group=tool
+GET /u/you.json?group=model
+GET /u/you.csv?range=year&amp;group=day</pre>
+          <p><code>group</code> is <code>day</code>, <code>week</code>, <code>month</code>, <code>tool</code> or <code>model</code>; <code>tools</code> filters by tool. Responses include <code>total</code> and <code>rows</code>. CORS-open and cached for 10 minutes.</p>
+        </section>
+
+        <section id="accounts">
+          <h2>Accounts and keys</h2>
+          <ul>
+            <li><b>Reading is public.</b> Profiles, cards, the web component and the raw API need no login or key.</li>
+            <li><b>Publishing needs an account,</b> which <code>tokentrack init</code> creates for you: you pick a handle and the server returns a secret key once. There's no email or password.</li>
+            <li><b>The key is the only credential.</b> It lives in <code>~/.config/tokentrack/config.json</code> on your machines, is sent as <code>Authorization: Bearer …</code> to upload or change settings, and is stored hashed on the server.</li>
+            <li><b>Lost your key?</b> Copy it from another of your machines' config. If you've lost every copy, the account can't be recovered, so you'd create a new handle.</li>
+            <li><b>Limits:</b> 5 sign-ups per hour per IP address and 120 uploads per hour per account, to keep the free service healthy.</li>
+          </ul>
         </section>
 
         <section id="self-host">
@@ -200,6 +256,8 @@ const { activityCounts, totals, models } = await res.json();
           <table>
             <tr><th>Method</th><th>Path</th><th>Auth</th><th></th></tr>
             <tr><td><code>GET</code></td><td><code>/api/activity?handle=</code></td><td>public</td><td>Daily totals by tool, per-model totals, machines</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/tokens?handle=</code> · <code>/u/you.json</code> · <code>/u/you.csv</code></td><td>public</td><td>Raw tokens grouped by day, week, month, tool or model</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/card?handle=</code> · <code>/u/you.svg</code></td><td>public</td><td>SVG cards</td></tr>
             <tr><td><code>POST</code></td><td><code>/api/signup</code></td><td>public</td><td>Create an account; returns a key once</td></tr>
             <tr><td><code>GET POST DELETE</code></td><td><code>/api/account</code></td><td>key</td><td>Who am I, set Cursor handle, delete account</td></tr>
             <tr><td><code>POST</code></td><td><code>/api/ingest</code></td><td>key</td><td>Upload daily totals (optional <code>since</code>)</td></tr>

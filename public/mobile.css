@@ -125,3 +125,7 @@ footer {
 .docs-body table { display: block; overflow-x: auto; font-size: 13px; }
 
 .docs-body pre { font-size: 11.5px; }
+
+/* embed builder */
+.builder { grid-template-columns: 1fr; gap: 20px; }
+.preview { min-height: 150px; padding: 12px; }

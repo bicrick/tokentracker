@@ -63,7 +63,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
         const tall = wide;
         const count = Math.round((tall ? 18 + rand() * 46 : 3 + rand() * 9) * (0.55 + 0.45 * Math.sin(x / 13) ** 2));
         // Tallest a stack may grow: about two thirds of the canvas
-        const max = Math.max(4, Math.floor(((H - groundCells - 1 - H * 0.33) / STEP) * (0.7 + rand() * 0.3)));
+        const max = Math.max(4, Math.floor(((viewCells * 0.62) / STEP) * (0.7 + rand() * 0.3)));
         stacks.push({ x, count: Math.min(count, max), max, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
       }
     }
@@ -77,6 +77,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
   };
 
   let groundCells = 0;
+  let viewCells = 0; // viewport height in cells; scene proportions follow the screen, not the page
 
   // The canvas sits in the page above the footer, so the hoard scrolls in with
   // the content instead of fading in on a fixed layer.
@@ -84,6 +85,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
     W = Math.ceil(canvas.clientWidth / CELL);
     H = Math.ceil(canvas.clientHeight / CELL);
     groundCells = ground ? Math.ceil(ground.offsetHeight / CELL) : 0;
+    viewCells = Math.ceil(window.innerHeight / CELL);
     canvas.width = W;
     canvas.height = H;
     img = ctx.createImageData(W, H);
@@ -149,7 +151,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
 
     // Low blue band rising from the ground
     const floor = floorY();
-    const band = H * 0.2;
+    const band = viewCells * 0.2;
     const top = floor - band;
     for (let y = Math.max(0, Math.floor(top)); y <= floor; y += 1) {
       const t = (y - top) / (floor - top || 1);
@@ -191,7 +193,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
     const base = floorY() - (pileTop(x) + (bumps[x] || 0));
     const limit = x >= clip.from && x < clip.to && clip.y >= 0
       ? floorY() - (clip.y + 6) - base
-      : H * 0.33;
+      : viewCells * 0.33;
     return Math.max(0, limit);
   };
 
@@ -260,8 +262,8 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
       const spread = (rand() + rand() + rand() - 1.5) * width;
       falling.push({
         x: center + spread,
-        // Start just above the visible part of the canvas
-        y: Math.max(-8, -canvas.getBoundingClientRect().top / CELL) - 8 - rand() * 20,
+        // Start just above the top of the screen, wherever the page is scrolled
+        y: -canvas.getBoundingClientRect().top / CELL - 8 - rand() * 20,
         vx: spread * 0.006,
         vy: rand() * 0.6,
         spin: rand() * Math.PI * 2,
@@ -277,7 +279,9 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
     const vh = window.innerHeight;
     // How much of the hoard is on screen; waterfalls only pour once it's visible
     const cr = canvas.getBoundingClientRect();
-    reveal = Math.max(0, Math.min(1, (vh - cr.top) / cr.height));
+    // How far the hoard's ground is into the screen: 0 when it's below the fold
+    const floorPx = cr.top + (H - groundCells) * CELL;
+    reveal = Math.max(0, Math.min(1, (vh - (floorPx - vh * 0.62)) / (vh * 0.62)));
 
     // Clear zone: the content column stays empty above the lowest visible chart
     const rect = content?.getBoundingClientRect();

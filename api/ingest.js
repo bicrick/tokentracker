@@ -1,5 +1,6 @@
 import { accountFromRequest, cors } from '../lib/auth.js';
 import { ensureSchema, replaceUsage } from '../lib/db.js';
+import { rateLimit, tooMany } from '../lib/ratelimit.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 // Any local tool id; 'cursor' is fetched server-side and can't be uploaded
@@ -41,6 +42,8 @@ export default async function handler(req, res) {
     await ensureSchema();
     const account = await accountFromRequest(req);
     if (!account) return res.status(401).json({ error: 'Unauthorized' });
+    const limited = await rateLimit(`ingest:${account.handle}`, { limit: 120, windowSeconds: 3600 });
+    if (!limited.ok) return tooMany(res, limited);
     const { device, sources, rows, since } = req.body;
     await replaceUsage({ account: account.handle, device, sources, rows, since });
     return res.status(200).json({ ok: true, account: account.handle, rows: rows.length, since: since ?? null });

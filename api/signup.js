@@ -1,6 +1,7 @@
 import { cors, hashKey, newKey, validHandle } from '../lib/auth.js';
 import { createAccount, ensureSchema } from '../lib/db.js';
 import { refreshCursor } from '../lib/cursor.js';
+import { clientIp, rateLimit, tooMany } from '../lib/ratelimit.js';
 
 const CURSOR_RE = /^[A-Za-z0-9_-]{1,40}$/;
 
@@ -21,6 +22,8 @@ export default async function handler(req, res) {
 
   try {
     await ensureSchema();
+    const limited = await rateLimit(`signup:${clientIp(req)}`, { limit: 5, windowSeconds: 3600 });
+    if (!limited.ok) return tooMany(res, limited);
     const key = newKey();
     const created = await createAccount({ handle, keyHash: hashKey(key), cursorHandle });
     if (!created) return res.status(409).json({ error: 'Handle is taken' });

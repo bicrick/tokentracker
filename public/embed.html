@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Embed · tokentracker</title>
+  <meta name="description" content="Embed your AI token usage anywhere: image cards for READMEs, a themeable web component, a headless library, or raw JSON and CSV.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/style.css?v=18">
+  <link rel="stylesheet" href="/mobile.css?v=18" media="(max-width: 720px)">
+</head>
+<body>
+  <div class="wrap wide">
+    <nav>
+      <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
+      <div class="links">
+        <a href="/embed" aria-current="page">Embed</a>
+        <a href="/docs">Docs</a>
+        <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
+      </div>
+    </nav>
+
+    <h1 class="embed-title">Embed your tokens anywhere.</h1>
+    <p class="lede">Pick a style, preview it with any profile, and copy the snippet. No account or key needed to embed: profiles are public.</p>
+
+    <div class="builder">
+      <form class="controls" id="controls">
+        <label>handle <input name="handle" value="bicrick" autocomplete="off" spellcheck="false"></label>
+        <label>card
+          <select name="type">
+            <option value="heatmap">heatmap</option>
+            <option value="stats">stats</option>
+            <option value="breakdown">tool breakdown</option>
+            <option value="line">cumulative line</option>
+            <option value="badge">badge</option>
+          </select>
+        </label>
+        <label>cells
+          <select name="cells">
+            <option value="square">square</option>
+            <option value="round">round</option>
+            <option value="dot">dot</option>
+            <option value="dither">dither</option>
+          </select>
+        </label>
+        <label>theme
+          <select name="theme">
+            <option value="dark">dark</option>
+            <option value="light">light</option>
+            <option value="gold">gold</option>
+            <option value="transparent">transparent</option>
+          </select>
+        </label>
+        <label>accent <input name="accent" type="color" value="#6b9eff"></label>
+        <label>range
+          <select name="range">
+            <option value="year">this year</option>
+            <option value="365d">last 365 days</option>
+            <option value="90d">last 90 days</option>
+            <option value="30d">last 30 days</option>
+          </select>
+        </label>
+        <label>tools <input name="tools" placeholder="all, or claude-code,codex" autocomplete="off" spellcheck="false"></label>
+        <fieldset>
+          <legend>hide</legend>
+          <label class="check"><input type="checkbox" name="hide" value="title"> title</label>
+          <label class="check"><input type="checkbox" name="hide" value="months"> months</label>
+          <label class="check"><input type="checkbox" name="hide" value="legend"> legend</label>
+        </fieldset>
+      </form>
+
+      <div class="output">
+        <div class="preview" id="preview"><img id="preview-img" alt="Card preview"></div>
+
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" data-tab="markdown" aria-selected="true">Markdown</button>
+          <button type="button" role="tab" data-tab="html">HTML</button>
+          <button type="button" role="tab" data-tab="component">Web component</button>
+          <button type="button" role="tab" data-tab="library">Library</button>
+          <button type="button" role="tab" data-tab="data">Raw data</button>
+        </div>
+        <div class="snippet">
+          <pre id="snippet"></pre>
+          <button type="button" id="copy-snippet">Copy</button>
+        </div>
+        <p class="note" id="tab-note"></p>
+      </div>
+    </div>
+
+    <section class="block">
+      <h2>styling the web component</h2>
+      <p>The component inherits your page's text colour and can be themed with CSS variables or <code>::part()</code>:</p>
+      <pre>token-heatmap {
+  --tt-cell-0: #f1f5f9;   /* empty day */
+  --tt-cell-1: #c7d2fe;
+  --tt-cell-2: #a5b4fc;
+  --tt-cell-3: #6366f1;
+  --tt-cell-4: #3730a3;   /* busiest */
+  --tt-gap: 2px;
+  --tt-radius: 2px;
+  --tt-font: 'Inter', sans-serif;
+}
+token-heatmap::part(cell):hover { outline: 2px solid hotpink; }</pre>
+      <p>Live example, styled by this page:</p>
+      <div class="component-demo"><token-heatmap handle="bicrick"></token-heatmap></div>
+      <p class="note"><token-total handle="bicrick"></token-total> tokens this year, as inline text with <code>&lt;token-total&gt;</code>.</p>
+    </section>
+
+    <footer>
+      <span>by <a href="https://patrickbrown.dev">bicrick</a> · open source · MIT</span>
+      <a href="/docs#embed">embedding docs</a>
+    </footer>
+  </div>
+
+  <script type="module" src="/embed.js?v=18"></script>
+  <script type="module">
+    const ORIGIN = location.origin;
+    const form = document.getElementById('controls');
+    const img = document.getElementById('preview-img');
+    const pre = document.getElementById('snippet');
+    const note = document.getElementById('tab-note');
+    let tab = 'markdown';
+
+    const state = () => {
+      const f = new FormData(form);
+      const handle = (f.get('handle') || 'bicrick').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'bicrick';
+      const q = new URLSearchParams();
+      const type = f.get('type');
+      if (type !== 'heatmap') q.set('type', type);
+      if (type === 'heatmap' && f.get('cells') !== 'square') q.set('cells', f.get('cells'));
+      if (f.get('theme') !== 'dark') q.set('theme', f.get('theme'));
+      const accent = f.get('accent').replace('#', '');
+      if (accent !== '6b9eff') q.set('accent', accent);
+      if (f.get('range') !== 'year') q.set('range', f.get('range'));
+      const tools = (f.get('tools') || '').replace(/\s/g, '');
+      if (tools) q.set('tools', tools);
+      const hide = f.getAll('hide');
+      if (hide.length) q.set('hide', hide.join(','));
+      return { handle, type, range: f.get('range'), tools, query: q.toString() };
+    };
+
+    const snippets = (s) => {
+      const url = `${ORIGIN}/u/${s.handle}.svg${s.query ? `?${s.query}` : ''}`;
+      const profile = `${ORIGIN}/u/${s.handle}`;
+      const attrs = [`handle="${s.handle}"`, s.range !== 'year' ? `range="${s.range}"` : '', s.tools ? `tools="${s.tools}"` : ''].filter(Boolean).join(' ');
+      return {
+        markdown: [`[![AI tokens](${url})](${profile})`, 'Works in GitHub READMEs, Notion and most markdown. Updates hourly.'],
+        html: [`<a href="${profile}"><img src="${url}" alt="AI token usage for @${s.handle}"></a>`, 'A plain image. Updates hourly, no JavaScript.'],
+        component: [`<script type="module" src="${ORIGIN}/embed.js"><\/script>\n<token-heatmap ${attrs}></token-heatmap>`, 'Live and interactive, with hover tooltips. Themeable with CSS variables (see below).'],
+        library: [`import { getHeatmap } from '${ORIGIN}/lib/heatmap.js';\n\nconst hm = await getHeatmap('${s.handle}', { range: '${s.range}'${s.tools ? `, tools: ${JSON.stringify(s.tools.split(','))}` : ''} });\n// hm.weeks[w][d] = { date, count, level, sources } (null outside the range)\n// hm.months, hm.total, hm.max, hm.longestStreak, hm.tools\n\nel.innerHTML = hm.weeks.map((week) =>\n  \`<div class="week">\${week.map((d) => d ? \`<i class="lvl-\${d.level}" title="\${d.date}"></i>\` : '<i></i>').join('')}</div>\`\n).join('');`, 'Does the grid and colour-level maths; you write the markup and CSS.'],
+        data: [`${ORIGIN}/u/${s.handle}.json?range=${s.range}&group=day${s.tools ? `&tools=${s.tools}` : ''}\n${ORIGIN}/u/${s.handle}.json?group=month\n${ORIGIN}/u/${s.handle}.json?group=tool\n${ORIGIN}/u/${s.handle}.json?group=model\n${ORIGIN}/u/${s.handle}.csv?range=${s.range}&group=day`, 'Raw tokens as JSON or CSV. group = day, week, month, tool or model. CORS-open.'],
+      };
+    };
+
+    const render = () => {
+      const s = state();
+      img.src = `${ORIGIN}/u/${s.handle}.svg${s.query ? `?${s.query}` : ''}`;
+      form.querySelector('[name=cells]').closest('label').hidden = s.type !== 'heatmap';
+      const [code, text] = snippets(s)[tab];
+      pre.textContent = code;
+      note.textContent = text;
+    };
+
+    let t;
+    form.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(render, 200);
+    });
+    document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+      tab = b.dataset.tab;
+      document.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      render();
+    }));
+    document.getElementById('copy-snippet').addEventListener('click', async (e) => {
+      await navigator.clipboard.writeText(pre.textContent);
+      e.target.textContent = 'Copied';
+      setTimeout(() => { e.target.textContent = 'Copy'; }, 1400);
+    });
+    render();
+  </script>
+</body>
+</html>
