@@ -36,7 +36,7 @@ Every tool, every machine. Tool-specific profiles (like Cursor's) only show one 
 - Hourly background sync on macOS (launchd); Linux via cron. Requires Node 22.13+.
 - Keys are stored hashed server-side; `tokentrack delete-account` removes all data.
 - Uploads are validated to contain only date, tool, model and numeric token counts.
-- Free hosted tier; no pricing exists. Do not imply paid plans.
+- Free hosted tier; no pricing exists and none is planned. Do not imply paid plans.
 - Package not yet on npm (`tokentracker` name is available); install is via the GitHub npx form.
 
 ## Brand Commitments
@@ -49,6 +49,14 @@ Every tool, every machine. Tool-specific profiles (like Cursor's) only show one 
 
 - Real live data: bicrick's profile (~9.2B tokens this year across cursor, claude code, opencode) via `/api/activity?handle=bicrick`.
 - No testimonials, user counts, logos, or press exist. Do not fabricate any.
+
+## Business Model
+
+- Always free. No paid plans, no Teams tier, no waitlist. tokentracker is a free, open-source community tool and a portfolio piece by bicrick. Do not imply pricing, upgrades, or future paid features.
+- The CLI (collector) is the product and is MIT open source. It runs on users' machines and costs nothing to operate.
+- tokentracker cloud is the hosted, hands-off default (`init` preselects it): public profile, embeddable heatmap, API. It is the only thing bicrick operates; keep it small and cheap (Vercel Pro + Neon).
+- Hands-on users can send data elsewhere instead of or in addition to the cloud ("destinations"): local file, GitHub repo or gist, webhook, or their own self-hosted server. If the cloud ever shuts down, the CLI keeps working with those.
+- Landing page primary action: copy the `npx` command.
 
 ## Product Principles
 
