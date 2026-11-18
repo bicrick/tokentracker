@@ -8,8 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=22">
-  <link rel="stylesheet" href="/mobile.css?v=22" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=24">
+  <link rel="stylesheet" href="/mobile.css?v=24" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -67,29 +67,46 @@
         <pre class="term-body" id="term-body"></pre>
       </div>
 
-      <div class="profile opener" id="profile">
-        <p class="kicker">01 / embed anywhere</p>
-        <h2 class="opener-title">Your year of tokens, on your site.</h2>
-        <div id="ex-heatmap"></div>
-        <div class="opener-foot">
-          <code>![AI tokens](tokentracker-nu.vercel.app/u/you.svg)</code>
-          <span class="muted"><span id="ex-total">—</span> tokens this year · <button type="button" class="replay-link" id="replay2">replay setup</button></span>
+      <div class="profile" id="profile">
+        <div class="profile-head">
+          <span class="handle">@bicrick</span>
+          <span class="profile-actions">
+            <button type="button" class="replay-link" id="replay2">replay setup</button>
+            <a class="view" href="/u/bicrick">View profile ↗</a>
+          </span>
         </div>
+        <div class="total">
+          <span class="big" id="ex-total">—</span>
+          <span class="label">tokens this year</span>
+        </div>
+        <div id="ex-heatmap"></div>
+        <p class="privacy-line">Only daily token counts leave your machine. Prompts and code stay local.</p>
       </div>
     </div>
 
     <section class="chapter" id="ch-heatmaps" aria-labelledby="ch1">
-      <p class="kicker">02 / style it</p>
-      <h2 id="ch1">Any cells, colours and range.</h2>
-      <p class="chapter-lede">Same image URL, a few query options. Make it match your site.</p>
-      <figure class="cycler" id="cycler">
-        <div class="cycler-frame"><img id="cycler-a" alt="Heatmap card"><img id="cycler-b" alt="" aria-hidden="true"></div>
-        <figcaption><code id="cycler-url">/u/you.svg</code><span class="cycler-dots" id="cycler-dots"></span></figcaption>
-      </figure>
+      <h2 id="ch1">Make it yours.</h2>
+      <p class="chapter-lede">Tune it to match your site, then copy the snippet.</p>
+      <div class="playground" id="playground">
+        <div class="pg-stage" id="pg-stage">
+          <token-heatmap handle="bicrick" id="pg-heatmap"></token-heatmap>
+        </div>
+        <div class="pg-controls">
+          <label><span>colour</span><input type="color" id="pg-accent" value="#6b9eff"></label>
+          <label><span>rounding</span><input type="range" id="pg-radius" min="0" max="50" value="0"></label>
+          <label><span>gap</span><input type="range" id="pg-gap" min="0" max="6" value="3"></label>
+          <label><span>background</span>
+            <span class="chips" id="pg-theme"><button data-v="dark" class="on">dark</button><button data-v="light">light</button></span>
+          </label>
+          <label><span>range</span>
+            <span class="chips" id="pg-range"><button data-v="year" class="on">year</button><button data-v="90d">90 days</button><button data-v="30d">30 days</button></span>
+          </label>
+        </div>
+        <pre class="pg-code" id="pg-code"></pre>
+      </div>
     </section>
 
     <section class="chapter" id="ch-badges" aria-labelledby="ch2">
-      <p class="kicker">03 / badges</p>
       <h2 id="ch2">A badge for your README.</h2>
       <p class="chapter-lede">Shields-style, with your total, any label and colour.</p>
       <div class="badge-row">
@@ -101,7 +118,6 @@
     </section>
 
     <section class="chapter" id="ch-graphs" aria-labelledby="ch3">
-      <p class="kicker">04 / graphs</p>
       <h2 id="ch3">Stats, breakdowns and trends.</h2>
       <p class="chapter-lede">Cards for the numbers people actually ask about.</p>
       <div class="graph-row">
@@ -112,7 +128,6 @@
     </section>
 
     <section class="chapter" id="ch-api" aria-labelledby="ch4">
-      <p class="kicker">05 / api</p>
       <h2 id="ch4">Or make your own with the API.</h2>
       <p class="chapter-lede">Raw tokens as JSON or CSV, grouped by day, week, month, tool or model. No key needed.</p>
       <div class="api-split">
@@ -138,11 +153,11 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=22';
-    import { mountDemo } from '/demo.js?v=22';
-    import { mountCoin } from '/coin.js?v=22';
-    import { mountTokenSea } from '/sea.js?v=22';
-    import { mountChapters } from '/chapters.js?v=22';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=24';
+    import { mountDemo } from '/demo.js?v=24';
+    import { mountCoin } from '/coin.js?v=24';
+    import { mountTokenSea } from '/sea.js?v=24';
+    import { mountChapters } from '/chapters.js?v=24';
 
 
     mountTokenSea(document.getElementById('sea'), {

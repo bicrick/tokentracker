@@ -3,16 +3,6 @@
 import { formatTokens, MONTHS } from '/lib/heatmap.js';
 
 const HANDLE = 'bicrick';
-// The plain blue square heatmap opens the section above; these are the variations
-const STYLES = [
-  { q: 'cells=round&theme=light', label: 'round · light' },
-  { q: 'cells=dot&accent=f0c463', label: 'dot · gold accent' },
-  { q: 'cells=dither&theme=gold', label: 'dither · gold' },
-  { q: 'cells=square&accent=6fd39b&range=365d', label: 'last 365 days · green' },
-  { q: 'cells=round&accent=d97757&tools=claude-code', label: 'claude code only' },
-  { q: 'cells=square&theme=light&accent=e11d48&hide=title', label: 'no title · red' },
-];
-
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Fade a chapter in the first time it scrolls into view. */
@@ -31,47 +21,53 @@ function onEnter(el, fn) {
   io.observe(el);
 }
 
-function heatmapCycler() {
-  const a = document.getElementById('cycler-a');
-  const b = document.getElementById('cycler-b');
-  const url = document.getElementById('cycler-url');
-  const dots = document.getElementById('cycler-dots');
-  const src = (s) => `/u/${HANDLE}.svg${s.q ? `?${s.q}` : ''}`;
-  STYLES.forEach((s) => new Image().src = src(s)); // warm the cache
+import '/embed.js?v=24';
 
-  dots.innerHTML = STYLES.map((s, i) => `<button type="button" aria-label="${s.label}" data-i="${i}"></button>`).join('');
-  let i = 0;
-  let front = a;
-  let timer = 0;
+const mix = (a, b, t) => {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [A, B] = [p(a), p(b)];
+  return `#${A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
+};
 
-  const show = (n) => {
-    i = (n + STYLES.length) % STYLES.length;
-    const back = front === a ? b : a;
-    back.src = src(STYLES[i]);
-    back.onload = () => {
-      back.classList.add('front');
-      front.classList.remove('front');
-      front = back;
-    };
-    url.textContent = src(STYLES[i]).replace(HANDLE, 'you');
-    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+/** Live heatmap playground: controls restyle the web component instantly. */
+function playground() {
+  const el = document.getElementById('pg-heatmap');
+  const stage = document.getElementById('pg-stage');
+  const code = document.getElementById('pg-code');
+  const accent = document.getElementById('pg-accent');
+  const radius = document.getElementById('pg-radius');
+  const gap = document.getElementById('pg-gap');
+  const state = { theme: 'dark', range: 'year' };
+
+  const render = () => {
+    const empty = state.theme === 'light' ? '#edeef0' : '#23252b';
+    const bg = state.theme === 'light' ? '#ffffff' : '#121317';
+    el.style.setProperty('--tt-cell-0', empty);
+    [0.3, 0.55, 0.8, 1].forEach((t, i) => el.style.setProperty(`--tt-cell-${i + 1}`, mix(empty, accent.value, t)));
+    el.style.setProperty('--tt-radius', `${radius.value}%`);
+    el.style.setProperty('--tt-gap', `${gap.value}px`);
+    el.style.setProperty('--tt-muted', state.theme === 'light' ? '#6b6f7a' : '#8b8e97');
+    stage.style.background = bg;
+    stage.style.color = state.theme === 'light' ? '#16181d' : '#ecece8';
+    if (state.range === 'year') el.removeAttribute('range');
+    else el.setAttribute('range', state.range);
+
+    const attrs = state.range === 'year' ? '' : ` range="${state.range}"`;
+    code.textContent = `<script type="module" src="${location.origin}/embed.js"><\/script>\n<token-heatmap handle="you"${attrs}></token-heatmap>\n\n<style>\n  token-heatmap {\n    --tt-cell-4: ${accent.value};\n    --tt-radius: ${radius.value}%;\n    --tt-gap: ${gap.value}px;\n  }\n</style>`;
   };
-  const start = () => {
-    clearInterval(timer);
-    if (!reduced) timer = setInterval(() => show(i + 1), 2600);
-  };
 
-  a.src = src(STYLES[0]);
-  a.classList.add('front');
-  url.textContent = src(STYLES[0]).replace(HANDLE, 'you');
-  dots.children[0].classList.add('on');
-  dots.addEventListener('click', (e) => {
-    const d = e.target.closest('button');
-    if (!d) return;
-    show(Number(d.dataset.i));
-    start();
+  const chips = (id, key) => document.getElementById(id).addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    e.preventDefault();
+    [...e.currentTarget.children].forEach((x) => x.classList.toggle('on', x === b));
+    state[key] = b.dataset.v;
+    render();
   });
-  return start;
+  chips('pg-theme', 'theme');
+  chips('pg-range', 'range');
+  [accent, radius, gap].forEach((i) => i.addEventListener('input', render));
+  render();
 }
 
 async function apiDemo(data) {
@@ -120,8 +116,8 @@ async function apiDemo(data) {
 }
 
 export function mountChapters(data) {
-  const startCycler = heatmapCycler();
-  onEnter(document.getElementById('ch-heatmaps'), startCycler);
+  playground();
+  onEnter(document.getElementById('ch-heatmaps'));
   onEnter(document.getElementById('ch-badges'));
   onEnter(document.getElementById('ch-graphs'));
   onEnter(document.getElementById('ch-api'), () => apiDemo(data));
