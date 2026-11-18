@@ -53,7 +53,12 @@ function playground() {
   const accent = document.getElementById('pg-accent');
   const radius = document.getElementById('pg-radius');
   const gap = document.getElementById('pg-gap');
-  const state = { theme: 'dark', range: 'year' };
+  const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+  const state = { theme: prefersLight ? 'light' : 'dark', range: 'year' };
+  if (prefersLight) {
+    accent.value = '#1d4ed8';
+    document.querySelectorAll('#pg-theme button').forEach((b) => b.classList.toggle('on', b.dataset.v === 'light'));
+  }
 
   const render = () => {
     const empty = state.theme === 'light' ? '#edeef0' : '#23252b';
@@ -148,7 +153,8 @@ async function apiDemo(data) {
 async function inlineCards() {
   for (const img of document.querySelectorAll('img[data-inline]')) {
     try {
-      const text = await (await fetch(img.src)).text();
+      // currentSrc is whichever <picture> source matched the colour scheme
+      const text = await (await fetch(img.currentSrc || img.src)).text();
       const holder = document.createElement('div');
       holder.className = 'card-svg';
       holder.innerHTML = text;
@@ -157,7 +163,7 @@ async function inlineCards() {
       svg.removeAttribute('width');
       svg.removeAttribute('height');
       svg.setAttribute('aria-label', img.alt);
-      img.replaceWith(holder);
+      (img.closest('picture') || img).replaceWith(holder);
       if (img.hasAttribute('data-line')) lineHover(svg);
       if (svg.querySelector('.tt-row')) breakdownHover(svg);
     } catch {

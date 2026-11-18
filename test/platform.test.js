@@ -74,6 +74,8 @@ test('every card type and cell style renders valid-looking SVG', () => {
     }
   }
   assert.match(renderCard(data, { type: 'badge' }), /6\.4K/);
+  // light badges keep a dark label so the white label text stays readable
+  assert.match(renderCard(data, { type: 'badge', theme: 'light' }), /<rect width="\d+" height="20" fill="#4a4f5c"/);
 });
 
 test('card options are sanitised', () => {

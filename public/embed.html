@@ -7,8 +7,8 @@
   <meta name="description" content="Embed your AI token usage anywhere: image cards for READMEs, a themeable web component, a headless library, or raw JSON and CSV.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="stylesheet" href="/style.css?v=18">
-  <link rel="stylesheet" href="/mobile.css?v=18" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=29">
+  <link rel="stylesheet" href="/mobile.css?v=29" media="(max-width: 720px)">
 </head>
 <body>
   <div class="wrap wide">
@@ -113,7 +113,7 @@ token-heatmap::part(cell):hover { outline: 2px solid hotpink; }</pre>
     </footer>
   </div>
 
-  <script type="module" src="/embed.js?v=18"></script>
+  <script type="module" src="/embed.js?v=29"></script>
   <script type="module">
     const ORIGIN = location.origin;
     const form = document.getElementById('controls');
@@ -121,6 +121,10 @@ token-heatmap::part(cell):hover { outline: 2px solid hotpink; }</pre>
     const pre = document.getElementById('snippet');
     const note = document.getElementById('tab-note');
     let tab = 'markdown';
+    if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+      form.theme.value = 'light';
+      form.accent.value = '#1d4ed8';
+    }
 
     const state = () => {
       const f = new FormData(form);
@@ -131,7 +135,8 @@ token-heatmap::part(cell):hover { outline: 2px solid hotpink; }</pre>
       if (type === 'heatmap' && f.get('cells') !== 'square') q.set('cells', f.get('cells'));
       if (f.get('theme') !== 'dark') q.set('theme', f.get('theme'));
       const accent = f.get('accent').replace('#', '');
-      if (accent !== '6b9eff') q.set('accent', accent);
+      const defaultAccent = f.get('theme') === 'light' ? '1d4ed8' : '6b9eff';
+      if (accent !== defaultAccent) q.set('accent', accent);
       if (f.get('range') !== 'year') q.set('range', f.get('range'));
       const tools = (f.get('tools') || '').replace(/\s/g, '');
       if (tools) q.set('tools', tools);

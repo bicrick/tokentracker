@@ -726,6 +726,11 @@ footer {
 
 .has-sea footer a { color: #f0c463; }
 
+@media (prefers-color-scheme: light) {
+  .has-sea footer { color: #3a4a6b; }
+  .has-sea footer a { color: #1d4ed8; }
+}
+
 @media (max-width: 640px) {
   .term-body { font-size: 11px; height: 360px; padding: 12px; }
   h1 { margin-top: 56px; font-size: 32px; }
@@ -956,9 +961,13 @@ footer {
 .lib-text span { display: block; margin-top: 6px; font-size: 12px; letter-spacing: 0; color: var(--muted); }
 
 
-/* scroll lock while the onboarding demo plays */
-html.demo-locked,
-html.demo-locked body { overflow: hidden; }
+/* skip button fills as you try to scroll during the demo */
+#skip {
+  position: relative;
+  padding: 2px 8px;
+  background: linear-gradient(90deg, rgba(240, 196, 99, 0.35) var(--fill, 0%), transparent var(--fill, 0%));
+  transition: background 0.12s linear;
+}
 
 /* landing chapters after the demo */
 .chapter {

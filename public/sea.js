@@ -13,7 +13,11 @@ const BAYER8 = [
 const bayer = (x, y) => (BAYER8[(y & 7) * 8 + (x & 7)] + 0.5) / 64;
 
 const GOLD = [[0x6e, 0x4a, 0x14], [0x8a, 0x5f, 0x1c], [0xb8, 0x86, 0x2f], [0xdb, 0xa9, 0x4c], [0xf0, 0xc4, 0x63], [0xf8, 0xdc, 0x96]];
-const BLUE = [[0x16, 0x21, 0x3a], [0x1e, 0x3a, 0x6e], [0x2b, 0x5c, 0xb0], [0x4d, 0x82, 0xe0]];
+const BLUE_DARK = [[0x16, 0x21, 0x3a], [0x1e, 0x3a, 0x6e], [0x2b, 0x5c, 0xb0], [0x4d, 0x82, 0xe0]];
+// Light pages get pale water so the glow and footer stay airy on white
+const BLUE_LIGHT = [[0xee, 0xf3, 0xff], [0xd6, 0xe4, 0xff], [0xb4, 0xcc, 0xfb], [0x8c, 0xb0, 0xf6]];
+const lightScheme = window.matchMedia('(prefers-color-scheme: light)');
+let BLUE = lightScheme.matches ? BLUE_LIGHT : BLUE_DARK;
 
 const CELL = 4;        // screen px per dithered pixel
 const COIN_W = 13;
@@ -157,7 +161,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
       const t = (y - top) / (floor - top || 1);
       for (let x = 0; x < W; x += 1) {
         const v = t ** 1.8 * 2.4 - 0.5 + Math.sin(x / 19) * 0.12;
-        if (v > bayer(x, y)) put(x, y, pick(BLUE, v, x, y));
+        if (v > bayer(x, y)) putGround(x, y, pick(BLUE, v, x, y));
       }
     }
 
@@ -306,6 +310,10 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
 
   window.addEventListener('resize', resize);
   window.addEventListener('scroll', onScroll, { passive: true });
+  lightScheme.addEventListener?.('change', (e) => {
+    BLUE = e.matches ? BLUE_LIGHT : BLUE_DARK;
+    draw();
+  });
   resize();
   draw();
   return { resize };

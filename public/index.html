@@ -8,8 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=27">
-  <link rel="stylesheet" href="/mobile.css?v=27" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=31">
+  <link rel="stylesheet" href="/mobile.css?v=31" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -116,10 +116,10 @@
       <h2 id="ch2">A badge for your README.</h2>
       <p class="chapter-lede">Shields-style, with your total, any label and colour.</p>
       <div class="badge-row">
-        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"><figcaption><code>?type=badge</code></figcaption></figure>
-        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent" alt="Gold badge" loading="lazy"><figcaption><code>&amp;accent=f0c463&amp;label=…</code></figcaption></figure>
-        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days" alt="Last 30 days badge" loading="lazy"><figcaption><code>&amp;range=30d</code></figcaption></figure>
-        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code" alt="Claude Code badge" loading="lazy"><figcaption><code>&amp;tools=claude-code</code></figcaption></figure>
+        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;theme=light"><img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"></picture><figcaption><code>?type=badge</code></figcaption></figure>
+        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent&amp;theme=light"><img src="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent" alt="Gold badge" loading="lazy"></picture><figcaption><code>&amp;accent=f0c463&amp;label=…</code></figcaption></figure>
+        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days&amp;theme=light"><img src="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days" alt="Last 30 days badge" loading="lazy"></picture><figcaption><code>&amp;range=30d</code></figcaption></figure>
+        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code&amp;theme=light"><img src="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code" alt="Claude Code badge" loading="lazy"></picture><figcaption><code>&amp;tools=claude-code</code></figcaption></figure>
       </div>
     </section>
 
@@ -127,9 +127,9 @@
       <h2 id="ch3">Stats, breakdowns and trends.</h2>
       <p class="chapter-lede">Cards for the numbers people actually ask about.</p>
       <div class="graph-row">
-        <figure class="card-hover"><img data-inline src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy"><figcaption><code>?type=stats</code></figcaption></figure>
-        <figure class="card-hover"><img data-inline src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy"><figcaption><code>?type=breakdown</code></figcaption></figure>
-        <figure class="wide card-hover"><img data-inline data-line src="/u/bicrick.svg?type=line" alt="Cumulative tokens chart" loading="lazy"><figcaption><code>?type=line</code></figcaption></figure>
+        <figure class="card-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=stats&amp;theme=light"><img data-inline src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy"></picture><figcaption><code>?type=stats</code></figcaption></figure>
+        <figure class="card-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=breakdown&amp;theme=light"><img data-inline src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy"></picture><figcaption><code>?type=breakdown</code></figcaption></figure>
+        <figure class="wide card-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=line&amp;theme=light"><img data-inline data-line src="/u/bicrick.svg?type=line" alt="Cumulative tokens chart" loading="lazy"></picture><figcaption><code>?type=line</code></figcaption></figure>
       </div>
     </section>
 
@@ -159,16 +159,17 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=27';
-    import { mountDemo } from '/demo.js?v=27';
-    import { mountCoin } from '/coin.js?v=27';
-    import { mountTokenSea } from '/sea.js?v=27';
-    import { mountChapters } from '/chapters.js?v=27';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=31';
+    import { mountDemo } from '/demo.js?v=31';
+    import { mountCoin } from '/coin.js?v=31';
+    import { mountTokenSea } from '/sea.js?v=31';
+    import { mountChapters } from '/chapters.js?v=31';
 
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
-      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.chapter')],
+      // Only the charts and cards themselves stay clear of coins, not whole sections
+      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.playground, .badge-row, .graph-row, .api-split')],
       ground: document.querySelector('footer'),
     });
 

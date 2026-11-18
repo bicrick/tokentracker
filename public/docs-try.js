@@ -38,6 +38,14 @@ function renderCards() {
   }
   $('[data-out=cards]', cards).textContent = `[![AI tokens](${example})](${ORIGIN}/u/${handle})`;
 }
+// Start the card examples in the page's colour scheme
+if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+  $$('[data-opt=theme] button', cards).forEach((b) => b.classList.toggle('on', b.dataset.v === 'light'));
+  const empty = $('[data-var="--tt-cell-0"]');
+  const busy = $('[data-var="--tt-cell-4"]');
+  if (empty) empty.value = '#edeef0';
+  if (busy) busy.value = '#1d4ed8';
+}
 for (const g of $$('[data-opt]', cards)) {
   cardOpts[g.dataset.opt] = $('button.on', g)?.dataset.v;
   chips(g, (v) => {
