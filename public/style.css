@@ -171,31 +171,53 @@ h1 {
   .coin { display: none; }
 }
 
-/* supported tools */
+/* supported tools: endless logo strip */
 .tools {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 28px 0 0;
-  padding: 0;
-  list-style: none;
+  overflow: hidden;
+  margin: 32px 0 0;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
+  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
+
+.tools-track {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 40px;
+  margin: 0;
+  padding: 0 40px 0 0;
+  list-style: none;
+  animation: tools-scroll 32s linear infinite;
+}
+
+.tools:hover .tools-track { animation-play-state: paused; }
 
 .tools li {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .tools i {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   background: currentColor;
   -webkit-mask: var(--logo) center / contain no-repeat;
   mask: var(--logo) center / contain no-repeat;
+}
+
+@keyframes tools-scroll {
+  to { transform: translateX(-100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tools { -webkit-mask: none; mask: none; }
+  .tools-track { animation: none; flex-wrap: wrap; gap: 10px 24px; }
+  .tools-track[aria-hidden] { display: none; }
 }
 
 /* demo: terminal then profile */

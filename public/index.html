@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=13">
+  <link rel="stylesheet" href="/style.css?v=14">
 </head>
 <body>
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -37,7 +37,8 @@
       <canvas class="coin" id="coin" aria-hidden="true"></canvas>
     </div>
 
-    <ul class="tools" aria-label="Supported tools">
+    <div class="tools" aria-label="Supported tools">
+      <ul class="tools-track">
       <li><i style="--logo:url(/logos/claude.svg)"></i>Claude Code</li>
       <li><i style="--logo:url(/logos/openai.svg)"></i>Codex</li>
       <li><i style="--logo:url(/logos/cursor.svg)"></i>Cursor</li>
@@ -45,7 +46,17 @@
       <li><i style="--logo:url(/logos/opencode.svg)"></i>OpenCode</li>
       <li><i style="--logo:url(/logos/googlegemini.svg)"></i>Gemini CLI</li>
       <li><i style="--logo:url(/logos/cline.svg)"></i>Cline, Roo, Kilo</li>
-    </ul>
+      </ul>
+      <ul class="tools-track" aria-hidden="true">
+      <li><i style="--logo:url(/logos/claude.svg)"></i>Claude Code</li>
+      <li><i style="--logo:url(/logos/openai.svg)"></i>Codex</li>
+      <li><i style="--logo:url(/logos/cursor.svg)"></i>Cursor</li>
+      <li><i style="--logo:url(/logos/githubcopilot.svg)"></i>Copilot CLI</li>
+      <li><i style="--logo:url(/logos/opencode.svg)"></i>OpenCode</li>
+      <li><i style="--logo:url(/logos/googlegemini.svg)"></i>Gemini CLI</li>
+      <li><i style="--logo:url(/logos/cline.svg)"></i>Cline, Roo, Kilo</li>
+      </ul>
+    </div>
 
     <div class="demo" id="demo" aria-label="Example setup and profile">
       <div class="term" id="term" aria-hidden="true">
@@ -116,10 +127,10 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=13';
-    import { mountDemo } from '/demo.js?v=13';
-    import { mountCoin } from '/coin.js?v=13';
-    import { mountTokenSea } from '/sea.js?v=13';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=14';
+    import { mountDemo } from '/demo.js?v=14';
+    import { mountCoin } from '/coin.js?v=14';
+    import { mountTokenSea } from '/sea.js?v=14';
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
