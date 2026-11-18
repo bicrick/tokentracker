@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=10">
+  <link rel="stylesheet" href="/style.css?v=11">
 </head>
 <body>
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -47,10 +47,9 @@
       <li><i style="--logo:url(/logos/cline.svg)"></i>Cline, Roo, Kilo</li>
     </ul>
 
-    <div class="demo-track" id="demo-track">
     <div class="demo" id="demo" aria-label="Example setup and profile">
       <div class="term" id="term" aria-hidden="true">
-        <div class="term-bar"><span></span><span></span><span></span><span class="scroll-hint">scroll to run</span></div>
+        <div class="term-bar"><span></span><span></span><span></span><button type="button" class="replay" id="replay">replay</button></div>
         <pre class="term-body" id="term-body"></pre>
       </div>
 
@@ -69,7 +68,6 @@
         <div id="ex-heatmap"></div>
         <p class="privacy-line">Only daily token counts leave your machine. Prompts and code stay local.</p>
       </div>
-    </div>
     </div>
 
     <section class="block" aria-labelledby="how">
@@ -118,10 +116,10 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=10';
-    import { mountDemo } from '/demo.js?v=10';
-    import { mountCoin } from '/coin.js?v=10';
-    import { mountTokenSea } from '/sea.js?v=10';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=11';
+    import { mountDemo } from '/demo.js?v=11';
+    import { mountCoin } from '/coin.js?v=11';
+    import { mountTokenSea } from '/sea.js?v=11';
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
@@ -147,12 +145,12 @@
     };
 
     const demo = mountDemo({
-      track: document.getElementById('demo-track'),
       demo: document.getElementById('demo'),
       body: document.getElementById('term-body'),
       data,
       onReveal: show,
     });
+    document.getElementById('replay').addEventListener('click', () => demo.replay());
     document.getElementById('replay2').addEventListener('click', () => demo.replay());
   </script>
 </body>

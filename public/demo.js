@@ -6,8 +6,6 @@ import { formatCount } from '/app.js';
 
 const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const NAMES = { 'claude-code': 'Claude Code', opencode: 'OpenCode', codex: 'Codex', 'gemini-cli': 'Gemini CLI', 'copilot-cli': 'Copilot CLI', cline: 'Cline' };
-const REVEAL_AT = 0.72;
-const FILL_MS = 1300; // dither wipe + heatmap fill-in; scrolling down waits for it
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const span = (cls, s) => `<span class="${cls}">${esc(s)}</span>`;
@@ -119,94 +117,62 @@ function renderTerminal(steps, p) {
   return out.map((l) => `<div>${l || '&nbsp;'}</div>`).join('');
 }
 
-export function mountDemo({ track, demo, body, data, onReveal }) {
+const DURATION = 9000; // ms for the whole onboarding before the reveal
+
+export function mountDemo({ demo, body, data, onReveal }) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const term = demo.querySelector('.term');
   let steps = timeline(null);
-  let revealed = false;
   let profileReady = false;
-  let lockUntil = 0;
-  let lockY = 0;
-
-  // Pin in the vertical middle of the screen
-  const center = () => {
-    demo.style.top = `${Math.max(64, Math.round((window.innerHeight - demo.offsetHeight) / 2))}px`;
-  };
+  let run = 0;
 
   data.then((d) => {
     steps = timeline(d?.totals);
-    update();
   });
 
-  const reveal = async (on) => {
-    if (on === revealed) return;
-    revealed = on;
-    if (on) {
-      // Hold the page here until the heatmap has finished drawing
-      lockUntil = performance.now() + FILL_MS;
-      lockY = window.scrollY;
-      if (!reduced) ditherWipe(demo, term);
-      demo.classList.add('revealed');
-      if (!profileReady) {
-        profileReady = true;
-        await onReveal();
-      } else {
-        // Replay the heatmap fill-in
-        demo.classList.remove('refill');
-        void demo.offsetWidth;
-        demo.classList.add('refill');
-      }
-    } else {
-      demo.classList.remove('revealed', 'refill');
+  const reveal = async () => {
+    if (!reduced) ditherWipe(demo, term);
+    demo.classList.add('revealed');
+    if (!profileReady) {
+      profileReady = true;
+      await onReveal();
     }
   };
 
-  const progress = () => {
-    const rect = track.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const pinTop = parseFloat(getComputedStyle(demo).top) || 0;
-    const travel = rect.height - demo.offsetHeight; // scroll distance while pinned
-    const lead = vh * 0.5;                           // start while the demo rises into view
-    return Math.max(0, Math.min(1, (pinTop + lead - rect.top) / (travel + lead)));
+  // Plays on its own once visible; rendering is a pure function of elapsed time
+  const play = () => {
+    const id = ++run;
+    demo.classList.remove('revealed');
+    const start = performance.now();
+    const tick = () => {
+      if (id !== run) return;
+      const p = Math.min(1, (performance.now() - start) / DURATION);
+      body.innerHTML = renderTerminal(steps, p);
+      if (p < 1) setTimeout(tick, 33);
+      else setTimeout(() => id === run && reveal(), 900);
+    };
+    tick();
   };
 
-  function update() {
-    if (reduced) return;
-    const p = progress();
-    body.innerHTML = renderTerminal(steps, Math.min(1, p / REVEAL_AT));
-    // Hysteresis so hovering at the boundary doesn't flicker
-    if (p >= REVEAL_AT) reveal(true);
-    else if (p < REVEAL_AT - 0.04) reveal(false);
-  }
-
   if (reduced) {
-    track.classList.add('static');
     demo.classList.add('revealed', 'instant');
     onReveal();
     return { replay() {} };
   }
 
-  let raf = 0;
-  window.addEventListener('scroll', () => {
-    if (performance.now() < lockUntil && window.scrollY > lockY) {
-      window.scrollTo(0, lockY);
-      return;
-    }
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(update);
-  }, { passive: true });
-  window.addEventListener('resize', () => {
-    center();
-    update();
-  });
-  center();
-  update();
+  // Already on screen at load (the usual case): start right away
+  if (demo.getBoundingClientRect().top < window.innerHeight * 0.85) {
+    play();
+    return { replay: play };
+  }
 
-  return {
-    // Scroll back to where the demo begins
-    replay() {
-      const top = window.scrollY + track.getBoundingClientRect().top - window.innerHeight * 0.5 + (parseFloat(getComputedStyle(demo).top) || 0);
-      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    },
-  };
+  const io = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting) {
+      io.disconnect();
+      play();
+    }
+  }, { threshold: 0.25 });
+  io.observe(demo);
+
+  return { replay: play };
 }
