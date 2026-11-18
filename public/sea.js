@@ -62,7 +62,9 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
       for (let x = a + 6; x < b - 6; x += 11 + rand() * 9) {
         const tall = wide;
         const count = Math.round((tall ? 18 + rand() * 46 : 3 + rand() * 9) * (0.55 + 0.45 * Math.sin(x / 13) ** 2));
-        stacks.push({ x, count, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
+        // Tallest a stack may grow: about two thirds of the canvas
+        const max = Math.max(4, Math.floor(((H - groundCells - 1 - H * 0.33) / STEP) * (0.7 + rand() * 0.3)));
+        stacks.push({ x, count: Math.min(count, max), max, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
       }
     }
     // Heaped piles: a coin bed under a lumpy mound profile
@@ -183,17 +185,29 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
     ctx.putImageData(img, 0, 0);
   };
 
+  // How high the pile may rise at x: in the content column it stops just
+  // below whatever must stay clear (the chart), elsewhere at a third of the canvas
+  const maxBump = (x) => {
+    const base = floorY() - (pileTop(x) + (bumps[x] || 0));
+    const limit = x >= clip.from && x < clip.to && clip.y >= 0
+      ? floorY() - (clip.y + 6) - base
+      : H * 0.33;
+    return Math.max(0, limit);
+  };
+
   const land = (f) => {
     const stack = stacks.find((s) => Math.abs(s.x - f.x) < COIN_W * 0.4);
-    if (stack && stack.count < 120) {
+    if (stack && stack.count < stack.max) {
       stack.count += 1;
       return;
     }
-    for (let dx = -8; dx <= 8; dx += 1) {
+    for (let dx = -10; dx <= 10; dx += 1) {
       const x = Math.round(f.x) + dx;
-      if (x >= 0 && x < W) bumps[x] = Math.min(H * 0.1, bumps[x] + 0.4 * Math.exp(-(dx * dx) / 18));
+      if (x >= 0 && x < W) bumps[x] = Math.min(maxBump(x), bumps[x] + 0.5 * Math.exp(-(dx * dx) / 24));
     }
   };
+
+  const gutterFull = () => stacks.filter((s) => inGutter(s.x)).every((s) => s.count >= s.max);
 
   const surfaceAt = (x) => {
     const stack = stacks.find((s) => Math.abs(s.x - x) < COIN_W * 0.4);
@@ -215,12 +229,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
         falling.splice(i, 1);
       }
     }
-    for (let x = 0; x < W; x += 1) {
-      if (bumps[x] > 0.01) {
-        bumps[x] *= 0.997;
-        active = true;
-      }
-    }
+
     draw();
     if (falling.length || active) schedule();
   };
@@ -231,10 +240,24 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
 
   const pour = (amount) => {
     const rand = Math.random;
+    const middle = lanes.length > 1 && gutterFull();
     for (let n = 0; n < amount; n += 1) {
-      const [a, b] = lanes[Math.floor(rand() * lanes.length)];
-      const center = a + (b - a) * 0.5;
-      const spread = (rand() + rand() + rand() - 1.5) * 7;
+      let center;
+      let width = 7;
+      if (middle) {
+        // Side stacks are full: the waterfall moves to the middle
+        center = (lanes[0][1] + lanes[1][0]) / 2;
+        width = (lanes[1][0] - lanes[0][1]) * 0.28;
+      } else if (lanes.length > 1) {
+        // Aim at a side stack that still has room, so they all fill evenly
+        const open = stacks.filter((st) => inGutter(st.x) && st.count < st.max);
+        center = open[Math.floor(rand() * open.length)].x;
+        width = 1.2;
+      } else {
+        const [a, b] = lanes[0];
+        center = a + (b - a) * 0.5;
+      }
+      const spread = (rand() + rand() + rand() - 1.5) * width;
       falling.push({
         x: center + spread,
         // Start just above the visible part of the canvas

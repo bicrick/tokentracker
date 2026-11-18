@@ -8,7 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=16">
+  <link rel="stylesheet" href="/style.css?v=17">
+  <link rel="stylesheet" href="/mobile.css?v=17" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -21,9 +22,9 @@
       </div>
     </nav>
 
+    <h1>Track your AI tokens, in one place.</h1>
     <div class="hero">
       <div class="hero-copy">
-    <h1>Track your AI tokens, in one place.</h1>
     <p class="lede">
       Every token you spend, across all your coding tools and computers.
       Share it as one public profile.
@@ -91,10 +92,10 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=16';
-    import { mountDemo } from '/demo.js?v=16';
-    import { mountCoin } from '/coin.js?v=16';
-    import { mountTokenSea } from '/sea.js?v=16';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=17';
+    import { mountDemo } from '/demo.js?v=17';
+    import { mountCoin } from '/coin.js?v=17';
+    import { mountTokenSea } from '/sea.js?v=17';
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),

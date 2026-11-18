@@ -154,14 +154,16 @@ h1 {
 /* hero with the dithered coin */
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 176px;
+  grid-template-columns: minmax(0, 1fr) 150px;
   gap: 32px;
-  align-items: end;
+  align-items: center;
 }
 
+h1 { white-space: nowrap; }
+
 .coin {
-  width: 176px;
-  margin-bottom: 30px;
+  width: 150px;
+  margin: -24px 0 0;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }

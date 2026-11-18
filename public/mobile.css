@@ -1,0 +1,127 @@
+/* Phone layout. Loaded only under 720px (see the media attribute on the
+   <link>), so these rules sit on top of style.css without touching desktop. */
+
+body { font-size: 15px; }
+
+.wrap { padding: 0 18px; }
+
+nav {
+  padding: 16px 0 10px;
+  font-size: 13px;
+}
+
+nav .links { gap: 14px; font-size: 12px; }
+
+/* hero */
+h1 {
+  margin: 44px 0 12px;
+  font-size: 30px;
+  line-height: 1.12;
+  white-space: normal;
+}
+
+.hero { display: block; }
+
+.coin { display: none; }
+
+.lede {
+  margin-bottom: 22px;
+  font-size: 16px;
+}
+
+.cmd {
+  flex-direction: column;
+  max-width: none;
+}
+
+.cmd code {
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.cmd button {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.note { font-size: 11px; line-height: 1.5; }
+
+/* logo strip */
+.tools {
+  margin-top: 24px;
+  font-size: 12px;
+}
+
+.tools-track { gap: 28px; padding-right: 28px; animation-duration: 26s; }
+
+.tools i { width: 14px; height: 14px; }
+
+/* demo */
+.demo { margin-top: 36px; }
+
+.term-bar { height: 26px; }
+
+.term-body {
+  height: 360px;
+  padding: 10px 10px;
+  font-size: 9.5px;
+  line-height: 1.6;
+}
+
+.profile-head {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-actions { gap: 12px; }
+
+.total { margin: 16px 0 14px; }
+
+.total .big { font-size: 28px; }
+
+.hm { gap: 1px; }
+
+.hm-months { font-size: 9px; }
+
+.hm-legend { font-size: 10px; }
+
+.privacy-line { font-size: 12px; }
+
+.docs-cta {
+  margin-top: 40px;
+  font-size: 12px;
+}
+
+.docs-cta .muted {
+  display: block;
+  margin: 4px 0 0;
+}
+
+/* footer */
+footer {
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.has-sea footer { margin-top: 34vh; }
+
+/* docs */
+.docs { margin-top: 24px; }
+
+.docs-nav {
+  gap: 6px 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+}
+
+.docs-body h1 { font-size: 28px; white-space: normal; }
+
+.docs-body h2 { font-size: 19px; }
+
+.docs-body table { display: block; overflow-x: auto; font-size: 13px; }
+
+.docs-body pre { font-size: 11.5px; }
