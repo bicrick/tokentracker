@@ -7,8 +7,8 @@
   <meta name="description" content="How tokentracker works: installation, supported tools, connections, background sync, privacy, embedding, self-hosting and CLI reference.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="stylesheet" href="/style.css?v=18">
-  <link rel="stylesheet" href="/mobile.css?v=18" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=19">
+  <link rel="stylesheet" href="/mobile.css?v=19" media="(max-width: 720px)">
 </head>
 <body class="docs-page">
   <div class="wrap wide">
@@ -168,6 +168,23 @@
             <tr><td><code>label</code></td><td>Badge label text (default "AI tokens")</td></tr>
           </table>
 
+          <div class="try" id="try-cards">
+            <div class="try-bar">
+              <label>handle <input data-global="handle" value="bicrick" spellcheck="false" autocomplete="off"></label>
+              <div class="chips" data-opt="theme"><button data-v="dark" class="on">dark</button><button data-v="light">light</button><button data-v="gold">gold</button><button data-v="transparent">transparent</button></div>
+              <div class="chips" data-opt="range"><button data-v="year" class="on">year</button><button data-v="90d">90d</button><button data-v="30d">30d</button></div>
+            </div>
+            <div class="try-grid">
+              <figure data-card="type=heatmap"><img alt="heatmap card"><figcaption><code>?type=heatmap</code>
+                <span class="chips" data-opt="cells"><button data-v="square" class="on">square</button><button data-v="round">round</button><button data-v="dot">dot</button><button data-v="dither">dither</button></span></figcaption></figure>
+              <figure data-card="type=stats"><img alt="stats card"><figcaption><code>?type=stats</code></figcaption></figure>
+              <figure data-card="type=breakdown"><img alt="breakdown card"><figcaption><code>?type=breakdown</code></figcaption></figure>
+              <figure data-card="type=line"><img alt="line card"><figcaption><code>?type=line</code></figcaption></figure>
+              <figure data-card="type=badge"><img alt="badge"><figcaption><code>?type=badge</code></figcaption></figure>
+            </div>
+            <pre class="try-out" data-out="cards"></pre>
+          </div>
+
           <h3>Web component</h3>
           <p>Live and interactive, with hover tooltips. It inherits your page's text colour; theme it with CSS variables or <code>::part()</code>.</p>
           <pre>&lt;script type="module" src="https://tokentracker-nu.vercel.app/embed.js"&gt;&lt;/script&gt;
@@ -178,6 +195,17 @@
   --tt-cell-3: #6366f1;  --tt-cell-4: #3730a3;
   --tt-gap: 2px;  --tt-radius: 2px;  --tt-font: 'Inter', sans-serif;
 }</pre>
+          <div class="try" id="try-component">
+            <div class="try-bar">
+              <label>empty <input type="color" data-var="--tt-cell-0" value="#23252b"></label>
+              <label>busiest <input type="color" data-var="--tt-cell-4" value="#6b9eff"></label>
+              <label>gap <input type="range" min="0" max="6" value="3" data-var="--tt-gap" data-unit="px"></label>
+              <label>radius <input type="range" min="0" max="6" value="0" data-var="--tt-radius" data-unit="px"></label>
+              <div class="chips" data-attr="range"><button data-v="year" class="on">year</button><button data-v="90d">90d</button><button data-v="30d">30d</button></div>
+            </div>
+            <div class="try-stage"><token-heatmap handle="bicrick"></token-heatmap></div>
+            <pre class="try-out" data-out="component"></pre>
+          </div>
           <p>Attributes: <code>handle</code>, <code>range</code>, <code>tools</code>, <code>week-start="mon"</code>, <code>theme="light|dark"</code>, <code>hide="months,legend"</code>. Parts: <code>cell</code>, <code>level-0…4</code>, <code>months</code>, <code>grid</code>, <code>legend</code>. It fires a <code>tokentracker:load</code> event with the data.</p>
 
           <h3>Headless library: build your own</h3>
@@ -189,6 +217,13 @@ const hm = await getHeatmap('you', { range: 'year', weekStart: 'mon', levels: 5 
 // hm.months: [{ label, week }]   hm.total, hm.max, hm.maxDay
 // hm.activeDays, hm.longestStreak, hm.currentStreak
 // hm.tools: [{ id, name, tokens, share }]</pre>
+          <div class="try" id="try-library">
+            <div class="try-bar">
+              <div class="chips" data-style><button data-v="bars" class="on">monthly bars</button><button data-v="rings">week rings</button><button data-v="text">text sparkline</button></div>
+            </div>
+            <div class="try-stage" id="lib-stage"></div>
+            <pre class="try-out" data-out="library"></pre>
+          </div>
           <p>Also exported: <code>buildHeatmap(data, options)</code> and <code>buildSeries(data, options)</code> for data you already have, <code>fetchActivity</code>, <code>formatTokens</code> and <code>resolveRange</code>. It has no dependencies and works in browsers, Node and edge functions.</p>
 
           <h3>Raw tokens</h3>
@@ -197,6 +232,14 @@ GET /u/you.json?group=month
 GET /u/you.json?group=tool
 GET /u/you.json?group=model
 GET /u/you.csv?range=year&amp;group=day</pre>
+          <div class="try" id="try-data">
+            <div class="try-bar">
+              <div class="chips" data-opt="group"><button data-v="month" class="on">month</button><button data-v="week">week</button><button data-v="day">day</button><button data-v="tool">tool</button><button data-v="model">model</button></div>
+              <div class="chips" data-opt="format"><button data-v="json" class="on">json</button><button data-v="csv">csv</button></div>
+            </div>
+            <pre class="try-out" data-out="url"></pre>
+            <pre class="try-result" id="data-result">loading…</pre>
+          </div>
           <p><code>group</code> is <code>day</code>, <code>week</code>, <code>month</code>, <code>tool</code> or <code>model</code>; <code>tools</code> filters by tool. Responses include <code>total</code> and <code>rows</code>. CORS-open and cached for 10 minutes.</p>
         </section>
 
@@ -286,6 +329,8 @@ GET /u/you.csv?range=year&amp;group=day</pre>
     </footer>
   </div>
 
+  <script type="module" src="/embed.js?v=19"></script>
+  <script type="module" src="/docs-try.js?v=19"></script>
   <script>
     // Highlight the section in view
     const links = [...document.querySelectorAll('.docs-nav a')];

@@ -129,3 +129,6 @@ footer {
 /* embed builder */
 .builder { grid-template-columns: 1fr; gap: 20px; }
 .preview { min-height: 150px; padding: 12px; }
+
+.try-grid { grid-template-columns: 1fr; }
+.try-bar input:not([type=range]):not([type=color]) { width: 100px; }
