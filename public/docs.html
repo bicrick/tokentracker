@@ -3,267 +3,238 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Docs · tokentracker</title>
-  <meta name="description" content="How tokentracker works: installation, supported tools, connections, background sync, privacy, embedding, self-hosting and CLI reference.">
+  <title>API docs · tokentracker</title>
+  <meta name="description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="stylesheet" href="/style.css?v=29">
-  <link rel="stylesheet" href="/mobile.css?v=29" media="(max-width: 720px)">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+  <link rel="stylesheet" href="/style.css?v=32">
+  <link rel="stylesheet" href="/mobile.css?v=32" media="(max-width: 720px)">
 </head>
 <body class="docs-page">
   <div class="wrap wide">
     <nav>
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
       <div class="links">
-        <a href="/embed">Embed</a>
         <a href="/docs" aria-current="page">Docs</a>
+        <a href="/llms.txt">llms.txt</a>
         <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
       </div>
     </nav>
 
     <div class="docs">
       <aside class="docs-nav" aria-label="Docs">
-        <p>Getting started</p>
+        <p>Start</p>
         <a href="#introduction">Introduction</a>
-        <a href="#installation">Installation</a>
-        <a href="#more-computers">More computers</a>
-        <p>Concepts</p>
-        <a href="#tools">Supported tools</a>
-        <a href="#connections">Connections</a>
-        <a href="#sync">Background sync</a>
-        <a href="#privacy">Privacy</a>
-        <p>Using your data</p>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#install">Install the collector</a>
+        <p>API</p>
+        <a href="#conventions">Conventions</a>
+        <a href="#filters">Filters</a>
         <a href="#profile">Profile</a>
-        <a href="#embed">Embed and API</a>
-        <a href="#accounts">Accounts and sign-in</a>
-        <a href="#self-host">Self-hosting</a>
+        <a href="#usage">Usage</a>
+        <a href="#models">Models</a>
+        <a href="#tools">Tools</a>
+        <a href="#heatmap">Heatmap</a>
+        <a href="#stats">Stats</a>
+        <a href="#devices">Devices</a>
+        <a href="#errors">Errors and limits</a>
+        <p>Recipes</p>
+        <a href="#recipe-heatmap">Heatmap</a>
+        <a href="#recipe-chart">Monthly chart</a>
+        <a href="#recipe-leaderboard">Model leaderboard</a>
         <p>Reference</p>
+        <a href="#sources">Data sources</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#accounts">Accounts</a>
         <a href="#cli">CLI</a>
-        <a href="#config">Config file</a>
-        <a href="#api">HTTP API</a>
-        <a href="#faq">FAQ</a>
+        <a href="#self-host">Self-hosting</a>
+        <a href="#machine-readable">llms.txt and OpenAPI</a>
       </aside>
 
       <main class="docs-body">
         <section id="introduction">
-          <h1>Introduction</h1>
+          <h1>tokentracker API</h1>
           <p>
-            tokentracker adds up every AI token you spend across your coding tools and every computer you use,
-            into one public profile and heatmap you can put on your site.
+            tokentracker turns the token usage your AI coding tools already record into a public, queryable API.
+            A small collector runs on each of your machines and uploads daily totals per tool and model. The API
+            answers questions like <i>how many tokens did I use this month</i>, <i>which models</i>, <i>which tools</i>
+            and <i>which days</i>, as JSON or CSV.
           </p>
-          <p>
-            A small collector runs on your machine, reads the usage your tools already record locally, and uploads
-            only daily totals per tool and model. It's free and open source (MIT).
-          </p>
+          <p>Reads are public and need no key. Base URL:</p>
+          <pre>https://tokentracker-nu.vercel.app/api/v1</pre>
         </section>
 
-        <section id="installation">
-          <h2>Installation</h2>
-          <p>Needs <b>Node 22.13 or newer</b>. Works on macOS, Linux and Windows.</p>
+        <section id="quickstart">
+          <h2>Quickstart</h2>
+          <pre>curl https://tokentracker-nu.vercel.app/api/v1/users/bicrick/stats?range=ytd</pre>
+          <pre>const res = await fetch('https://tokentracker-nu.vercel.app/api/v1/users/bicrick/usage?range=30d&amp;group=day');
+const { totals, rows } = await res.json();
+// rows: [{ period: "2026-10-20", tokens, input, output, reasoning, cacheRead, cacheWrite, responses }, ...]</pre>
+          <p>Swap <code>bicrick</code> for your handle once you've installed the collector.</p>
+        </section>
+
+        <section id="install">
+          <h2>Install the collector</h2>
+          <p>Needs Node 22.13+ on macOS, Linux or Windows.</p>
           <pre>npx github:bicrick/tokentracker init</pre>
-          <p><code>init</code> walks you through setup:</p>
           <ol>
-            <li>Finds the AI tools on this machine and shows how many tokens it found, before anything is sent.</li>
-            <li>Lets you choose which tools to track. Detected tools are on by default.</li>
-            <li>Creates your free account and picks a public handle, or connects an existing account or your own server.</li>
-            <li>Names this machine, uploads your history, and turns on hourly background sync.</li>
+            <li>Finds the AI tools on this machine and shows what it found before anything is sent.</li>
+            <li>You choose which tools to track.</li>
+            <li>Creates your account (pick a handle, sign in by email) or signs this machine into an existing one.</li>
+            <li>Uploads your history and turns on an hourly background sync (no admin rights).</li>
           </ol>
-          <p>When it finishes you get your profile link, for example <code>tokentracker-nu.vercel.app/u/you</code>.</p>
+          <p>On each additional machine, run the same command and choose <b>Sign in with email</b>. Totals from all machines combine.</p>
         </section>
 
-        <section id="more-computers">
-          <h2>More computers</h2>
-          <p>
-            Run the same command on each computer and choose <b>Sign in with email</b>. Click the link, and that computer
-            gets its own key. Give each computer its own name; totals from every machine add up on your profile.
-          </p>
-        </section>
-
-        <section id="tools">
-          <h2>Supported tools</h2>
-          <table>
-            <tr><th>Tool</th><th>How</th><th>Read from</th></tr>
-            <tr><td>Claude Code</td><td>local</td><td><code>~/.claude/projects</code>, <code>~/.config/claude</code>, <code>$CLAUDE_CONFIG_DIR</code></td></tr>
-            <tr><td>Codex (CLI, IDE, app)</td><td>local</td><td><code>~/.codex/sessions</code>, <code>archived_sessions</code>, <code>$CODEX_HOME</code></td></tr>
-            <tr><td>OpenCode (incl. GitHub Copilot)</td><td>local</td><td><code>~/.local/share/opencode/opencode*.db</code></td></tr>
-            <tr><td>Gemini CLI</td><td>local</td><td><code>~/.gemini/tmp/*/chats</code></td></tr>
-            <tr><td>Copilot CLI</td><td>local</td><td><code>~/.copilot/session-state</code></td></tr>
-            <tr><td>DeepSeek Harness (<code>dsh</code>)</td><td>local</td><td><code>~/.dsh/sessions</code>, <code>$DSH_HOME</code> (plain and zstd logs)</td></tr>
-            <tr><td>Cline, Roo Code, Kilo Code</td><td>local</td><td>Extension storage in VS Code, Insiders, Cursor, Windsurf, VSCodium, Kiro</td></tr>
-            <tr><td>Cursor</td><td>server</td><td>Your public <code>cursor.com/@handle</code> profile</td></tr>
-          </table>
-          <p class="muted">Planned: Qwen Code, Factory Droid, Goose, Amp, Zed. Copilot inside VS Code and Windsurf don't record token usage locally.</p>
-        </section>
-
-        <section id="connections">
-          <h2>Connections</h2>
-          <p>
-            Each tool is a connection. By default every connection is <b>Auto</b>: on whenever the tool is found on this
-            machine, so newly installed tools are picked up automatically.
-          </p>
-          <pre>tokentrack connect</pre>
-          <p>From there you can:</p>
+        <section id="conventions">
+          <h2>Conventions</h2>
           <ul>
-            <li>Turn tools on or off.</li>
-            <li>Add a custom folder for a tool installed somewhere unusual.</li>
-            <li>Connect Cursor by entering your <code>cursor.com</code> handle.</li>
+            <li><b>Method:</b> every endpoint is <code>GET</code>. Responses are JSON unless <code>format=csv</code>.</li>
+            <li><b>Auth:</b> none for reads. Profiles are public.</li>
+            <li><b>CORS:</b> <code>Access-Control-Allow-Origin: *</code>, so you can call it from any browser page.</li>
+            <li><b>Caching:</b> responses are cached at the edge for 5 minutes. Collectors sync hourly.</li>
+            <li><b>Tokens:</b> <code>tokens = input + output + reasoning + cacheRead + cacheWrite</code>. <code>input</code> excludes cached input. <code>responses</code> counts model calls.</li>
+            <li><b>Dates:</b> <code>YYYY-MM-DD</code> days in the collector's local time zone.</li>
+            <li><b>Every response</b> echoes <code>handle</code> and the applied <code>filters</code>.</li>
           </ul>
         </section>
 
-        <section id="sync">
-          <h2>Background sync</h2>
-          <p><code>init</code> installs a per-user job that syncs every hour. It needs no admin rights and shows no permission prompts.</p>
+        <section id="filters">
+          <h2>Filters</h2>
+          <p>Accepted by every endpoint below.</p>
           <table>
-            <tr><th>OS</th><th>Mechanism</th><th>Logs</th></tr>
-            <tr><td>macOS</td><td>launchd agent, hourly and at login</td><td><code>~/Library/Logs/tokentrack.log</code></td></tr>
-            <tr><td>Linux</td><td>systemd user timer, cron fallback</td><td><code>~/.local/state/tokentrack/sync.log</code></td></tr>
-            <tr><td>Windows</td><td>Task Scheduler, per user</td><td><code>%LOCALAPPDATA%\tokentrack\sync.log</code></td></tr>
+            <tr><th>Param</th><th>Values</th><th>Default</th></tr>
+            <tr><td><code>range</code></td><td><code>all</code>, <code>ytd</code>, <code>Nd</code> (e.g. <code>30d</code>, <code>365d</code>), or a year like <code>2026</code></td><td><code>all</code></td></tr>
+            <tr><td><code>from</code>, <code>to</code></td><td><code>YYYY-MM-DD</code>, inclusive. Override <code>range</code></td><td></td></tr>
+            <tr><td><code>tools</code></td><td>Comma-separated tool ids, e.g. <code>claude-code,codex</code></td><td>all</td></tr>
+            <tr><td><code>models</code></td><td>Comma-separated model ids, e.g. <code>anthropic/claude-opus-5-5</code></td><td>all</td></tr>
+            <tr><td><code>format</code></td><td><code>csv</code> on <code>usage</code>, <code>models</code>, <code>tools</code>, <code>devices</code></td><td>json</td></tr>
           </table>
-          <p>
-            The first sync uploads your full history. Later syncs send only the last 7 days. Claude Code deletes
-            transcripts after 30 days by default, so the hourly sync also keeps that history safe.
-          </p>
-          <p>Turn it off with <code>tokentrack uninstall</code> and back on with <code>tokentrack install</code>.</p>
+        </section>
+
+        <section id="profile" class="endpoint" data-path="/users/{handle}" data-params="">
+          <h2>Profile</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}</p>
+          <p>A summary: all-time and this-year totals, tools, model and machine counts, first and last active day, last sync, and links to every resource.</p>
+        </section>
+
+        <section id="usage" class="endpoint" data-path="/users/{handle}/usage" data-params="range=30d&amp;group=day">
+          <h2>Usage</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/usage</p>
+          <p>Token usage over time.</p>
+          <table>
+            <tr><th>Param</th><th>Values</th></tr>
+            <tr><td><code>group</code></td><td><code>day</code> (default), <code>week</code> (ISO, starts Monday), <code>month</code>, <code>year</code>, <code>total</code></td></tr>
+            <tr><td><code>split</code></td><td><code>tool</code> or <code>model</code>: adds <code>split: { key: tokens }</code> to each row</td></tr>
+            <tr><td><code>fill</code></td><td><code>false</code> to omit empty days (daily series are continuous by default)</td></tr>
+          </table>
+          <p>Returns <code>{ group, split, totals, rows: [{ period, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split? }] }</code>.</p>
+        </section>
+
+        <section id="models" class="endpoint" data-path="/users/{handle}/models" data-params="range=ytd">
+          <h2>Models</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/models</p>
+          <p>One row per model and tool, sorted by tokens: <code>{ model, provider, name, tool, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, share, firstUsed, lastUsed }</code>. Cursor reports totals only, as <code>cursor/all</code>.</p>
+        </section>
+
+        <section id="tools" class="endpoint" data-path="/users/{handle}/tools" data-params="range=ytd">
+          <h2>Tools</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/tools</p>
+          <p>One row per tool: <code>{ tool, name, tokens, …, responses, share, models, firstUsed, lastUsed }</code>.</p>
+        </section>
+
+        <section id="heatmap" class="endpoint" data-path="/users/{handle}/heatmap" data-params="range=90d">
+          <h2>Heatmap</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/heatmap</p>
+          <p>A ready-to-render calendar grid. Colour levels are ranked among active days so one huge day doesn't wash out the rest.</p>
+          <table>
+            <tr><th>Param</th><th>Values</th></tr>
+            <tr><td><code>range</code></td><td><code>year</code> (default: this calendar year, padded to Dec 31), <code>365d</code>, <code>90d</code>, any <code>Nd</code>, or a year</td></tr>
+            <tr><td><code>levels</code></td><td>2–10 colour steps including empty (default 5)</td></tr>
+            <tr><td><code>weekStart</code></td><td><code>sun</code> (default) or <code>mon</code></td></tr>
+            <tr><td><code>tools</code></td><td>Filter to some tools</td></tr>
+          </table>
+          <p>Returns <code>{ range, levels, weekStart, total, max, activeDays, months: [{ label, week }], weeks: [[{ date, tokens, level } | null × 7], …] }</code>. Days after today have <code>tokens: null</code>; cells outside the range are <code>null</code>.</p>
+        </section>
+
+        <section id="stats" class="endpoint" data-path="/users/{handle}/stats" data-params="range=ytd">
+          <h2>Stats</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/stats</p>
+          <p>Totals plus <code>activeDays</code>, <code>firstDay</code>, <code>lastDay</code>, <code>busiestDay</code>, <code>longestStreak</code>, <code>currentStreak</code>, <code>averagePerActiveDay</code>, <code>today</code>, <code>thisMonth</code>, <code>topTool</code> and <code>topModel</code> (by responses).</p>
+        </section>
+
+        <section id="devices" class="endpoint" data-path="/users/{handle}/devices" data-params="">
+          <h2>Devices</h2>
+          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/devices</p>
+          <p>One row per machine: <code>{ device, tools, lastSync, tokens, …, firstUsed, lastUsed }</code>.</p>
+        </section>
+
+        <section id="errors">
+          <h2>Errors and limits</h2>
+          <p>Errors use HTTP status codes and one shape:</p>
+          <pre>{ "error": { "code": "bad_range", "message": "range must be all, ytd, Nd (e.g. 30d) or a year (e.g. 2026)" } }</pre>
+          <table>
+            <tr><th>Status</th><th>Codes</th></tr>
+            <tr><td>400</td><td><code>bad_range</code>, <code>bad_date</code>, <code>bad_group</code>, <code>bad_split</code>, <code>bad_tools</code>, <code>bad_models</code>, <code>bad_levels</code>, <code>csv_unsupported</code></td></tr>
+            <tr><td>404</td><td><code>user_not_found</code>, <code>unknown_resource</code></td></tr>
+            <tr><td>405</td><td><code>method_not_allowed</code></td></tr>
+          </table>
+          <p>Reads aren't rate limited; they're served from the edge cache. Be reasonable.</p>
+        </section>
+
+        <section id="recipe-heatmap">
+          <h2>Recipe: a heatmap</h2>
+          <pre>const hm = await (await fetch(`${API}/users/you/heatmap?range=year`)).json();
+grid.style.gridTemplateColumns = `repeat(${hm.weeks.length}, 1fr)`;
+grid.innerHTML = hm.weeks.flat().map((d) =&gt;
+  d ? `&lt;i class="lvl-${d.level}" title="${d.date}: ${d.tokens ?? ''}"&gt;&lt;/i&gt;` : '&lt;i class="out"&gt;&lt;/i&gt;'
+).join('');
+// CSS: .grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 3px }</pre>
+        </section>
+
+        <section id="recipe-chart">
+          <h2>Recipe: a monthly chart by tool</h2>
+          <pre>const { rows } = await (await fetch(`${API}/users/you/usage?range=ytd&amp;group=month&amp;split=tool`)).json();
+// rows[i] = { period: "2026-07", tokens, split: { "claude-code": 812345678, cursor: 123456789 } }
+// Stack split values per bar; height = tokens / max(tokens).</pre>
+        </section>
+
+        <section id="recipe-leaderboard">
+          <h2>Recipe: a model leaderboard</h2>
+          <pre>const { rows } = await (await fetch(`${API}/users/you/models?range=30d`)).json();
+rows.filter((m) =&gt; m.model !== 'cursor/all')
+    .sort((a, b) =&gt; b.responses - a.responses)
+    .slice(0, 5);</pre>
+        </section>
+
+        <section id="sources">
+          <h2>Data sources</h2>
+          <table>
+            <tr><th>Tool id</th><th>Tool</th><th>Read from</th></tr>
+            <tr><td><code>claude-code</code></td><td>Claude Code</td><td><code>~/.claude/projects</code></td></tr>
+            <tr><td><code>codex</code></td><td>Codex CLI, IDE, app</td><td><code>~/.codex/sessions</code></td></tr>
+            <tr><td><code>opencode</code></td><td>OpenCode (incl. GitHub Copilot)</td><td><code>~/.local/share/opencode/opencode*.db</code></td></tr>
+            <tr><td><code>gemini-cli</code></td><td>Gemini CLI</td><td><code>~/.gemini/tmp/*/chats</code></td></tr>
+            <tr><td><code>copilot-cli</code></td><td>Copilot CLI</td><td><code>~/.copilot/session-state</code></td></tr>
+            <tr><td><code>deepseek-harness</code></td><td>DeepSeek Harness</td><td><code>~/.dsh/sessions</code></td></tr>
+            <tr><td><code>cline</code>, <code>roo-code</code>, <code>kilo-code</code></td><td>Cline, Roo Code, Kilo Code</td><td>Extension storage in VS Code, Cursor, Windsurf, VSCodium, Kiro</td></tr>
+            <tr><td><code>cursor</code></td><td>Cursor</td><td>Your public <code>cursor.com/@handle</code> profile (totals only)</td></tr>
+          </table>
         </section>
 
         <section id="privacy">
           <h2>Privacy</h2>
-          <ul>
-            <li>Only <b>daily token counts per tool and model</b> leave your machine. Never prompts, code, file paths or API keys.</li>
-            <li>The server rejects any upload that contains anything else.</li>
-            <li>Your key is stored hashed on the server.</li>
-            <li><code>tokentrack delete-account</code> removes your account and all its data.</li>
-          </ul>
-          <p>See exactly what would be sent:</p>
-          <pre>tokentrack sync --dry</pre>
-          <pre>{ "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
-  "input": 381, "output": 138, "reasoning": 63, "cacheRead": 8448, "cacheWrite": 0, "messages": 1 }</pre>
-        </section>
-
-        <section id="profile">
-          <h2>Profile</h2>
-          <p>
-            Every account gets a public page at <code>/u/&lt;handle&gt;</code> with your yearly total and heatmap.
-            Cursor usage is added from your public Cursor profile if you connect it.
-          </p>
-        </section>
-
-        <section id="embed">
-          <h2>Embed and API</h2>
-          <p>Profiles are public, so embedding needs no account or key. Try every option live in the <a href="/embed">embed builder</a>.</p>
-
-          <h3>Image cards</h3>
-          <p>An SVG that works anywhere images do, including GitHub READMEs. Cached for an hour.</p>
-          <pre>[![AI tokens](https://tokentracker-nu.vercel.app/u/you.svg)](https://tokentracker-nu.vercel.app/u/you)</pre>
-          <table>
-            <tr><th>Option</th><th>Values</th></tr>
-            <tr><td><code>type</code></td><td><code>heatmap</code> (default), <code>stats</code>, <code>breakdown</code>, <code>line</code>, <code>badge</code></td></tr>
-            <tr><td><code>cells</code></td><td><code>square</code>, <code>round</code>, <code>dot</code>, <code>dither</code> (heatmap only)</td></tr>
-            <tr><td><code>theme</code></td><td><code>dark</code>, <code>light</code>, <code>gold</code>, <code>transparent</code></td></tr>
-            <tr><td><code>accent</code> <code>bg</code> <code>text</code> <code>muted</code> <code>empty</code></td><td>Hex colours without <code>#</code>, e.g. <code>accent=e11d48</code></td></tr>
-            <tr><td><code>range</code></td><td><code>year</code>, <code>365d</code>, <code>90d</code>, <code>30d</code>, any <code>Nd</code>, or a year like <code>2025</code></td></tr>
-            <tr><td><code>tools</code></td><td>Comma-separated tool ids, e.g. <code>claude-code,codex</code></td></tr>
-            <tr><td><code>hide</code></td><td><code>title</code>, <code>total</code>, <code>months</code>, <code>legend</code></td></tr>
-            <tr><td><code>week</code></td><td><code>mon</code> to start weeks on Monday</td></tr>
-            <tr><td><code>label</code></td><td>Badge label text (default "AI tokens")</td></tr>
-          </table>
-
-          <div class="try" id="try-cards">
-            <div class="try-bar">
-              <label>handle <input data-global="handle" value="bicrick" spellcheck="false" autocomplete="off"></label>
-              <div class="chips" data-opt="theme"><button data-v="dark" class="on">dark</button><button data-v="light">light</button><button data-v="gold">gold</button><button data-v="transparent">transparent</button></div>
-              <div class="chips" data-opt="range"><button data-v="year" class="on">year</button><button data-v="90d">90d</button><button data-v="30d">30d</button></div>
-            </div>
-            <div class="try-grid">
-              <figure data-card="type=heatmap"><img alt="heatmap card"><figcaption><code>?type=heatmap</code>
-                <span class="chips" data-opt="cells"><button data-v="square" class="on">square</button><button data-v="round">round</button><button data-v="dot">dot</button><button data-v="dither">dither</button></span></figcaption></figure>
-              <figure data-card="type=stats"><img alt="stats card"><figcaption><code>?type=stats</code></figcaption></figure>
-              <figure data-card="type=breakdown"><img alt="breakdown card"><figcaption><code>?type=breakdown</code></figcaption></figure>
-              <figure data-card="type=line"><img alt="line card"><figcaption><code>?type=line</code></figcaption></figure>
-              <figure data-card="type=badge"><img alt="badge"><figcaption><code>?type=badge</code></figcaption></figure>
-            </div>
-            <pre class="try-out" data-out="cards"></pre>
-          </div>
-
-          <h3>Web component</h3>
-          <p>Live and interactive, with hover tooltips. It inherits your page's text colour; theme it with CSS variables or <code>::part()</code>.</p>
-          <pre>&lt;script type="module" src="https://tokentracker-nu.vercel.app/embed.js"&gt;&lt;/script&gt;
-&lt;token-heatmap handle="you" range="year" tools="claude-code,codex"&gt;&lt;/token-heatmap&gt;
-&lt;token-total handle="you"&gt;&lt;/token-total&gt; tokens this year</pre>
-          <pre>token-heatmap {
-  --tt-cell-0: #f1f5f9;  --tt-cell-1: #c7d2fe;  --tt-cell-2: #a5b4fc;
-  --tt-cell-3: #6366f1;  --tt-cell-4: #3730a3;
-  --tt-gap: 2px;  --tt-radius: 2px;  --tt-font: 'Inter', sans-serif;
-}</pre>
-          <div class="try" id="try-component">
-            <div class="try-bar">
-              <label>empty <input type="color" data-var="--tt-cell-0" value="#23252b"></label>
-              <label>busiest <input type="color" data-var="--tt-cell-4" value="#6b9eff"></label>
-              <label>gap <input type="range" min="0" max="6" value="3" data-var="--tt-gap" data-unit="px"></label>
-              <label>radius <input type="range" min="0" max="6" value="0" data-var="--tt-radius" data-unit="px"></label>
-              <div class="chips" data-attr="range"><button data-v="year" class="on">year</button><button data-v="90d">90d</button><button data-v="30d">30d</button></div>
-            </div>
-            <div class="try-stage"><token-heatmap handle="bicrick"></token-heatmap></div>
-            <pre class="try-out" data-out="component"></pre>
-          </div>
-          <p>Attributes: <code>handle</code>, <code>range</code>, <code>tools</code>, <code>week-start="mon"</code>, <code>theme="light|dark"</code>, <code>hide="months,legend"</code>. Parts: <code>cell</code>, <code>level-0…4</code>, <code>months</code>, <code>grid</code>, <code>legend</code>. It fires a <code>tokentracker:load</code> event with the data.</p>
-
-          <h3>Headless library: build your own</h3>
-          <p>For a heatmap styled exactly like your site. The library does the grid, colour levels, totals and streaks; you write the markup.</p>
-          <pre>import { getHeatmap } from 'https://tokentracker-nu.vercel.app/lib/heatmap.js';
-
-const hm = await getHeatmap('you', { range: 'year', weekStart: 'mon', levels: 5 });
-// hm.weeks[w][d]: { date, count, level, sources, future } or null outside the range
-// hm.months: [{ label, week }]   hm.total, hm.max, hm.maxDay
-// hm.activeDays, hm.longestStreak, hm.currentStreak
-// hm.tools: [{ id, name, tokens, share }]</pre>
-          <div class="try" id="try-library">
-            <div class="try-bar">
-              <div class="chips" data-style><button data-v="bars" class="on">monthly bars</button><button data-v="rings">week rings</button><button data-v="text">text sparkline</button></div>
-            </div>
-            <div class="try-stage" id="lib-stage"></div>
-            <pre class="try-out" data-out="library"></pre>
-          </div>
-          <p>Also exported: <code>buildHeatmap(data, options)</code> and <code>buildSeries(data, options)</code> for data you already have, <code>fetchActivity</code>, <code>formatTokens</code> and <code>resolveRange</code>. It has no dependencies and works in browsers, Node and edge functions.</p>
-
-          <h3>Raw tokens</h3>
-          <pre>GET /u/you.json?range=90d&amp;group=day       # or /api/tokens?handle=you&amp;…
-GET /u/you.json?group=month
-GET /u/you.json?group=tool
-GET /u/you.json?group=model
-GET /u/you.csv?range=year&amp;group=day</pre>
-          <div class="try" id="try-data">
-            <div class="try-bar">
-              <div class="chips" data-opt="group"><button data-v="month" class="on">month</button><button data-v="week">week</button><button data-v="day">day</button><button data-v="tool">tool</button><button data-v="model">model</button></div>
-              <div class="chips" data-opt="format"><button data-v="json" class="on">json</button><button data-v="csv">csv</button></div>
-            </div>
-            <pre class="try-out" data-out="url"></pre>
-            <pre class="try-result" id="data-result">loading…</pre>
-          </div>
-          <p><code>group</code> is <code>day</code>, <code>week</code>, <code>month</code>, <code>tool</code> or <code>model</code>; <code>tools</code> filters by tool. Responses include <code>total</code> and <code>rows</code>. CORS-open and cached for 10 minutes.</p>
+          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. The ingest endpoint rejects anything else. Run <code>tokentrack sync --dry</code> to see the exact payload.</p>
         </section>
 
         <section id="accounts">
-          <h2>Accounts and sign-in</h2>
+          <h2>Accounts</h2>
           <ul>
-            <li><b>Reading is public.</b> Profiles, cards, the web component and the raw API need no login or key.</li>
-            <li><b>Sign in with email.</b> <code>init</code> asks for your email and sends a link. Click it, confirm, and your terminal finishes on its own. There are no passwords.</li>
-            <li><b>Each machine gets its own key,</b> stored in <code>~/.config/tokentrack/config.json</code> and kept hashed on the server. On another computer, run <code>init</code> and choose <b>Sign in with email</b>.</li>
-            <li><b>Settings</b> at <a href="/settings">/settings</a> (also by email link): see your machines and revoke one, connect Cursor, or delete your account.</li>
-            <li><b>Skipping email</b> is allowed: you get a single key and no recovery, so keep that config file safe.</li>
-            <li><b>Limits:</b> 5 sign-in emails per hour per address, 10 per hour per IP, 120 uploads per hour per account.</li>
+            <li>Reading is public. Writing (uploads, settings) needs a machine key.</li>
+            <li><code>init</code> signs you in by email: click the link and the terminal finishes on its own. Each machine gets its own key, stored in <code>~/.config/tokentrack/config.json</code> and hashed on the server.</li>
+            <li><a href="/settings">Settings</a>: see and revoke machines, connect Cursor, delete your account.</li>
           </ul>
-        </section>
-
-        <section id="self-host">
-          <h2>Self-hosting</h2>
-          <p>Prefer to keep your data in your own database? Deploy your own server and point <code>init</code> at it.</p>
-          <ol>
-            <li>Deploy the repo to Vercel and add a Neon Postgres database.</li>
-            <li>Set <code>TOKENTRACK_INGEST_KEYS</code> (comma-separated, <code>openssl rand -hex 24</code>), <code>TOKENTRACK_ACCOUNT</code>, <code>CURSOR_HANDLE</code> and <code>CRON_SECRET</code>.</li>
-            <li>Run <code>init</code>, choose <b>Connect an existing account</b>, and enter your server URL and one of your keys.</li>
-          </ol>
-          <p><a href="https://github.com/bicrick/tokentracker#self-hosting">Deploy button and details on GitHub ↗</a></p>
         </section>
 
         <section id="cli">
@@ -271,55 +242,25 @@ GET /u/you.csv?range=year&amp;group=day</pre>
           <table>
             <tr><td><code>tokentrack init</code></td><td>Guided setup</td></tr>
             <tr><td><code>tokentrack connect</code></td><td>Choose tools, add custom folders, connect Cursor</td></tr>
-            <tr><td><code>tokentrack sync</code></td><td>Upload daily totals now. <code>--dry</code> prints the payload, <code>--full</code> resends all history</td></tr>
+            <tr><td><code>tokentrack sync [--dry] [--full]</code></td><td>Upload now; <code>--dry</code> prints the payload</td></tr>
             <tr><td><code>tokentrack status</code></td><td>Account, machine, tools and recent syncs</td></tr>
-            <tr><td><code>tokentrack install</code></td><td>Turn on background sync</td></tr>
-            <tr><td><code>tokentrack uninstall</code></td><td>Turn off background sync</td></tr>
-            <tr><td><code>tokentrack delete-account</code></td><td>Delete your account and all data</td></tr>
-          </table>
-          <p><code>init</code> flags: <code>--hosted --handle &lt;h&gt; [--cursor &lt;h&gt;]</code>, <code>--server &lt;url&gt; --key &lt;key&gt;</code>, <code>--device &lt;name&gt;</code>, <code>--reset</code>, <code>--no-install</code>, <code>--yes</code>.</p>
-        </section>
-
-        <section id="config">
-          <h2>Config file</h2>
-          <p>Stored at <code>~/.config/tokentrack/config.json</code>. Keep it private: it holds your key.</p>
-          <pre>{
-  "server": "https://tokentracker-nu.vercel.app",
-  "handle": "you",
-  "device": "laptop",
-  "connections": {
-    "claude-code": { "enabled": "auto" },
-    "codex": { "enabled": true, "paths": ["~/work/.codex/sessions"] },
-    "cline": { "enabled": false }
-  }
-}</pre>
-        </section>
-
-        <section id="api">
-          <h2>HTTP API</h2>
-          <table>
-            <tr><th>Method</th><th>Path</th><th>Auth</th><th></th></tr>
-            <tr><td><code>GET</code></td><td><code>/api/activity?handle=</code></td><td>public</td><td>Daily totals by tool, per-model totals, machines</td></tr>
-            <tr><td><code>GET</code></td><td><code>/api/tokens?handle=</code> · <code>/u/you.json</code> · <code>/u/you.csv</code></td><td>public</td><td>Raw tokens grouped by day, week, month, tool or model</td></tr>
-            <tr><td><code>GET</code></td><td><code>/api/card?handle=</code> · <code>/u/you.svg</code></td><td>public</td><td>SVG cards</td></tr>
-            <tr><td><code>POST</code></td><td><code>/api/signup</code></td><td>public</td><td>Create an account; returns a key once</td></tr>
-            <tr><td><code>GET POST DELETE</code></td><td><code>/api/account</code></td><td>key</td><td>Who am I, set Cursor handle, delete account</td></tr>
-            <tr><td><code>POST</code></td><td><code>/api/ingest</code></td><td>key</td><td>Upload daily totals (optional <code>since</code>)</td></tr>
+            <tr><td><code>tokentrack install</code> / <code>uninstall</code></td><td>Background sync on or off</td></tr>
+            <tr><td><code>tokentrack delete-account</code></td><td>Delete your account and data</td></tr>
           </table>
         </section>
 
-        <section id="faq">
-          <h2>FAQ</h2>
-          <h3>Do you need my API keys?</h3>
-          <p>No. Nothing reads, stores or uploads API keys.</p>
-          <h3>Does it cost anything?</h3>
-          <p>No. tokentracker is free and open source.</p>
-          <h3>Why is cache most of my total?</h3>
-          <p>Agents reread their context every turn, and providers count those reads as tokens. For agentic coding it's normal for 95%+ of tokens to be cache reads.</p>
-          <h3>A tool isn't detected</h3>
-          <p>Run <code>tokentrack connect</code> and add its folder as a custom path, or <a href="https://github.com/bicrick/tokentracker/issues">open an issue</a>.</p>
-          <h3>Sync fails with a certificate error</h3>
-          <p>You're probably behind a corporate proxy. Run with <code>NODE_USE_SYSTEM_CA=1</code>. Background sync sets this automatically.</p>
+        <section id="self-host">
+          <h2>Self-hosting</h2>
+          <p>Deploy the repo to Vercel with a Neon Postgres database, set <code>TOKENTRACK_INGEST_KEYS</code>, <code>TOKENTRACK_ACCOUNT</code> and <code>CRON_SECRET</code>, then run <code>init</code> and choose <b>Use a key or my own server</b>. The API is identical. <a href="https://github.com/bicrick/tokentracker#self-hosting">Details on GitHub ↗</a></p>
+        </section>
+
+        <section id="machine-readable">
+          <h2>llms.txt and OpenAPI</h2>
+          <ul>
+            <li><a href="/llms.txt">/llms.txt</a>: a compact guide to this API for LLMs and agents.</li>
+            <li><a href="/openapi.json">/openapi.json</a>: OpenAPI 3.1 spec for code generation and tooling.</li>
+            <li><a href="/api/v1">/api/v1</a>: a JSON index of every endpoint.</li>
+          </ul>
         </section>
       </main>
     </div>
@@ -330,10 +271,47 @@ GET /u/you.csv?range=year&amp;group=day</pre>
     </footer>
   </div>
 
-  <script type="module" src="/embed.js?v=29"></script>
-  <script type="module" src="/docs-try.js?v=29"></script>
-  <script>
-    // Highlight the section in view
+  <script type="module">
+    // "Try it" console on every endpoint section
+    for (const sec of document.querySelectorAll('section.endpoint')) {
+      const box = document.createElement('div');
+      box.className = 'try-api';
+      box.innerHTML = `
+        <form>
+          <span class="method">GET</span>
+          <span class="path">/api/v1${sec.dataset.path.replace('{handle}', '<input name="handle" value="bicrick" spellcheck="false" size="10">')}</span>
+          <span class="q">?</span><input name="params" value="${sec.dataset.params}" placeholder="params" spellcheck="false">
+          <button type="submit">Send</button>
+        </form>
+        <pre class="try-out">Press Send to run a live request.</pre>`;
+      sec.appendChild(box);
+      const out = box.querySelector('.try-out');
+      box.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const handle = String(f.get('handle') || 'bicrick').toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const params = String(f.get('params') || '').replace(/^\?/, '');
+        const url = `/api/v1${sec.dataset.path.replace('{handle}', handle)}${params ? `?${params}` : ''}`;
+        out.textContent = `GET ${url}\n\n…`;
+        const started = performance.now();
+        try {
+          const res = await fetch(url);
+          const text = await res.text();
+          let body = text;
+          try {
+            const j = JSON.parse(text);
+            // keep long arrays readable
+            if (Array.isArray(j.rows) && j.rows.length > 8) j.rows = [...j.rows.slice(0, 8), `… ${j.rows.length - 8} more rows`];
+            if (Array.isArray(j.weeks) && j.weeks.length > 3) j.weeks = [...j.weeks.slice(0, 2), `… ${j.weeks.length - 2} more weeks`];
+            body = JSON.stringify(j, null, 2);
+          } catch {}
+          out.textContent = `GET ${url}\n${res.status} · ${Math.round(performance.now() - started)}ms\n\n${body}`;
+        } catch (err) {
+          out.textContent = `GET ${url}\n\n${err.message}`;
+        }
+      });
+    }
+
     const links = [...document.querySelectorAll('.docs-nav a')];
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) {

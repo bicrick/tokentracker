@@ -382,13 +382,13 @@ async function init(flags) {
     `${sym.ok} ${c.bold("You're all set")}`,
     '',
     `${c.gray('profile ')} ${c.blue(c.under(profile))}`,
-    `${c.gray('embed   ')} ![AI tokens](${new URL(`/u/${handle}.svg`, server)})`,
-    `${c.gray('api     ')} ${new URL(`/u/${handle}.json`, server)}`,
+    `${c.gray('api     ')} ${new URL(`/api/v1/users/${handle}`, server)}`,
+    `${c.gray('docs    ')} ${new URL('/docs', server)}`,
     `${c.gray('config  ')} ${tildify(CONFIG_PATH)} ${c.gray('(keep private)')}`,
   ], { pad: 2 });
   line();
   line(`  ${c.bold('Next')}`);
-  line(`  ${sym.dot} More embed styles: ${c.blue(new URL('/embed', server).toString())}`);
+  line(`  ${sym.dot} Query your usage: ${c.blue(`curl ${new URL(`/api/v1/users/${handle}/stats`, server)}`)}`);
   line(`  ${sym.dot} Add another machine: run ${c.blue('npx github:bicrick/tokentracker init')} there and`);
   line(`    choose ${c.italic('Sign in with email')}`);
   line(`  ${sym.dot} Manage machines and settings: ${c.blue(new URL('/settings', server).toString())}`);

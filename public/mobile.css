@@ -126,9 +126,6 @@ footer {
 
 .docs-body pre { font-size: 11.5px; }
 
-/* embed builder */
-.builder { grid-template-columns: 1fr; gap: 20px; }
-.preview { min-height: 150px; padding: 12px; }
 
 .try-grid { grid-template-columns: 1fr; }
 .try-bar input:not([type=range]):not([type=color]) { width: 100px; }
@@ -158,3 +155,13 @@ footer {
 
 .auth-card { margin-top: 48px; }
 .devices li { grid-template-columns: 1fr; gap: 4px; }
+
+.stack-chart { height: 160px; gap: 3px; }
+.rank-list li { grid-template-columns: 18px minmax(0, 1fr) 90px; }
+.rank-list .bar { display: none; }
+.stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stat-grid > div:nth-child(4n) { border-right: 1px solid var(--rule); }
+.stat-grid > div:nth-child(2n) { border-right: 0; }
+.stat-grid > div:nth-last-child(-n + 4) { border-bottom: 1px solid var(--rule); }
+.stat-grid > div:nth-last-child(-n + 2) { border-bottom: 0; }
+.api-body { height: 240px; font-size: 10px; }

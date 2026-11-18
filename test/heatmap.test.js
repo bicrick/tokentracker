@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildHeatmap, buildSeries, formatTokens, resolveRange } from '../public/lib/heatmap.js';
-import { renderCard, parseOptions, CARD_TYPES, CELL_STYLES } from '../lib/cards.js';
-import { shape } from '../api/tokens.js';
+import { buildHeatmap, buildSeries, formatTokens, resolveRange } from '../lib/heatmap.js';
 
 const TODAY = '2026-11-18';
 const data = {
@@ -64,37 +62,5 @@ test('buildSeries is cumulative', () => {
   assert.equal(s.at(-1).date, TODAY);
 });
 
-test('every card type and cell style renders valid-looking SVG', () => {
-  for (const type of CARD_TYPES) {
-    for (const cells of CELL_STYLES) {
-      const svg = renderCard(data, { type, cells, theme: 'light', accent: 'e11d48' });
-      assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, `${type}/${cells}`);
-      assert.ok(svg.endsWith('</svg>'));
-      assert.ok(!svg.includes('undefined') && !svg.includes('NaN'), `${type}/${cells} has bad values`);
-    }
-  }
-  assert.match(renderCard(data, { type: 'badge' }), /6\.4K/);
-  // light badges keep a dark label so the white label text stays readable
-  assert.match(renderCard(data, { type: 'badge', theme: 'light' }), /<rect width="\d+" height="20" fill="#4a4f5c"/);
-});
 
-test('card options are sanitised', () => {
-  const o = parseOptions({ accent: 'url(javascript:x)', range: '../../etc', tools: 'codex,<script>', type: 'nope' });
-  assert.equal(o.theme.accent, '#6b9eff');
-  assert.equal(o.range, 'year');
-  assert.deepEqual(o.tools, ['codex']);
-  assert.equal(o.type, 'heatmap');
-  const svg = renderCard({ ...data, handle: '<x>' }, {});
-  assert.ok(!svg.includes('<x>'));
-});
 
-test('tokens API shapes data by group', () => {
-  const byMonth = shape(data, { group: 'month' });
-  assert.equal(byMonth.rows.find((r) => r.month === '2026-01').tokens, 400);
-  const byTool = shape(data, { group: 'tool' });
-  assert.equal(byTool.rows[0].tool, 'claude-code');
-  const byModel = shape(data, { group: 'model' });
-  assert.equal(byModel.rows.length, 1); // cursor/all is excluded
-  const tools = shape(data, { group: 'day', tools: 'codex' });
-  assert.ok(tools.rows.every((r) => r.tokens <= 1000));
-});

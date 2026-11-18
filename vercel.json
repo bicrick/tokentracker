@@ -3,17 +3,16 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/u/:handle([a-z0-9-]+).svg", "destination": "/api/card?handle=:handle" },
-    { "source": "/u/:handle([a-z0-9-]+).json", "destination": "/api/tokens?handle=:handle" },
-    { "source": "/u/:handle([a-z0-9-]+).csv", "destination": "/api/tokens?handle=:handle&format=csv" },
+    { "source": "/api/v1/users/:handle", "destination": "/api/v1?handle=:handle&resource=profile" },
+    { "source": "/api/v1/users/:handle/:resource", "destination": "/api/v1?handle=:handle&resource=:resource" },
     { "source": "/u/:handle", "destination": "/u" }
   ],
   "headers": [
     {
-      "source": "/(embed.js|lib/heatmap.js)",
+      "source": "/(llms.txt|llms-full.txt|openapi.json)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800" }
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=3600" }
       ]
     }
   ],

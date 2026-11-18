@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>tokentracker · track your AI tokens, in one place</title>
-  <meta name="description" content="Track token usage across Cursor, Claude Code, OpenCode and GitHub Copilot on all your computers. One public profile. Only daily counts leave your machine.">
+  <title>tokentracker · your AI token usage, as an API</title>
+  <meta name="description" content="A collector reads every AI coding tool on every machine. One public API answers how many tokens, which models, which tools and which days.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=31">
-  <link rel="stylesheet" href="/mobile.css?v=31" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=32">
+  <link rel="stylesheet" href="/mobile.css?v=32" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -17,18 +17,17 @@
     <nav>
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
       <div class="links">
-        <a href="/embed">Embed</a>
         <a href="/docs">Docs</a>
         <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
       </div>
     </nav>
 
-    <h1>Track your AI tokens, in one place.</h1>
+    <h1>Your AI token usage, as an API.</h1>
     <div class="hero">
       <div class="hero-copy">
     <p class="lede">
-      Every token you spend, across all your coding tools and computers.
-      Embed it on your site or query it with an API.
+      A collector reads every coding tool on every machine you use. One public API
+      answers how many tokens, which models, which tools and which days.
     </p>
 
     <div class="cmd">
@@ -71,8 +70,8 @@
 
       <div class="profile" id="profile">
         <div class="reveal-intro">
-          <h2>Embed it on your site.</h2>
-          <p>That's what <code>init</code> creates: a live public profile. This one is <b>@bicrick</b>'s real usage, updated hourly by the background sync.</p>
+          <h2>Then query it.</h2>
+          <p>That's what <code>init</code> sets up: a live API for your usage, synced hourly. Everything below is <b>@bicrick</b>'s real data, straight from that API.</p>
         </div>
         <div class="profile-head">
           <span class="handle">@bicrick</span>
@@ -86,69 +85,49 @@
           <span class="label">tokens this year</span>
         </div>
         <div id="ex-heatmap"></div>
-        <p class="privacy-line">Only daily token counts leave your machine. Prompts and code stay local.</p>
+        <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/heatmap</p>
       </div>
     </div>
 
-    <section class="chapter" id="ch-heatmaps" aria-labelledby="ch1">
-      <h2 id="ch1">Make it yours.</h2>
-      <p class="chapter-lede">Tune it to match your site, then copy the snippet.</p>
-      <div class="playground" id="playground">
-        <div class="pg-stage" id="pg-stage">
-          <token-heatmap handle="bicrick" id="pg-heatmap"></token-heatmap>
-        </div>
-        <div class="pg-controls">
-          <label><span>colour</span><input type="color" id="pg-accent" value="#6b9eff"></label>
-          <label><span>rounding</span><input type="range" id="pg-radius" min="0" max="50" value="0"></label>
-          <label><span>gap</span><input type="range" id="pg-gap" min="0" max="6" value="3"></label>
-          <label><span>background</span>
-            <span class="chips" id="pg-theme"><button data-v="dark" class="on">dark</button><button data-v="light">light</button></span>
-          </label>
-          <label><span>range</span>
-            <span class="chips" id="pg-range"><button data-v="year" class="on">year</button><button data-v="90d">90 days</button><button data-v="30d">30 days</button></span>
-          </label>
-        </div>
-        <pre class="pg-code" id="pg-code"></pre>
-      </div>
+    <section class="chapter q-chapter" id="ch-usage" aria-labelledby="q1">
+      <h2 id="q1">Usage over time.</h2>
+      <p class="chapter-lede">Group by day, week, month or year, split by tool or model, filter by any range.</p>
+      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/usage?range=ytd&amp;group=month&amp;split=tool</p>
+      <div class="q-out"><div class="stack-chart skeleton" id="q-usage"></div><div class="q-legend" id="q-usage-legend"></div></div>
     </section>
 
-    <section class="chapter" id="ch-badges" aria-labelledby="ch2">
-      <h2 id="ch2">A badge for your README.</h2>
-      <p class="chapter-lede">Shields-style, with your total, any label and colour.</p>
-      <div class="badge-row">
-        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;theme=light"><img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"></picture><figcaption><code>?type=badge</code></figcaption></figure>
-        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent&amp;theme=light"><img src="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent" alt="Gold badge" loading="lazy"></picture><figcaption><code>&amp;accent=f0c463&amp;label=…</code></figcaption></figure>
-        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days&amp;theme=light"><img src="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days" alt="Last 30 days badge" loading="lazy"></picture><figcaption><code>&amp;range=30d</code></figcaption></figure>
-        <figure class="badge-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code&amp;theme=light"><img src="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code" alt="Claude Code badge" loading="lazy"></picture><figcaption><code>&amp;tools=claude-code</code></figcaption></figure>
-      </div>
+    <section class="chapter q-chapter" id="ch-models" aria-labelledby="q2">
+      <h2 id="q2">Every model you've used.</h2>
+      <p class="chapter-lede">Tokens, responses, share, and when you first and last used each one.</p>
+      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/models?range=ytd</p>
+      <ol class="rank-list skeleton" id="q-models"></ol>
     </section>
 
-    <section class="chapter" id="ch-graphs" aria-labelledby="ch3">
-      <h2 id="ch3">Stats, breakdowns and trends.</h2>
-      <p class="chapter-lede">Cards for the numbers people actually ask about.</p>
-      <div class="graph-row">
-        <figure class="card-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=stats&amp;theme=light"><img data-inline src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy"></picture><figcaption><code>?type=stats</code></figcaption></figure>
-        <figure class="card-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=breakdown&amp;theme=light"><img data-inline src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy"></picture><figcaption><code>?type=breakdown</code></figcaption></figure>
-        <figure class="wide card-hover"><picture><source media="(prefers-color-scheme: light)" srcset="/u/bicrick.svg?type=line&amp;theme=light"><img data-inline data-line src="/u/bicrick.svg?type=line" alt="Cumulative tokens chart" loading="lazy"></picture><figcaption><code>?type=line</code></figcaption></figure>
-      </div>
+    <section class="chapter q-chapter" id="ch-tools" aria-labelledby="q3">
+      <h2 id="q3">Across every tool.</h2>
+      <p class="chapter-lede">Claude Code, Codex, Cursor, OpenCode and more, added up across all your machines.</p>
+      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/tools?range=ytd</p>
+      <div class="share skeleton" id="q-tools"><div class="share-bar"></div><ul class="share-list"></ul></div>
     </section>
 
-    <section class="chapter" id="ch-api" aria-labelledby="ch4">
-      <h2 id="ch4">Or make your own with the API.</h2>
-      <p class="chapter-lede">Raw tokens as JSON or CSV, grouped by day, week, month, tool or model. No key needed.</p>
-      <div class="api-split">
-        <div class="term api-term">
-          <div class="term-bar"><span></span><span></span><span></span></div>
-          <pre class="term-body api-body" id="api-term"></pre>
-        </div>
-        <figure class="api-chart">
-          <div class="lib-bars skeleton" id="api-bars"><div><span style="--h:22%"></span><small>&nbsp;</small></div><div><span style="--h:30%"></span><small>&nbsp;</small></div><div><span style="--h:18%"></span><small>&nbsp;</small></div><div><span style="--h:16%"></span><small>&nbsp;</small></div><div><span style="--h:6%"></span><small>&nbsp;</small></div><div><span style="--h:25%"></span><small>&nbsp;</small></div><div><span style="--h:58%"></span><small>&nbsp;</small></div><div><span style="--h:40%"></span><small>&nbsp;</small></div><div><span style="--h:72%"></span><small>&nbsp;</small></div><div><span style="--h:80%"></span><small>&nbsp;</small></div><div><span style="--h:66%"></span><small>&nbsp;</small></div></div>
-          <figcaption>Your own chart, your own CSS. <a href="/docs#embed">The library</a> does the maths.</figcaption>
-        </figure>
+    <section class="chapter q-chapter" id="ch-stats" aria-labelledby="q4">
+      <h2 id="q4">The numbers people ask about.</h2>
+      <p class="chapter-lede">Streaks, busiest day, today, this month, top tool and top model.</p>
+      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/stats?range=ytd</p>
+      <dl class="stat-grid skeleton" id="q-stats"></dl>
+    </section>
+
+    <section class="chapter q-chapter" id="ch-api" aria-labelledby="q5">
+      <h2 id="q5">Build whatever you want.</h2>
+      <p class="chapter-lede">Plain JSON or CSV. No key, no SDK, cross-origin enabled. Every component on this page is one request.</p>
+      <div class="term api-term">
+        <div class="term-bar"><span></span><span></span><span></span></div>
+        <pre class="term-body api-body" id="api-term"></pre>
       </div>
       <p class="docs-cta">
-        <a href="/embed">Build your embed →</a>
-        <a href="/docs#embed">API and embed docs →</a>
+        <a href="/docs">Read the API docs →</a>
+        <a href="/llms.txt">llms.txt →</a>
+        <a href="/openapi.json">OpenAPI →</a>
       </p>
     </section>
 
@@ -159,17 +138,17 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=31';
-    import { mountDemo } from '/demo.js?v=31';
-    import { mountCoin } from '/coin.js?v=31';
-    import { mountTokenSea } from '/sea.js?v=31';
-    import { mountChapters } from '/chapters.js?v=31';
+    import { api, renderHeatmapGrid, wireCopy, formatCount } from '/app.js?v=32';
+    import { mountDemo } from '/demo.js?v=32';
+    import { mountCoin } from '/coin.js?v=32';
+    import { mountTokenSea } from '/sea.js?v=32';
+    import { mountChapters } from '/chapters.js?v=32';
 
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
       // Only the charts and cards themselves stay clear of coins, not whole sections
-      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.playground, .badge-row, .graph-row, .api-split')],
+      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.q-out, .rank-list, .share, .stat-grid, .api-term')],
       ground: document.querySelector('footer'),
     });
 
@@ -179,16 +158,20 @@
 
     wireCopy(document.getElementById('copy'), document.getElementById('cmd').textContent);
 
-    const data = fetchActivity('bicrick').catch(() => null);
-    mountChapters(data);
+    // Everything on this page comes from the public v1 API
+    const heatmap = api('/users/bicrick/heatmap?range=year').catch(() => null);
+    const data = api('/users/bicrick/tools?range=ytd')
+      .then((t) => ({ totals: Object.fromEntries(t.rows.map((r) => [r.tool, r.tokens])) }))
+      .catch(() => null);
+    mountChapters();
     const show = async () => {
-      const d = await data;
-      if (!d) {
+      const hm = await heatmap;
+      if (!hm) {
         document.getElementById('profile').hidden = true;
         return;
       }
-      document.getElementById('ex-total').textContent = formatCount(yearTotals(d).total).toUpperCase();
-      renderHeatmap(document.getElementById('ex-heatmap'), d);
+      document.getElementById('ex-total').textContent = formatCount(hm.total).toUpperCase();
+      renderHeatmapGrid(document.getElementById('ex-heatmap'), hm);
     };
 
     const demo = mountDemo({

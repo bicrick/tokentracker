@@ -16,7 +16,7 @@ Developers who code heavily with several AI tools (Cursor, Claude Code, OpenCode
 
 ## Product Purpose
 
-tokentracker adds up every AI token a developer spends, across every tool and every machine, into one public profile and API. Success: a visitor runs one CLI command, picks where data lives, and has a live profile and embeddable data within a minute, kept current by an hourly background sync.
+tokentracker adds up every AI token a developer spends, across every tool and every machine, and exposes it as one public, queryable API (usage, models, tools, heatmap, stats, devices). The API is the product; there are no embeddable widgets. Success: a visitor runs one CLI command, picks where data lives, and has a live profile and embeddable data within a minute, kept current by an hourly background sync.
 
 ## Positioning
 
@@ -54,7 +54,7 @@ Every tool, every machine. Tool-specific profiles (like Cursor's) only show one 
 
 - Always free. No paid plans, no Teams tier, no waitlist. tokentracker is a free, open-source community tool and a portfolio piece by bicrick. Do not imply pricing, upgrades, or future paid features.
 - The CLI (collector) is the product and is MIT open source. It runs on users' machines and costs nothing to operate.
-- tokentracker cloud is the hosted, hands-off default (`init` preselects it): public profile, embeddable heatmap, API. It is the only thing bicrick operates; keep it small and cheap (Vercel Pro + Neon).
+- tokentracker cloud is the hosted, hands-off default (`init` preselects it): the public API (and a simple profile page built on it). It is the only thing bicrick operates; keep it small and cheap (Vercel Pro + Neon).
 - Hands-on users can send data elsewhere instead of or in addition to the cloud ("destinations"): local file, GitHub repo or gist, webhook, or their own self-hosted server. If the cloud ever shuts down, the CLI keeps working with those.
 - Landing page primary action: copy the `npx` command.
 

@@ -1,11 +1,15 @@
-// Landing chapters after the demo unlocks: heatmaps (cycling styles), badges,
-// graphs, and a typed API query that renders its own chart.
-import { formatTokens, MONTHS } from '/lib/heatmap.js';
+// Landing sections: each one is a single request to the public v1 API,
+// rendered into a component. Skeletons hold the layout until data arrives.
+import { api, formatCount } from '/app.js?v=32';
 
 const HANDLE = 'bicrick';
+const COLORS = ['#6b9eff', '#f0c463', '#d97757', '#6fd39b', '#c58af9', '#4fd1c5', '#f687b3', '#a0aec0'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Fade a chapter in the first time it scrolls into view. */
+/** Reveal a section the first time it scrolls into view (observer + scroll fallback). */
 function onEnter(el, fn) {
   let done = false;
   const fire = () => {
@@ -15,8 +19,6 @@ function onEnter(el, fn) {
     fn?.();
   };
   if (reduced) return fire();
-  // Intersection observer, plus a plain scroll check as a fallback so the
-  // chapter can never get stuck hidden
   const check = () => {
     const r = el.getBoundingClientRect();
     if (r.top < window.innerHeight * 0.85 && r.bottom > 0) {
@@ -25,8 +27,8 @@ function onEnter(el, fn) {
     }
   };
   if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
         io.disconnect();
         fire();
       }
@@ -37,191 +39,115 @@ function onEnter(el, fn) {
   check();
 }
 
-import '/embed.js?v=24';
-
-const mix = (a, b, t) => {
-  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const [A, B] = [p(a), p(b)];
-  return `#${A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
-};
-
-/** Live heatmap playground: controls restyle the web component instantly. */
-function playground() {
-  const el = document.getElementById('pg-heatmap');
-  const stage = document.getElementById('pg-stage');
-  const code = document.getElementById('pg-code');
-  const accent = document.getElementById('pg-accent');
-  const radius = document.getElementById('pg-radius');
-  const gap = document.getElementById('pg-gap');
-  const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-  const state = { theme: prefersLight ? 'light' : 'dark', range: 'year' };
-  if (prefersLight) {
-    accent.value = '#1d4ed8';
-    document.querySelectorAll('#pg-theme button').forEach((b) => b.classList.toggle('on', b.dataset.v === 'light'));
-  }
-
-  const render = () => {
-    const empty = state.theme === 'light' ? '#edeef0' : '#23252b';
-    const bg = state.theme === 'light' ? '#ffffff' : '#121317';
-    el.style.setProperty('--tt-cell-0', empty);
-    [0.3, 0.55, 0.8, 1].forEach((t, i) => el.style.setProperty(`--tt-cell-${i + 1}`, mix(empty, accent.value, t)));
-    el.style.setProperty('--tt-radius', `${radius.value}%`);
-    el.style.setProperty('--tt-gap', `${gap.value}px`);
-    el.style.setProperty('--tt-muted', state.theme === 'light' ? '#6b6f7a' : '#8b8e97');
-    stage.style.background = bg;
-    stage.style.color = state.theme === 'light' ? '#16181d' : '#ecece8';
-    if (state.range === 'year') el.removeAttribute('range');
-    else el.setAttribute('range', state.range);
-
-    const attrs = state.range === 'year' ? '' : ` range="${state.range}"`;
-    code.textContent = `<script type="module" src="${location.origin}/embed.js"><\/script>\n<token-heatmap handle="you"${attrs}></token-heatmap>\n\n<style>\n  token-heatmap {\n    --tt-cell-4: ${accent.value};\n    --tt-radius: ${radius.value}%;\n    --tt-gap: ${gap.value}px;\n  }\n</style>`;
-  };
-
-  const chips = (id, key) => document.getElementById(id).addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    e.preventDefault();
-    [...e.currentTarget.children].forEach((x) => x.classList.toggle('on', x === b));
-    state[key] = b.dataset.v;
-    render();
-  });
-  chips('pg-theme', 'theme');
-  chips('pg-range', 'range');
-  [accent, radius, gap].forEach((i) => i.addEventListener('input', render));
-  render();
+// ── usage: stacked monthly bars by tool ──────────────────────────────────────
+function skeletonBars(el, n) {
+  el.innerHTML = Array.from({ length: n }, (_, i) => `<div class="col"><div class="stack" style="--h:${20 + ((i * 37) % 60)}%"></div><small>&nbsp;</small></div>`).join('');
 }
 
-async function apiDemo(data) {
+async function renderUsage() {
+  const el = document.getElementById('q-usage');
+  const legend = document.getElementById('q-usage-legend');
+  const res = await api(`/users/${HANDLE}/usage?range=ytd&group=month&split=tool`);
+  const tools = [...new Set(res.rows.flatMap((r) => Object.keys(r.split)))];
+  const color = Object.fromEntries(tools.map((t, i) => [t, COLORS[i % COLORS.length]]));
+  const max = Math.max(1, ...res.rows.map((r) => r.tokens));
+  el.classList.remove('skeleton');
+  el.innerHTML = res.rows.map((r, i) => {
+    const m = Number(r.period.slice(5)) - 1;
+    const segs = Object.entries(r.split).map(([t, v]) => `<span style="flex-grow:${v};background:${color[t]}" title="${esc(t)} · ${formatCount(v)}"></span>`).join('');
+    return `<div class="col" title="${MONTHS[m]} · ${formatCount(r.tokens)} tokens"><div class="stack" style="--h:${Math.max(1.5, (r.tokens / max) * 100)}%;--delay:${i * 45}ms">${segs}</div><small>${MONTHS[m][0]}</small></div>`;
+  }).join('');
+  legend.innerHTML = tools.map((t) => `<span><i style="background:${color[t]}"></i>${esc(t)}</span>`).join('');
+}
+
+// ── models: ranked list ──────────────────────────────────────────────────────
+async function renderModels() {
+  const el = document.getElementById('q-models');
+  const res = await api(`/users/${HANDLE}/models?range=ytd`);
+  const rows = res.rows.filter((m) => m.model !== 'cursor/all').slice(0, 6);
+  const max = Math.max(1, ...rows.map((m) => m.tokens));
+  el.classList.remove('skeleton');
+  el.innerHTML = rows.map((m, i) => `
+    <li>
+      <span class="rank">${i + 1}</span>
+      <span class="name">${esc(m.name)}<small>${esc(m.provider || '')} · ${esc(m.tool)}</small></span>
+      <span class="bar"><i style="--w:${(m.tokens / max) * 100}%;--delay:${i * 60}ms"></i></span>
+      <span class="num">${formatCount(m.tokens)}<small>${m.responses.toLocaleString()} responses</small></span>
+    </li>`).join('');
+}
+
+// ── tools: share bar + list ──────────────────────────────────────────────────
+async function renderTools() {
+  const el = document.getElementById('q-tools');
+  const res = await api(`/users/${HANDLE}/tools?range=ytd`);
+  el.classList.remove('skeleton');
+  el.querySelector('.share-bar').innerHTML = res.rows.map((t, i) => `<span style="flex-grow:${t.tokens};background:${COLORS[i % COLORS.length]}" title="${esc(t.name)} · ${Math.round(t.share * 100)}%"></span>`).join('');
+  el.querySelector('.share-list').innerHTML = res.rows.map((t, i) => `
+    <li><i style="background:${COLORS[i % COLORS.length]}"></i><span>${esc(t.name)}</span><b>${formatCount(t.tokens)}</b><small>${Math.round(t.share * 100)}%</small></li>`).join('');
+}
+
+// ── stats: grid ──────────────────────────────────────────────────────────────
+async function renderStats() {
+  const el = document.getElementById('q-stats');
+  const s = await api(`/users/${HANDLE}/stats?range=ytd`);
+  const items = [
+    ['tokens', formatCount(s.tokens)],
+    ['this month', formatCount(s.thisMonth)],
+    ['today', formatCount(s.today)],
+    ['active days', s.activeDays],
+    ['longest streak', `${s.longestStreak}d`],
+    ['current streak', `${s.currentStreak}d`],
+    ['busiest day', s.busiestDay ? `${formatCount(s.busiestDay.tokens)}` : '-', s.busiestDay?.date],
+    ['top model', s.topModel ? s.topModel.model.split('/').pop() : '-', s.topModel?.tool],
+  ];
+  el.classList.remove('skeleton');
+  el.innerHTML = items.map(([k, v, note]) => `<div><dt>${k}</dt><dd>${esc(v)}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`).join('');
+}
+
+// ── raw: typed curl and its real response ────────────────────────────────────
+async function renderRaw() {
   const term = document.getElementById('api-term');
-  const bars = document.getElementById('api-bars');
-  const cmd = `curl tokentracker-nu.vercel.app/u/${HANDLE}.json?group=month`;
-  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  const d = await data;
-  const year = String(new Date().getFullYear());
-  const monthly = Array(12).fill(0);
-  for (const r of d?.activityCounts || []) if (r.date.startsWith(year)) monthly[Number(r.date.slice(5, 7)) - 1] += r.count;
-  const rows = monthly.map((tokens, m) => ({ month: `${year}-${String(m + 1).padStart(2, '0')}`, tokens })).filter((r, m) => m <= new Date().getMonth());
-
+  const path = `/api/v1/users/${HANDLE}/usage?range=30d&group=week`;
+  const cmd = `curl tokentracker-nu.vercel.app${path}`;
+  const res = await fetch(path).then((r) => r.json()).catch(() => null);
   if (!reduced) {
     for (let n = 1; n <= cmd.length; n += 1) {
       term.innerHTML = `<span class="t-gray">$</span> ${esc(cmd.slice(0, n))}<span class="caret"></span>`;
-      await sleep(22);
+      await sleep(18);
     }
-    await sleep(300);
+    await sleep(250);
   }
-  const shown = rows.slice(-6);
-  const json = [
-    '{',
-    `  "handle": "${HANDLE}", "group": "month",`,
-    `  "total": ${rows.reduce((s, r) => s + r.tokens, 0)},`,
-    '  "rows": [',
-    ...shown.map((r, k) => `    { "month": "${r.month}", "tokens": ${r.tokens} }${k < shown.length - 1 ? ',' : ''}`),
-    '  ]',
-    '}',
-  ];
-  term.innerHTML = `<span class="t-gray">$</span> ${esc(cmd)}\n`;
-  for (const line of json) {
-    term.innerHTML += `<span class="t-blue">${esc(line)}</span>\n`;
-    if (!reduced) await sleep(55);
+  if (!res) {
+    term.innerHTML += '\n<span class="t-gray">(could not reach the API)</span>';
+    return;
   }
-
-  // Morph the skeleton bars into the real ones (same elements, so no pop-in)
-  const max = Math.max(1, ...rows.map((r) => r.tokens));
-  const cols = [...bars.children];
-  while (cols.length < rows.length) {
-    const div = document.createElement('div');
-    div.innerHTML = '<span style="--h:0%"></span><small>&nbsp;</small>';
-    bars.appendChild(div);
-    cols.push(div);
-  }
-  cols.slice(rows.length).forEach((c) => c.remove());
-  bars.classList.remove('skeleton');
-  rows.forEach((r, k) => {
-    const m = Number(r.month.slice(5)) - 1;
-    const col = cols[k];
-    col.title = `${MONTHS[m]} · ${formatTokens(r.tokens)} tokens`;
-    col.dataset.label = `${MONTHS[m]} · ${formatTokens(r.tokens)}`;
-    col.querySelector('small').textContent = MONTHS[m][0];
-    col.querySelector('span').style.setProperty('--h', `${Math.max(1.5, (r.tokens / max) * 100)}%`);
-    col.style.setProperty('--delay', `${k * 45}ms`);
-  });
-}
-
-/** Swap card <img>s for inline SVG so they can respond to hover. */
-async function inlineCards() {
-  for (const img of document.querySelectorAll('img[data-inline]')) {
-    try {
-      // currentSrc is whichever <picture> source matched the colour scheme
-      const text = await (await fetch(img.currentSrc || img.src)).text();
-      const holder = document.createElement('div');
-      holder.className = 'card-svg';
-      holder.innerHTML = text;
-      const svg = holder.querySelector('svg');
-      if (!svg) continue;
-      svg.removeAttribute('width');
-      svg.removeAttribute('height');
-      svg.setAttribute('aria-label', img.alt);
-      (img.closest('picture') || img).replaceWith(holder);
-      if (img.hasAttribute('data-line')) lineHover(svg);
-      if (svg.querySelector('.tt-row')) breakdownHover(svg);
-    } catch {
-      // leave the static image in place
-    }
-  }
-}
-
-function lineHover(svg) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const points = [...svg.querySelectorAll('.tt-point')];
-  if (!points.length) return;
-  const guide = document.createElementNS(ns, 'line');
-  guide.setAttribute('class', 'tt-guide');
-  const dot = document.createElementNS(ns, 'circle');
-  dot.setAttribute('class', 'tt-dot');
-  dot.setAttribute('r', '4');
-  const label = document.createElementNS(ns, 'text');
-  label.setAttribute('class', 'tt-readout');
-  label.setAttribute('font-size', '11');
-  [guide, dot, label].forEach((n) => { n.style.display = 'none'; svg.appendChild(n); });
-  const top = Number(points[0].getAttribute('y'));
-  const bottom = top + Number(points[0].getAttribute('height'));
-  const width = Number(svg.getAttribute('viewBox').split(' ')[2]);
-
-  const show = (p) => {
-    const x = Number(p.dataset.x);
-    const y = Number(p.dataset.y);
-    guide.setAttribute('x1', x); guide.setAttribute('x2', x);
-    guide.setAttribute('y1', top); guide.setAttribute('y2', bottom);
-    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
-    label.textContent = p.querySelector('title').textContent;
-    const right = x > width * 0.6;
-    label.setAttribute('x', right ? x - 8 : x + 8);
-    label.setAttribute('y', Math.max(top + 10, y - 10));
-    label.setAttribute('text-anchor', right ? 'end' : 'start');
-    [guide, dot, label].forEach((n) => { n.style.display = ''; });
+  const compact = {
+    handle: res.handle,
+    group: res.group,
+    totals: { tokens: res.totals.tokens, input: res.totals.input, output: res.totals.output, cacheRead: res.totals.cacheRead, responses: res.totals.responses },
+    rows: res.rows.map((r) => ({ period: r.period, tokens: r.tokens, responses: r.responses })),
   };
-  points.forEach((p) => p.addEventListener('mouseenter', () => show(p)));
-  svg.addEventListener('mouseleave', () => [guide, dot, label].forEach((n) => { n.style.display = 'none'; }));
+  const lines = JSON.stringify(compact, null, 2).split('\n');
+  term.innerHTML = `<span class="t-gray">$</span> ${esc(cmd)}\n`;
+  for (const line of lines) {
+    term.innerHTML += `<span class="t-blue">${esc(line)}</span>\n`;
+    term.scrollTop = term.scrollHeight;
+    if (!reduced) await sleep(30);
+  }
 }
 
-function breakdownHover(svg) {
-  const parts = [...svg.querySelectorAll('[data-tool]')];
-  parts.forEach((el) => {
-    el.addEventListener('mouseenter', () => {
-      const tool = el.dataset.tool;
-      parts.forEach((p) => p.classList.toggle('tt-dim', p.dataset.tool !== tool));
-    });
-  });
-  svg.addEventListener('mouseleave', () => parts.forEach((p) => p.classList.remove('tt-dim')));
-}
+const safe = (fn, el) => () => fn().catch((err) => {
+  const target = document.getElementById(el);
+  if (target) target.outerHTML = `<p class="muted">Could not load: ${esc(err.message)}</p>`;
+});
 
-export function mountChapters(data) {
-  playground();
-  onEnter(document.getElementById('ch-heatmaps'));
-  onEnter(document.getElementById('ch-badges'));
-  onEnter(document.getElementById('ch-graphs'));
-  inlineCards();
-  onEnter(document.getElementById('ch-api'), () => apiDemo(data));
+export function mountChapters() {
+  skeletonBars(document.getElementById('q-usage'), 11);
+  document.getElementById('q-models').innerHTML = Array.from({ length: 5 }, () => '<li><span class="rank">&nbsp;</span><span class="name">&nbsp;</span><span class="bar"><i style="--w:60%"></i></span><span class="num">&nbsp;</span></li>').join('');
+  document.getElementById('q-stats').innerHTML = Array.from({ length: 8 }, () => '<div><dt>&nbsp;</dt><dd>&nbsp;</dd></div>').join('');
+  onEnter(document.getElementById('ch-usage'), safe(renderUsage, 'q-usage'));
+  onEnter(document.getElementById('ch-models'), safe(renderModels, 'q-models'));
+  onEnter(document.getElementById('ch-tools'), safe(renderTools, 'q-tools'));
+  onEnter(document.getElementById('ch-stats'), safe(renderStats, 'q-stats'));
+  onEnter(document.getElementById('ch-api'), () => renderRaw());
 }

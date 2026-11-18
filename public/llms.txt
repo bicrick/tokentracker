@@ -1,0 +1,51 @@
+# tokentracker
+
+> tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx github:bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and uploads daily totals per tool and model. The API returns that usage as JSON or CSV.
+
+Base URL: https://tokentracker-nu.vercel.app/api/v1
+Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes.
+Example user: `bicrick` (real data).
+
+## Endpoints
+
+- `GET /users/{handle}`: profile summary: `totals`, `thisYear`, `tools[]`, `models` (count), `devices` (count), `firstDay`, `lastDay`, `lastSync`, `links`.
+- `GET /users/{handle}/usage`: time series. Params: `group=day|week|month|year|total` (default day; week = ISO week starting Monday), `split=tool|model` (adds `split: {key: tokens}` per row), `fill=false` (omit empty days). Returns `{group, split, totals, rows: [{period, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split?}]}`.
+- `GET /users/{handle}/models`: per model+tool rows sorted by tokens: `{model, provider, name, tool, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, share, firstUsed, lastUsed}`. Cursor has no model detail and appears as `cursor/all`.
+- `GET /users/{handle}/tools`: per tool rows: `{tool, name, tokens, …, responses, share, models, firstUsed, lastUsed}`.
+- `GET /users/{handle}/heatmap`: calendar grid. Params: `range=year|365d|90d|Nd|YYYY` (default `year` = this calendar year padded to Dec 31), `levels=2..10` (default 5), `weekStart=sun|mon`, `tools`. Returns `{range:{start,end,last}, levels, weekStart, total, max, activeDays, months:[{label, week}], weeks:[[{date, tokens, level} | null] x7]}`. Future days have `tokens: null`; cells outside the range are `null`. Levels are rank-based among active days (0 = no usage).
+- `GET /users/{handle}/stats`: totals plus `activeDays, firstDay, lastDay, busiestDay{date,tokens}, longestStreak, currentStreak, averagePerActiveDay, today, thisMonth, topTool{tool,name,tokens}, topModel{model,tool,responses,tokens}` (top model by responses).
+- `GET /users/{handle}/devices`: per machine: `{device, tools[], lastSync, tokens, …, firstUsed, lastUsed}`.
+- `GET /` (i.e. `/api/v1`): JSON index of endpoints.
+
+## Filters (all endpoints)
+
+- `range=all|ytd|Nd|YYYY` (default all), or `from=YYYY-MM-DD` / `to=YYYY-MM-DD` (inclusive; override range).
+- `tools=claude-code,codex` and `models=anthropic/claude-opus-5-5` (comma-separated ids).
+- `format=csv` on `usage`, `models`, `tools`, `devices` (nested `split` flattens to `split.<key>` columns).
+
+## Semantics
+
+- `tokens = input + output + reasoning + cacheRead + cacheWrite`. `input` excludes cached input; `responses` counts model calls.
+- Days are `YYYY-MM-DD` in the collector's local time zone. Data is daily, not per-request.
+- Tool ids: `claude-code, codex, opencode, gemini-cli, copilot-cli, deepseek-harness, cline, roo-code, kilo-code, cursor`.
+- Model ids are `provider/name`, e.g. `anthropic/claude-opus-5-5`, `openai/gpt-5-codex`, `github-copilot/claude-opus-5.5`.
+
+## Errors
+
+`{"error": {"code": "...", "message": "..."}}` with 400 (`bad_range`, `bad_date`, `bad_group`, `bad_split`, `bad_tools`, `bad_models`, `bad_levels`, `csv_unsupported`), 404 (`user_not_found`, `unknown_resource`), 405 (`method_not_allowed`).
+
+## Examples
+
+- Tokens this year: `GET /users/bicrick/stats?range=ytd` → `.tokens`
+- Last 30 days per day: `GET /users/bicrick/usage?range=30d&group=day`
+- Monthly by tool: `GET /users/bicrick/usage?range=ytd&group=month&split=tool`
+- Top models this month: `GET /users/bicrick/models?from=2026-11-01`
+- Heatmap to render: `GET /users/bicrick/heatmap?range=year`
+- CSV export: `GET /users/bicrick/usage?group=month&format=csv`
+
+## More
+
+- [API docs](https://tokentracker-nu.vercel.app/docs): human-readable reference with live "try it" consoles
+- [OpenAPI 3.1 spec](https://tokentracker-nu.vercel.app/openapi.json)
+- [Source](https://github.com/bicrick/tokentracker): MIT; self-hostable on Vercel + Neon Postgres
+- Privacy: collectors upload only daily token counts per tool and model, never prompts, code, paths or keys.

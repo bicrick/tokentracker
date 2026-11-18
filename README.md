@@ -16,18 +16,23 @@
   <a href="https://tokentracker-nu.vercel.app">Website</a> ·
   <a href="https://tokentracker-nu.vercel.app/u/bicrick">Live example</a> ·
   <a href="#getting-started">Get started</a> ·
+  <a href="#api">API</a> ·
   <a href="#privacy">Privacy</a>
 </p>
 
 ---
 
-**tokentracker** adds up every AI token you spend across your coding tools and every computer you use, into one public profile and heatmap you can put on your site.
+**tokentracker** turns the AI tokens you spend across every coding tool and every computer into one public, queryable API: usage over time, models, tools, a ready-made heatmap, stats and machines, as JSON or CSV.
+
+```sh
+curl https://tokentracker-nu.vercel.app/api/v1/users/bicrick/stats?range=ytd
+```
 
 ```sh
 npx github:bicrick/tokentracker init
 ```
 
-That one command finds the tools on your machine, shows you what it found, creates your free profile (or connects to your own server), uploads your history, and turns on an hourly background sync.
+That one command finds the tools on your machine, shows you what it found, creates your free account (sign in by email), uploads your history, and turns on an hourly background sync. Your data is then available at `/api/v1/users/<handle>`.
 
 ## Supported tools
 
@@ -70,7 +75,7 @@ npx github:bicrick/tokentracker init
   ✓ Background sync on (launchd, runs hourly and at login, no admin needed)
 ```
 
-**More computers:** run the same command on each one, choose *Connect an existing account*, and paste the key from `~/.config/tokentrack/config.json`. Give each computer its own name; totals add up.
+**More computers:** run the same command on each one and choose *Sign in with email*. Each computer gets its own key; totals add up.
 
 ### Background sync
 
@@ -122,15 +127,25 @@ Connections live in `~/.config/tokentrack/config.json`:
 
 - Keys are stored hashed. `tokentrack delete-account` removes everything.
 
-## Put it on your site
+## API
 
-```js
-const res = await fetch('https://tokentracker-nu.vercel.app/api/activity?handle=you');
-const { activityCounts, totals } = await res.json();
-// activityCounts: [{ date: "2026-11-17", count: 259485947, sources: { cursor: 3853940, opencode: 255632007 } }]
-```
+Public and keyless. All endpoints are `GET`, CORS-enabled and edge-cached. Base URL: `https://tokentracker-nu.vercel.app/api/v1`.
 
-CORS-open and cached at the edge for 5 minutes.
+| Endpoint | Returns |
+|---|---|
+| `/users/{handle}` | Profile: totals (all time and this year), tools, model and machine counts, first/last day, last sync |
+| `/users/{handle}/usage` | Time series: `group=day\|week\|month\|year\|total`, `split=tool\|model` |
+| `/users/{handle}/models` | Per-model totals with share, responses, first/last use |
+| `/users/{handle}/tools` | Per-tool totals with share and model counts |
+| `/users/{handle}/heatmap` | Ready-to-render calendar grid with levels and month labels |
+| `/users/{handle}/stats` | Streaks, busiest day, today, this month, top tool and model |
+| `/users/{handle}/devices` | Per-machine totals and last sync |
+
+Filters on every endpoint: `range=all|ytd|30d|2026`, `from`/`to`, `tools`, `models`, and `format=csv` on list endpoints.
+
+- Docs with live "try it" consoles: https://tokentracker-nu.vercel.app/docs
+- For LLMs: https://tokentracker-nu.vercel.app/llms.txt
+- OpenAPI 3.1: https://tokentracker-nu.vercel.app/openapi.json
 
 ## Self-hosting
 
@@ -142,21 +157,12 @@ Prefer to keep your data in your own database? Deploy your own server and point 
 2. Set `TOKENTRACK_INGEST_KEYS` (comma-separated, `openssl rand -hex 24`), `TOKENTRACK_ACCOUNT`, `CURSOR_HANDLE` and `CRON_SECRET`. See `.env.example`.
 3. Run `init`, choose *Connect an existing account*, and enter your server URL and one of your keys.
 
-## API
-
-| Method | Path | Auth | |
-|---|---|---|---|
-| `GET` | `/api/activity?handle=` | public | daily totals by tool, per-model totals, machines and last sync |
-| `POST` | `/api/signup` | public | create a hosted account, returns a key once |
-| `GET` `POST` `DELETE` | `/api/account` | key | who am I, set Cursor handle, delete account |
-| `POST` | `/api/ingest` | key | upload daily aggregates (optional `since` replaces only recent days) |
-| `GET` | `/api/cron/cursor` | cron secret | refresh Cursor profiles |
 
 ## Development
 
 ```sh
 npm install
-npm test          # connector tests with synthetic fixtures for every tool
+npm test          # connector, API and heatmap tests
 npm run dev       # vercel dev
 ```
 

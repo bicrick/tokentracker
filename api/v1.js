@@ -1,0 +1,121 @@
+import { publicAccount } from '../lib/auth.js';
+import { refreshCursor } from '../lib/cursor.js';
+import { ensureSchema } from '../lib/db.js';
+import {
+  ApiError, devices, deviceSyncs, heatmap, loadRows, models, parseFilters, stats, toCsv, tools, totals, usage,
+} from '../lib/query.js';
+
+// Public, read-only v1 API. Routed by vercel.json:
+//   /api/v1/users/:handle            -> resource=profile
+//   /api/v1/users/:handle/:resource  -> usage | models | tools | heatmap | stats | devices
+const RESOURCES = ['profile', 'usage', 'models', 'tools', 'heatmap', 'stats', 'devices'];
+const LIST = new Set(['usage', 'models', 'tools', 'devices']);
+
+function send(res, status, body) {
+  res.status(status).json(body);
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'GET') return send(res, 405, { error: { code: 'method_not_allowed', message: 'Only GET is supported' } });
+
+  const handle = String(req.query.handle || '').toLowerCase();
+  const resource = String(req.query.resource || 'profile');
+  const origin = `https://${req.headers.host}`;
+
+  if (!handle) {
+    res.setHeader('CDN-Cache-Control', 'public, s-maxage=3600');
+    return send(res, 200, {
+      name: 'tokentracker API',
+      version: 'v1',
+      docs: `${origin}/docs`,
+      openapi: `${origin}/openapi.json`,
+      llms: `${origin}/llms.txt`,
+      auth: 'None. All reads are public and keyless.',
+      endpoints: {
+        profile: `${origin}/api/v1/users/{handle}`,
+        usage: `${origin}/api/v1/users/{handle}/usage?group=day|week|month|year|total&split=tool|model`,
+        models: `${origin}/api/v1/users/{handle}/models`,
+        tools: `${origin}/api/v1/users/{handle}/tools`,
+        heatmap: `${origin}/api/v1/users/{handle}/heatmap?range=year|365d|90d|2026&levels=5&weekStart=sun|mon`,
+        stats: `${origin}/api/v1/users/{handle}/stats`,
+        devices: `${origin}/api/v1/users/{handle}/devices`,
+      },
+      filters: 'range=all|ytd|Nd|YYYY, from=YYYY-MM-DD, to=YYYY-MM-DD, tools=a,b, models=x,y, format=csv (list endpoints)',
+      example: `${origin}/api/v1/users/bicrick/usage?range=30d&group=day`,
+    });
+  }
+
+  try {
+    if (!RESOURCES.includes(resource)) throw new ApiError(404, 'unknown_resource', `Unknown resource. Use one of: ${RESOURCES.slice(1).join(', ')}`);
+    await ensureSchema();
+    const account = await publicAccount(handle);
+    if (!account) throw new ApiError(404, 'user_not_found', `No tokentracker profile for "${handle}"`);
+    if (account.cursor_handle) await refreshCursor({ account: handle, handle: account.cursor_handle }).catch(() => {});
+
+    const filters = parseFilters(req.query);
+    const rows = await loadRows(handle, filters);
+    const meta = { handle, filters: { from: filters.from, to: filters.to, tools: filters.tools, models: filters.models } };
+    let data;
+
+    switch (resource) {
+      case 'profile': {
+        const all = filters.from || filters.to ? rows : rows;
+        const ytdFrom = `${new Date().toISOString().slice(0, 4)}-01-01`;
+        const syncs = await deviceSyncs(handle);
+        const last = [...syncs.values()].sort().at(-1) || null;
+        data = {
+          handle,
+          url: `${origin}/u/${handle}`,
+          totals: totals(all),
+          thisYear: totals(all.filter((r) => r.date >= ytdFrom)),
+          tools: tools(all).map((t) => t.tool),
+          models: models(all).filter((m) => m.model !== 'cursor/all').length,
+          devices: [...syncs.keys()].filter((d) => d !== 'cursor.com').length,
+          firstDay: all.reduce((m, r) => (!m || r.date < m ? r.date : m), null),
+          lastDay: all.reduce((m, r) => (!m || r.date > m ? r.date : m), null),
+          lastSync: last,
+          links: Object.fromEntries(RESOURCES.slice(1).map((r) => [r, `${origin}/api/v1/users/${handle}/${r}`])),
+        };
+        break;
+      }
+      case 'usage': {
+        const group = String(req.query.group || 'day');
+        const rowsOut = usage(rows, filters, { group, split: req.query.split || null, fill: req.query.fill !== 'false' });
+        data = { group, split: req.query.split || null, totals: totals(rows), rows: rowsOut };
+        break;
+      }
+      case 'models':
+        data = { rows: models(rows) };
+        break;
+      case 'tools':
+        data = { rows: tools(rows) };
+        break;
+      case 'heatmap':
+        // The heatmap has its own calendar range handling
+        data = heatmap(handle, await loadRows(handle, { ...filters, from: null, to: null }), req.query);
+        break;
+      case 'stats':
+        data = stats(rows);
+        break;
+      case 'devices':
+        data = { rows: devices(rows, await deviceSyncs(handle)) };
+        break;
+    }
+
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.setHeader('CDN-Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+    if (req.query.format === 'csv') {
+      if (!LIST.has(resource)) throw new ApiError(400, 'csv_unsupported', `format=csv is available for ${[...LIST].join(', ')}`);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      return res.status(200).send(toCsv(data.rows));
+    }
+    return send(res, 200, { ...meta, ...data });
+  } catch (err) {
+    if (err instanceof ApiError) return send(res, err.status, { error: { code: err.code, message: err.message } });
+    console.error(err);
+    return send(res, 500, { error: { code: 'internal', message: 'Something went wrong' } });
+  }
+}

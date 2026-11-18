@@ -6,8 +6,8 @@
   <title>tokentracker</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="stylesheet" href="/style.css?v=18">
-  <link rel="stylesheet" href="/mobile.css?v=18" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=32">
+  <link rel="stylesheet" href="/mobile.css?v=32" media="(max-width: 720px)">
 </head>
 <body>
   <div class="wrap">
@@ -15,7 +15,6 @@
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
       <div class="links">
         <a href="/">Get your own</a>
-        <a href="/embed">Embed</a>
         <a href="/docs">Docs</a>
         <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
       </div>
@@ -35,40 +34,41 @@
     </div>
     <p class="lede" id="missing" hidden></p>
 
-    <section class="block" aria-labelledby="embed">
-      <h2 id="embed">put it on your site</h2>
-      <pre id="embed-code"></pre>
+    <section class="block" aria-labelledby="api">
+      <h2 id="api">query this profile</h2>
+      <pre id="api-links"></pre>
     </section>
 
     <footer>
       <span>tokentracker · by <a href="https://patrickbrown.dev">bicrick</a></span>
-      <a href="/">get your own →</a>
+      <a href="/docs">API docs →</a>
     </footer>
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, renderSplit, yearTotals, formatCount } from '/app.js';
+    // Built entirely from the public v1 API
+    import { api, formatCount, renderHeatmapGrid, renderSplit } from '/app.js?v=32';
 
-    const handle = location.pathname.split('/').filter(Boolean)[1] || '';
+    const handle = (location.pathname.split('/').filter(Boolean)[1] || '').toLowerCase();
     document.getElementById('handle').textContent = `@${handle}`;
     document.title = `@${handle} · tokentracker`;
-    document.getElementById('embed-code').textContent = `fetch('${location.origin}/api/activity?handle=${handle}')`;
+    const base = `${location.origin}/api/v1/users/${handle}`;
+    document.getElementById('api-links').textContent = ['', '/usage?range=30d', '/models', '/tools', '/heatmap', '/stats', '/devices'].map((p) => `GET ${base}${p}`).join('\n');
 
-    fetchActivity(handle).then((data) => {
-      const { total, sources } = yearTotals(data);
-      document.getElementById('total').textContent = formatCount(total).toUpperCase();
-      renderHeatmap(document.getElementById('heatmap'), data);
-      renderSplit(document.getElementById('split'), sources);
-      const machines = new Set((data.devices || []).map((d) => d.device).filter((d) => d !== 'cursor.com'));
-      document.getElementById('devices').textContent =
-        machines.size ? `${machines.size} machine${machines.size > 1 ? 's' : ''}` : '';
+    Promise.all([
+      api(`/users/${handle}/heatmap?range=year`),
+      api(`/users/${handle}/tools?range=ytd`),
+      api(`/users/${handle}`),
+    ]).then(([hm, tools, profile]) => {
+      document.getElementById('total').textContent = formatCount(hm.total).toUpperCase();
+      renderHeatmapGrid(document.getElementById('heatmap'), hm);
+      renderSplit(document.getElementById('split'), Object.fromEntries(tools.rows.map((t) => [t.tool, t.tokens])));
+      document.getElementById('devices').textContent = profile.devices ? `${profile.devices} machine${profile.devices > 1 ? 's' : ''}` : '';
     }).catch((err) => {
       document.getElementById('profile').hidden = true;
       const missing = document.getElementById('missing');
       missing.hidden = false;
-      missing.textContent = err.message === 'not found'
-        ? `No profile for @${handle} yet.`
-        : 'Could not load this profile.';
+      missing.textContent = /no tokentracker profile/i.test(err.message) ? `No profile for @${handle} yet.` : 'Could not load this profile.';
     });
   </script>
 </body>
