@@ -1050,8 +1050,27 @@ html.demo-locked body { overflow: hidden; }
 
 .lib-bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; height: 200px; }
 .lib-bars div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
-.lib-bars span { width: 100%; min-height: 2px; height: 0; background: #f0c463; transition: height 0.7s ease; }
-.lib-bars.grow span { height: var(--h); }
+.lib-bars span {
+  width: 100%;
+  min-height: 2px;
+  height: var(--h, 0%);
+  background: var(--link);
+  transition: height 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) var(--delay, 0ms), background-color 0.3s ease, opacity 0.2s ease;
+}
+
+/* loading skeleton: muted bars with a slow shimmer, morphed into real data */
+.lib-bars.skeleton span {
+  background: linear-gradient(90deg, var(--rule) 0%, var(--rule-strong) 50%, var(--rule) 100%) 0 0 / 300% 100%;
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+.lib-bars:not(.skeleton) div { cursor: default; }
+.lib-bars:not(.skeleton) div:hover span { background: #f0c463; }
+.lib-bars:not(.skeleton):hover div:not(:hover) span { opacity: 0.45; }
+
+.api-chart { position: relative; }
 .lib-bars small { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
 .chapter .docs-cta { margin-top: 32px; }
@@ -1114,3 +1133,52 @@ html.demo-locked body { overflow: hidden; }
   font-size: 12px;
   white-space: pre-wrap;
 }
+
+/* reveal intro above the profile */
+.reveal-intro { margin: 0 0 22px; }
+
+.reveal-intro h2 {
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  font-family: var(--sans);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.reveal-intro p { margin: 0; max-width: 600px; color: var(--ink-soft); }
+
+/* hover: cards lift, inline SVG parts respond */
+.card-hover,
+.badge-hover {
+  transition: transform 0.2s ease;
+}
+
+.card-hover:hover,
+.badge-hover:hover { transform: translateY(-2px); }
+
+.card-hover .card-svg,
+.card-hover img { outline: 1px solid transparent; transition: outline-color 0.2s ease; }
+
+.card-hover:hover .card-svg,
+.card-hover:hover img { outline-color: var(--link); }
+
+.badge-hover img { transition: filter 0.2s ease; }
+.badge-hover:hover img { filter: brightness(1.15); }
+
+.card-svg svg { display: block; width: 100%; height: auto; max-width: 100%; }
+
+.card-svg .tt-row,
+.card-svg .tt-seg { transition: opacity 0.2s ease; cursor: default; }
+.card-svg .tt-dim { opacity: 0.3; }
+
+.card-svg .tt-guide { stroke: var(--muted); stroke-dasharray: 3 3; }
+.card-svg .tt-dot { fill: var(--link); stroke: var(--paper); stroke-width: 2; }
+.card-svg .tt-readout { fill: var(--ink); font-family: var(--mono); }
+.card-svg .tt-point { cursor: crosshair; }
+
+/* profile heatmap and playground cells already outline on hover; keep links lively */
+.chapter a,
+.docs-cta a { transition: color 0.2s ease; }

@@ -8,8 +8,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=24">
-  <link rel="stylesheet" href="/mobile.css?v=24" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=26">
+  <link rel="stylesheet" href="/mobile.css?v=26" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
@@ -68,6 +68,10 @@
       </div>
 
       <div class="profile" id="profile">
+        <div class="reveal-intro">
+          <h2>Embed it on your site.</h2>
+          <p>That's what <code>init</code> creates: a live public profile. This one is <b>@bicrick</b>'s real usage, updated hourly by the background sync.</p>
+        </div>
         <div class="profile-head">
           <span class="handle">@bicrick</span>
           <span class="profile-actions">
@@ -110,10 +114,10 @@
       <h2 id="ch2">A badge for your README.</h2>
       <p class="chapter-lede">Shields-style, with your total, any label and colour.</p>
       <div class="badge-row">
-        <figure><img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"><figcaption><code>?type=badge</code></figcaption></figure>
-        <figure><img src="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent" alt="Gold badge" loading="lazy"><figcaption><code>&amp;accent=f0c463&amp;label=…</code></figcaption></figure>
-        <figure><img src="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days" alt="Last 30 days badge" loading="lazy"><figcaption><code>&amp;range=30d</code></figcaption></figure>
-        <figure><img src="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code" alt="Claude Code badge" loading="lazy"><figcaption><code>&amp;tools=claude-code</code></figcaption></figure>
+        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge" alt="AI tokens badge" loading="lazy"><figcaption><code>?type=badge</code></figcaption></figure>
+        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge&amp;accent=f0c463&amp;label=tokens%20spent" alt="Gold badge" loading="lazy"><figcaption><code>&amp;accent=f0c463&amp;label=…</code></figcaption></figure>
+        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge&amp;accent=6fd39b&amp;range=30d&amp;label=last%2030%20days" alt="Last 30 days badge" loading="lazy"><figcaption><code>&amp;range=30d</code></figcaption></figure>
+        <figure class="badge-hover"><img src="/u/bicrick.svg?type=badge&amp;accent=d97757&amp;tools=claude-code&amp;label=claude%20code" alt="Claude Code badge" loading="lazy"><figcaption><code>&amp;tools=claude-code</code></figcaption></figure>
       </div>
     </section>
 
@@ -121,9 +125,9 @@
       <h2 id="ch3">Stats, breakdowns and trends.</h2>
       <p class="chapter-lede">Cards for the numbers people actually ask about.</p>
       <div class="graph-row">
-        <figure><img src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy"><figcaption><code>?type=stats</code></figcaption></figure>
-        <figure><img src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy"><figcaption><code>?type=breakdown</code></figcaption></figure>
-        <figure class="wide"><img src="/u/bicrick.svg?type=line&amp;accent=f0c463" alt="Cumulative tokens chart" loading="lazy"><figcaption><code>?type=line</code></figcaption></figure>
+        <figure class="card-hover"><img data-inline src="/u/bicrick.svg?type=stats" alt="Stats card" loading="lazy"><figcaption><code>?type=stats</code></figcaption></figure>
+        <figure class="card-hover"><img data-inline src="/u/bicrick.svg?type=breakdown" alt="Tool breakdown card" loading="lazy"><figcaption><code>?type=breakdown</code></figcaption></figure>
+        <figure class="wide card-hover"><img data-inline data-line src="/u/bicrick.svg?type=line" alt="Cumulative tokens chart" loading="lazy"><figcaption><code>?type=line</code></figcaption></figure>
       </div>
     </section>
 
@@ -136,7 +140,7 @@
           <pre class="term-body api-body" id="api-term"></pre>
         </div>
         <figure class="api-chart">
-          <div class="lib-bars" id="api-bars"></div>
+          <div class="lib-bars skeleton" id="api-bars"><div><span style="--h:22%"></span><small>&nbsp;</small></div><div><span style="--h:30%"></span><small>&nbsp;</small></div><div><span style="--h:18%"></span><small>&nbsp;</small></div><div><span style="--h:16%"></span><small>&nbsp;</small></div><div><span style="--h:6%"></span><small>&nbsp;</small></div><div><span style="--h:25%"></span><small>&nbsp;</small></div><div><span style="--h:58%"></span><small>&nbsp;</small></div><div><span style="--h:40%"></span><small>&nbsp;</small></div><div><span style="--h:72%"></span><small>&nbsp;</small></div><div><span style="--h:80%"></span><small>&nbsp;</small></div><div><span style="--h:66%"></span><small>&nbsp;</small></div></div>
           <figcaption>Your own chart, your own CSS. <a href="/docs#embed">The library</a> does the maths.</figcaption>
         </figure>
       </div>
@@ -153,11 +157,11 @@
   </div>
 
   <script type="module">
-    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=24';
-    import { mountDemo } from '/demo.js?v=24';
-    import { mountCoin } from '/coin.js?v=24';
-    import { mountTokenSea } from '/sea.js?v=24';
-    import { mountChapters } from '/chapters.js?v=24';
+    import { fetchActivity, renderHeatmap, wireCopy, yearTotals, formatCount } from '/app.js?v=26';
+    import { mountDemo } from '/demo.js?v=26';
+    import { mountCoin } from '/coin.js?v=26';
+    import { mountTokenSea } from '/sea.js?v=26';
+    import { mountChapters } from '/chapters.js?v=26';
 
 
     mountTokenSea(document.getElementById('sea'), {

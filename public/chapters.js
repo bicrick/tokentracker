@@ -7,18 +7,34 @@ const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Fade a chapter in the first time it scrolls into view. */
 function onEnter(el, fn) {
-  if (reduced || !('IntersectionObserver' in window)) {
+  let done = false;
+  const fire = () => {
+    if (done) return;
+    done = true;
     el.classList.add('in');
     fn?.();
-    return;
+  };
+  if (reduced) return fire();
+  // Intersection observer, plus a plain scroll check as a fallback so the
+  // chapter can never get stuck hidden
+  const check = () => {
+    const r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight * 0.85 && r.bottom > 0) {
+      window.removeEventListener('scroll', check);
+      fire();
+    }
+  };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        io.disconnect();
+        fire();
+      }
+    }, { threshold: 0.2 });
+    io.observe(el);
   }
-  const io = new IntersectionObserver(([entry]) => {
-    if (!entry.isIntersecting) return;
-    io.disconnect();
-    el.classList.add('in');
-    fn?.();
-  }, { threshold: 0.2 });
-  io.observe(el);
+  window.addEventListener('scroll', check, { passive: true });
+  check();
 }
 
 import '/embed.js?v=24';
@@ -106,13 +122,93 @@ async function apiDemo(data) {
     if (!reduced) await sleep(55);
   }
 
-  // Draw a chart from the "response"
+  // Morph the skeleton bars into the real ones (same elements, so no pop-in)
   const max = Math.max(1, ...rows.map((r) => r.tokens));
-  bars.innerHTML = rows.map((r) => {
+  const cols = [...bars.children];
+  while (cols.length < rows.length) {
+    const div = document.createElement('div');
+    div.innerHTML = '<span style="--h:0%"></span><small>&nbsp;</small>';
+    bars.appendChild(div);
+    cols.push(div);
+  }
+  cols.slice(rows.length).forEach((c) => c.remove());
+  bars.classList.remove('skeleton');
+  rows.forEach((r, k) => {
     const m = Number(r.month.slice(5)) - 1;
-    return `<div title="${MONTHS[m]} · ${formatTokens(r.tokens)}"><span style="--h:${(r.tokens / max) * 100}%"></span><small>${MONTHS[m][0]}</small></div>`;
-  }).join('');
-  requestAnimationFrame(() => bars.classList.add('grow'));
+    const col = cols[k];
+    col.title = `${MONTHS[m]} · ${formatTokens(r.tokens)} tokens`;
+    col.dataset.label = `${MONTHS[m]} · ${formatTokens(r.tokens)}`;
+    col.querySelector('small').textContent = MONTHS[m][0];
+    col.querySelector('span').style.setProperty('--h', `${Math.max(1.5, (r.tokens / max) * 100)}%`);
+    col.style.setProperty('--delay', `${k * 45}ms`);
+  });
+}
+
+/** Swap card <img>s for inline SVG so they can respond to hover. */
+async function inlineCards() {
+  for (const img of document.querySelectorAll('img[data-inline]')) {
+    try {
+      const text = await (await fetch(img.src)).text();
+      const holder = document.createElement('div');
+      holder.className = 'card-svg';
+      holder.innerHTML = text;
+      const svg = holder.querySelector('svg');
+      if (!svg) continue;
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      svg.setAttribute('aria-label', img.alt);
+      img.replaceWith(holder);
+      if (img.hasAttribute('data-line')) lineHover(svg);
+      if (svg.querySelector('.tt-row')) breakdownHover(svg);
+    } catch {
+      // leave the static image in place
+    }
+  }
+}
+
+function lineHover(svg) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const points = [...svg.querySelectorAll('.tt-point')];
+  if (!points.length) return;
+  const guide = document.createElementNS(ns, 'line');
+  guide.setAttribute('class', 'tt-guide');
+  const dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('class', 'tt-dot');
+  dot.setAttribute('r', '4');
+  const label = document.createElementNS(ns, 'text');
+  label.setAttribute('class', 'tt-readout');
+  label.setAttribute('font-size', '11');
+  [guide, dot, label].forEach((n) => { n.style.display = 'none'; svg.appendChild(n); });
+  const top = Number(points[0].getAttribute('y'));
+  const bottom = top + Number(points[0].getAttribute('height'));
+  const width = Number(svg.getAttribute('viewBox').split(' ')[2]);
+
+  const show = (p) => {
+    const x = Number(p.dataset.x);
+    const y = Number(p.dataset.y);
+    guide.setAttribute('x1', x); guide.setAttribute('x2', x);
+    guide.setAttribute('y1', top); guide.setAttribute('y2', bottom);
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    label.textContent = p.querySelector('title').textContent;
+    const right = x > width * 0.6;
+    label.setAttribute('x', right ? x - 8 : x + 8);
+    label.setAttribute('y', Math.max(top + 10, y - 10));
+    label.setAttribute('text-anchor', right ? 'end' : 'start');
+    [guide, dot, label].forEach((n) => { n.style.display = ''; });
+  };
+  points.forEach((p) => p.addEventListener('mouseenter', () => show(p)));
+  svg.addEventListener('mouseleave', () => [guide, dot, label].forEach((n) => { n.style.display = 'none'; }));
+}
+
+function breakdownHover(svg) {
+  const parts = [...svg.querySelectorAll('[data-tool]')];
+  parts.forEach((el) => {
+    el.addEventListener('mouseenter', () => {
+      const tool = el.dataset.tool;
+      parts.forEach((p) => p.classList.toggle('tt-dim', p.dataset.tool !== tool));
+    });
+  });
+  svg.addEventListener('mouseleave', () => parts.forEach((p) => p.classList.remove('tt-dim')));
 }
 
 export function mountChapters(data) {
@@ -120,5 +216,6 @@ export function mountChapters(data) {
   onEnter(document.getElementById('ch-heatmaps'));
   onEnter(document.getElementById('ch-badges'));
   onEnter(document.getElementById('ch-graphs'));
+  inlineCards();
   onEnter(document.getElementById('ch-api'), () => apiDemo(data));
 }
