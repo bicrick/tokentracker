@@ -16,6 +16,8 @@ const TILT = -0.32;    // radians the spin axis leans, so it turns at a cant
 const RIM = 1;        // outer ring of the face, in coin radii
 const INNER = 0.712;  // inner disc radius (168/236 in the logo)
 const STAR = 0.42;    // star size in coin radii
+// One revolution. Slow spins dwell face-on long enough to read as a stall.
+const PERIOD = 3200;
 
 // 4-point concave star like the logo's: astroid-style superellipse.
 function inStar(x, y) {
@@ -37,7 +39,7 @@ export function mountCoin(canvas, { cells = 72 } = {}) {
   };
 
   const draw = (time) => {
-    renderCoin(ctx, cells, reduced ? 0.35 : (time / 7000) * Math.PI * 2);
+    renderCoin(ctx, cells, reduced ? 0.35 : (time / PERIOD) * Math.PI * 2);
     if (!reduced && visible) raf = requestAnimationFrame(draw);
   };
 
@@ -54,7 +56,7 @@ export function mountCoin(canvas, { cells = 72 } = {}) {
   raf = requestAnimationFrame(draw);
 }
 
-const HALF = 0.09; // half the coin's thickness, in coin radii
+const HALF = 0.13; // half the coin's thickness, in coin radii
 // Fixed light from the upper left, towards the viewer (who looks along +z)
 const LIGHT = (() => {
   const v = [-0.45, -0.55, -0.7];
@@ -76,6 +78,9 @@ export function renderCoin(ctx, cells, angle) {
   ctx.clearRect(0, 0, cells, cells);
   const half = cells / 2;
   const radius = half * 0.86;
+  // A glint sweeps across the face once per half turn, always left to right, so
+  // the coin keeps visibly moving while it's face-on instead of seeming to pause
+  const sweep = ((((angle + Math.PI / 2) / Math.PI) % 1) + 1) % 1 * 3.4 - 1.7;
 
   for (let py = 0; py < cells; py += 1) {
     for (let px = 0; px < cells; px += 1) {
@@ -132,6 +137,8 @@ export function renderCoin(ctx, cells, angle) {
         const r = Math.hypot(lx, y);
         value = (r > INNER ? 3 : 2) + (diffuse - 0.55) * 2.2 + (face > 0 ? -0.25 : 0);
         if (r > INNER && r < INNER + 0.05) value -= 0.6; // bevel line
+        const band = x * 0.8 + y * 0.6 - sweep;
+        value += 1.5 * Math.exp(-(band * band) / 0.03);
       } else {
         value = 1 + (diffuse - 0.4) * 2;
       }

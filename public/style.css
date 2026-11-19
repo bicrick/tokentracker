@@ -1104,3 +1104,15 @@ footer {
 }
 .docs-body .try-api pre.try-out { margin: 0; border: 0; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 
+
+/* background: stippled dot screen behind everything, anchored to the page so it scrolls with it */
+.stipple {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  z-index: -2;
+  pointer-events: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}

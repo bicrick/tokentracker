@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/mobile.css?v=34" media="(max-width: 720px)">
 </head>
 <body class="has-sea">
+  <canvas class="stipple" id="stipple" aria-hidden="true"></canvas>
   <canvas class="sea" id="sea" aria-hidden="true"></canvas>
   <div class="wrap">
     <nav>
@@ -120,10 +121,13 @@
   <script type="module">
     import { api, wireCopy } from '/app.js?v=34';
     import { mountDemo } from '/demo.js?v=34';
-    import { mountCoin } from '/coin.js?v=35';
-    import { mountTokenSea } from '/sea.js?v=37';
+    import { mountCoin } from '/coin.js?v=36';
+    import { mountTokenSea } from '/sea.js?v=49';
+    import { mountStipple } from '/stipple.js?v=2';
     import { mountChapters } from '/chapters.js?v=34';
 
+
+    mountStipple(document.getElementById('stipple'), { content: document.querySelector('.wrap') });
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
