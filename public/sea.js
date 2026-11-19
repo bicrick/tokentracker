@@ -1,6 +1,6 @@
 // Page background: a dragon's hoard of dithered gold tokens. Hidden at the top
 // of the page; scrolling raises it from below (tall stacks in the side gutters,
-// lower heaped piles across the floor) and pours waterfalls of coins onto it.
+// lower heaped piles across the floor). It's a still scene; nothing falls.
 // Drawn on a coarse square-pixel grid with 8×8 ordered (Bayer) dithering, and
 // clipped so it never draws over the content's charts.
 
@@ -68,7 +68,16 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
         const count = Math.round((tall ? 18 + rand() * 46 : 3 + rand() * 9) * (0.55 + 0.45 * Math.sin(x / 13) ** 2));
         // Tallest a stack may grow: about two thirds of the canvas
         const max = Math.max(4, Math.floor(((viewCells * 0.62) / STEP) * (0.7 + rand() * 0.3)));
-        stacks.push({ x, count: Math.min(count, max), max, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
+        // Static scene: tall side stacks stand at full height from the start
+        stacks.push({ x, count: wide ? max : Math.min(count, max), max, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
+      }
+    }
+    // A few short stacks on the floor between the side towers
+    if (wide) {
+      const [a, b] = [lanes[0][1], lanes[1][0]];
+      for (let x = a + 14; x < b - 10; x += 16 + rand() * 18) {
+        const n = Math.round(2 + rand() * 6);
+        stacks.push({ x, count: n, max: n, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
       }
     }
     // Heaped piles: a coin bed under a lumpy mound profile
@@ -103,7 +112,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
   const floorY = () => H - groundCells - 1;
   const pileTop = (x) => {
     const mound = Math.max(0, Math.sin(x / 31 + 0.7)) * 9 + Math.max(0, Math.sin(x / 13 + 2)) * 4 + 2;
-    const lower = inGutter(x) ? 2.4 : 0.45; // keep the middle low and calm
+    const lower = inGutter(x) ? 2.4 : 0.9; // a low heap of gold across the middle
     return floorY() - mound * lower - (bumps[Math.max(0, Math.min(W - 1, Math.round(x)))] || 0);
   };
 
@@ -301,11 +310,8 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
 
   const onScroll = () => {
     update();
-    const dy = Math.abs(window.scrollY - lastY);
-    lastY = window.scrollY;
-    // Waterfalls only once the hoard is in view
-    if (!reduced && reveal > 0.25 && dy > 0) pour(Math.min(10, Math.ceil(dy / 50)));
-    else schedule();
+    // Static hoard: nothing falls, just keep the chart clear zone in sync
+    schedule();
   };
 
   window.addEventListener('resize', resize);
