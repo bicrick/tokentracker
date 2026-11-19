@@ -87,24 +87,27 @@ export function renderCoin(ctx, cells, angle) {
         let level = -1;
         let shade = 0;
 
-        if (r <= RIM) {
-          if (inStar(fx, ny)) continue; // see-through star
+        // The rim: the band swept between the front face and the back face,
+        // which sits `thick` behind it and shifts sideways as it turns
+        const inEdge = () => {
+          if (Math.abs(ny) >= 1 || thick <= 0.005) return false;
+          const w = squash * Math.sqrt(1 - ny * ny);
+          const shift = thick * Math.sign(s);
+          return sx >= Math.min(-w, -w - shift) && sx <= Math.max(w, w - shift);
+        };
+
+        if (r <= RIM && !inStar(fx, ny)) {
           const base = r > INNER ? 3 : 2;
           // Diagonal gradient plus the moving highlight
           shade = (-fx * 0.35 - ny * 0.45) * 0.6 + (light - 0.5) * 0.9 * (back ? -1 : 1) - (back ? 0.35 : 0);
           if (r > INNER && r < INNER + 0.05) shade -= 0.6; // bevel line
           level = base;
-        } else if (Math.abs(ny) < 1 && thick > 0.005) {
-          // Coin edge: the strip swept between the front face and the back
-          // face, which sits `thick` behind it and shifts sideways as it turns.
-          const w = squash * Math.sqrt(1 - ny * ny);
-          const shift = thick * Math.sign(s);
-          const lo = Math.min(-w, -w - shift);
-          const hi = Math.max(w, w - shift);
-          if (sx >= lo && sx <= hi) {
-            level = 1;
-            shade = 0.4 - Math.abs(ny) * 0.8;
-          }
+        } else if ((r > RIM || squash < 0.3) && inEdge()) {
+          // Outside the face, or through the star when nearly edge-on: solid rim, not a hole
+          level = 1;
+          shade = 0.4 - Math.abs(ny) * 0.8;
+        } else if (r <= RIM) {
+          continue; // see-through star, face-on
         }
 
         if (level < 0) continue;
