@@ -121,14 +121,14 @@
     import { api, wireCopy } from '/app.js?v=34';
     import { mountDemo } from '/demo.js?v=34';
     import { mountCoin } from '/coin.js?v=35';
-    import { mountTokenSea } from '/sea.js?v=35';
+    import { mountTokenSea } from '/sea.js?v=37';
     import { mountChapters } from '/chapters.js?v=34';
 
 
     mountTokenSea(document.getElementById('sea'), {
       content: document.querySelector('.wrap'),
       // Only the charts and cards themselves stay clear of coins, not whole sections
-      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.q-out, .rank-list, .share, .stat-grid, .api-term')],
+      avoid: [document.getElementById('demo'), ...document.querySelectorAll('.q-out, .rank-list, .share, .stat-grid, .api-term, .docs-cta')],
       ground: document.querySelector('footer'),
     });
 

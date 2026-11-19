@@ -76,8 +76,8 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
     if (wide) {
       const [a, b] = [lanes[0][1], lanes[1][0]];
       for (let x = a + 14; x < b - 10; x += 16 + rand() * 18) {
-        const n = Math.round(2 + rand() * 6);
-        stacks.push({ x, count: n, max: n, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
+        const n = Math.round(6 + rand() * 12);
+        stacks.push({ x, onHeap: true, count: n, max: n, wobble: Array.from({ length: 120 }, () => (rand() - 0.5) * 1.4) });
       }
     }
     // Heaped piles: a coin bed under a lumpy mound profile
@@ -111,9 +111,19 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
   // Stacks stand on the footer's top edge
   const floorY = () => H - groundCells - 1;
   const pileTop = (x) => {
-    const mound = Math.max(0, Math.sin(x / 31 + 0.7)) * 9 + Math.max(0, Math.sin(x / 13 + 2)) * 4 + 2;
-    const lower = inGutter(x) ? 2.4 : 0.9; // a low heap of gold across the middle
-    return floorY() - mound * lower - (bumps[Math.max(0, Math.min(W - 1, Math.round(x)))] || 0);
+    let mound;
+    if (inGutter(x) || lanes.length < 2) {
+      mound = (Math.max(0, Math.sin(x / 31 + 0.7)) * 9 + Math.max(0, Math.sin(x / 13 + 2)) * 4 + 2) * (lanes.length < 2 ? 0.9 : 2.4);
+    } else {
+      // Between the side towers: one broad heap of gold, highest in the middle
+      const a = lanes[0][1];
+      const b = lanes[1][0];
+      const t = (x - a) / (b - a || 1);
+      mound = 6 + Math.sin(t * Math.PI) * 16 + Math.sin(x / 7) * 1.5 + Math.max(0, Math.sin(x / 17 + 1)) * 3;
+      // Fit under the content: never taller than the room left below it
+      if (clip.y >= 0) mound = Math.min(mound, Math.max(3, floorY() - clip.y - 6));
+    }
+    return floorY() - mound - (bumps[Math.max(0, Math.min(W - 1, Math.round(x)))] || 0);
   };
 
   const put = (x, y, rgb) => {
@@ -186,6 +196,7 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
 
     // Back to front: stacks behind, then the heaped piles, then falling coins
     for (const s of stacks) {
+      if (s.onHeap) continue;
       const base = floorY() - 3;
       for (let i = 0; i < s.count; i += 1) {
         coin(s.x + s.wobble[i % s.wobble.length], base - i * STEP, i === s.count - 1 ? 0.5 : (i % 5 === 0 ? -0.25 : 0));
@@ -195,6 +206,14 @@ export function mountTokenSea(canvas, { content, avoid = [], ground } = {}) {
       const p = piles[i];
       const y = pileTop(p.x) + p.depth;
       if (y < H + 4) coin(p.x, y, p.depth < 3 ? p.light + 0.35 : p.light - Math.min(1.6, p.depth / 20));
+    }
+    // Short stacks standing on top of the middle heap
+    for (const s of stacks) {
+      if (!s.onHeap) continue;
+      const base = pileTop(s.x) + 1;
+      for (let i = 0; i < s.count; i += 1) {
+        coin(s.x + s.wobble[i % s.wobble.length] * 0.5, base - i * STEP, i === s.count - 1 ? 0.5 : (i % 5 === 0 ? -0.25 : 0));
+      }
     }
     for (const f of falling) coin(f.x, f.y, f.light, Math.cos(f.spin));
     ctx.putImageData(img, 0, 0);
