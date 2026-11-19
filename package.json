@@ -4,7 +4,10 @@
   "description": "Track AI token usage across tools and devices. Only daily totals leave your machine.",
   "license": "MIT",
   "type": "module",
-  "repository": "github:bicrick/tokentracker",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bicrick/tokentracker.git"
+  },
   "bin": {
     "tokentrack": "cli/tokentrack.js"
   },
