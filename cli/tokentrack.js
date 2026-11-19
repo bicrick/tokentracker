@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -114,6 +116,28 @@ async function upload(config, { sources, rows }, { full = false } = {}) {
   return { ...res.json, since };
 }
 
+/**
+ * A stable, anonymous id for this computer: a SHA-256 of the OS hardware or
+ * install id (never sent raw). Lets the server recognise a machine that runs
+ * init again, so it reuses the same name instead of counting usage twice.
+ */
+function machineId() {
+  let raw = '';
+  try {
+    if (process.platform === 'darwin') {
+      raw = execFileSync('ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice'], { encoding: 'utf8' }).match(/"IOPlatformUUID" = "([^"]+)"/)?.[1] || '';
+    } else if (process.platform === 'win32') {
+      raw = execFileSync('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'], { encoding: 'utf8' }).match(/MachineGuid\s+REG_SZ\s+(\S+)/)?.[1] || '';
+    } else {
+      for (const f of ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
+        try { raw = fs.readFileSync(f, 'utf8').trim(); if (raw) break; } catch {}
+      }
+    }
+  } catch {}
+  if (!raw) raw = `${os.hostname()}|${os.userInfo().username}|${os.platform()}`;
+  return createHash('sha256').update(`tokentracker:${raw}`).digest('hex');
+}
+
 function defaultDevice() {
   return os.hostname().replace(/\.local$/, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 40) || 'computer';
 }
@@ -209,7 +233,7 @@ const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 async function emailSignIn({ email, purpose, handle, cursorHandle, device }) {
   const start = await task('Sending a sign-in link', () => api(HOSTED, '/api/auth/start', {
     method: 'POST',
-    body: { email, purpose, handle, cursorHandle: cursorHandle || null, device },
+    body: { email, purpose, handle, cursorHandle: cursorHandle || null, device, machineId: machineId() },
   }).catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Sent a link to ${c.blue(email)}` : 'Could not send the link'));
   if (!start.ok) {
     line(`    ${c.red(start.json.error || `status ${start.status}`)}`);
@@ -229,7 +253,10 @@ async function emailSignIn({ email, purpose, handle, cursorHandle, device }) {
     const status = res.json.status;
     if (status === 'approved') {
       wait.succeed(purpose === 'signup' ? `Created ${c.blue(`@${res.json.handle}`)}` : `Signed in as ${c.blue(`@${res.json.handle}`)}`);
-      return { key: res.json.key, handle: res.json.handle };
+      if (res.json.device && res.json.device !== device) {
+        line(`  ${sym.ok} Recognised this computer as ${c.blue(res.json.device)} ${c.gray('(same machine as before, so usage is not counted twice)')}`);
+      }
+      return { key: res.json.key, handle: res.json.handle, device: res.json.device || device };
     }
     if (status !== 'pending' || Date.now() > deadline) {
       wait.fail(status === 'expired' || Date.now() > deadline ? 'The link expired. Run init again.' : `Sign-in failed (${status})`);
@@ -271,7 +298,7 @@ async function init(flags) {
   }
 
   // 3. Machine name (sign-in emails mention it, and each machine gets its own key)
-  const device = flags.device && flags.device !== true ? flags.device
+  let device = flags.device && flags.device !== true ? flags.device
     : existing.device && !flags.reset ? existing.device
       : await input('Name this machine', {
         initial: defaultDevice(),
@@ -316,7 +343,7 @@ async function init(flags) {
         if (email) {
           const out = await emailSignIn({ email, purpose: 'signup', handle, cursorHandle, device });
           if (out) {
-            ({ key } = out);
+            ({ key, device } = out);
             handle = out.handle;
             break;
           }
@@ -344,7 +371,7 @@ async function init(flags) {
       });
       const out = await emailSignIn({ email, purpose: 'login', device });
       if (!out) process.exit(1);
-      ({ key, handle } = out);
+      ({ key, handle, device } = out);
     } else {
       server = flags.server && flags.server !== true ? flags.server
         : await input('Server URL', { initial: HOSTED });

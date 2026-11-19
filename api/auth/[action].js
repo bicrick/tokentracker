@@ -29,6 +29,7 @@ export default async function handler(req, res) {
       const handle = req.body?.handle ? String(req.body.handle).toLowerCase() : null;
       const cursor = req.body?.cursorHandle ? String(req.body.cursorHandle) : null;
       const device = req.body?.device ? String(req.body.device) : null;
+      const machineId = /^[a-f0-9]{64}$/.test(String(req.body?.machineId || '')) ? String(req.body.machineId) : null;
       if (!purpose) return res.status(400).json({ error: 'Invalid request' });
       if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Enter a valid email address' });
       if (device && !DEVICE_RE.test(device)) return res.status(400).json({ error: 'Invalid machine name' });
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'No account uses this email' });
       }
 
-      const reqInfo = await createRequest({ email, purpose, handle, device, cursor });
+      const reqInfo = await createRequest({ email, purpose, handle, device, cursor, machineId });
       const link = `${process.env.TOKENTRACK_PUBLIC_URL || `https://${req.headers.host}`}/auth?token=${reqInfo.emailToken}`;
       await sendEmail({ to: email, ...signInEmail({ link, purpose, handle: handle || existing?.handle, device }) });
       return res.status(200).json({ ok: true, deviceCode: reqInfo.deviceCode, expiresIn: reqInfo.expiresIn, interval: 3 });

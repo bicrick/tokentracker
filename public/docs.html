@@ -243,7 +243,7 @@ rows.filter((m) =&gt; m.model !== 'cursor/all')
 
         <section id="privacy">
           <h2>Privacy</h2>
-          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. The ingest endpoint rejects anything else. Run <code>tokentrack sync --dry</code> to see the exact payload.</p>
+          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. The ingest endpoint rejects anything else. Run <code>tokentrack sync --dry</code> to see the exact payload. At sign-in the CLI also sends a one-way hash of this computer's hardware id, so running <code>init</code> again on the same machine reuses its name instead of counting your usage twice.</p>
         </section>
 
         <section id="accounts">

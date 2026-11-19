@@ -44,9 +44,10 @@ export default async function handler(req, res) {
     if (!account) return res.status(401).json({ error: 'Unauthorized' });
     const limited = await rateLimit(`ingest:${account.handle}`, { limit: 120, windowSeconds: 3600 });
     if (!limited.ok) return tooMany(res, limited);
-    const { device, sources, rows, since } = req.body;
+    const { sources, rows, since } = req.body;
+    const device = account.device || req.body.device;
     await replaceUsage({ account: account.handle, device, sources, rows, since });
-    return res.status(200).json({ ok: true, account: account.handle, rows: rows.length, since: since ?? null });
+    return res.status(200).json({ ok: true, account: account.handle, device, rows: rows.length, since: since ?? null });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to store usage' });
