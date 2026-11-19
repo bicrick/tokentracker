@@ -389,7 +389,7 @@ async function init(flags) {
   line();
   line(`  ${c.bold('Next')}`);
   line(`  ${sym.dot} Query your usage: ${c.blue(`curl ${new URL(`/api/v1/users/${handle}/stats`, server)}`)}`);
-  line(`  ${sym.dot} Add another machine: run ${c.blue('npx github:bicrick/tokentracker init')} there and`);
+  line(`  ${sym.dot} Add another machine: run ${c.blue('npx @bicrick/tokentracker init')} there and`);
   line(`    choose ${c.italic('Sign in with email')}`);
   line(`  ${sym.dot} Manage machines and settings: ${c.blue(new URL('/settings', server).toString())}`);
   line(`  ${sym.dot} Add or change tools: ${c.blue('tokentrack connect')}`);

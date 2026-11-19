@@ -1,5 +1,5 @@
 {
-  "name": "tokentracker",
+  "name": "@bicrick/tokentracker",
   "version": "0.1.0",
   "description": "Track AI token usage across tools and devices. Only daily totals leave your machine.",
   "license": "MIT",
@@ -29,5 +29,8 @@
   },
   "devDependencies": {
     "vercel": "^66.2.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
