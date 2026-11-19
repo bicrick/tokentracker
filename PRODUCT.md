@@ -24,7 +24,7 @@ Every tool, every machine. Tool-specific profiles (like Cursor's) only show one 
 
 ## Operating Context
 
-- Onboarding happens entirely in the terminal: `npx github:bicrick/tokentracker init`. The web page's job is to get that command copied.
+- Onboarding happens entirely in the terminal: `npx @bicrick/tokentracker init`. The web page's job is to get that command copied.
 - `init` previews what it found locally, then offers: a free account on tokentracker cloud, or connecting to an existing account/self-hosted server.
 - Each additional machine runs `init` again with the existing key and a different device name; totals combine.
 - Public profiles live at `/u/<handle>`; data at `/api/activity?handle=<handle>` (CORS-open, edge cached).

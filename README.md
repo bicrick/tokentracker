@@ -29,7 +29,7 @@ curl https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/stats?range=ytd
 ```
 
 ```sh
-npx github:bicrick/tokentracker init
+npx @bicrick/tokentracker init
 ```
 
 That one command finds the tools on your machine, shows you what it found, creates your free account (sign in by email), uploads your history, and turns on an hourly background sync. Your data is then available at `/api/v1/users/<handle>`.
@@ -54,7 +54,7 @@ Tools are detected automatically on macOS, Linux and Windows. Planned next: Qwen
 Needs **Node 22.13+**.
 
 ```sh
-npx github:bicrick/tokentracker init
+npx @bicrick/tokentracker init
 ```
 
 ```

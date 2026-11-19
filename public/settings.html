@@ -76,7 +76,7 @@
       $('del-handle').textContent = me.handle;
       $('cursor-form').cursor.value = me.cursorHandle || '';
       const list = $('devices');
-      list.innerHTML = me.devices.length ? '' : '<li class="muted">No machines yet. Run <code>npx github:bicrick/tokentracker init</code> and sign in.</li>';
+      list.innerHTML = me.devices.length ? '' : '<li class="muted">No machines yet. Run <code>npx @bicrick/tokentracker init</code> and sign in.</li>';
       for (const d of me.devices) {
         const li = document.createElement('li');
         li.innerHTML = `<span class="device-name"></span><span class="muted">added ${when(d.createdAt)} · last sync ${when(d.lastUsed)}</span>`;

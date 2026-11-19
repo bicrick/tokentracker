@@ -1,6 +1,6 @@
 # tokentracker
 
-> tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx github:bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and uploads daily totals per tool and model. The API returns that usage as JSON or CSV.
+> tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx @bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and uploads daily totals per tool and model. The API returns that usage as JSON or CSV.
 
 Base URL: https://tokentracker.patrickbrown.dev/api/v1
 Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes. Rate limit: 120 requests per minute per IP (cached responses excluded); over the limit returns 429 with `Retry-After`.
