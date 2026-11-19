@@ -10,7 +10,7 @@ import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, sp
 const CONFIG_DIR = process.env.TOKENTRACK_CONFIG_DIR || path.join(os.homedir(), '.config', 'tokentrack');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 const SELF = fileURLToPath(import.meta.url);
-const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker-nu.vercel.app';
+const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker.patrickbrown.dev';
 // Stable copy of the CLI for the background job, so it survives npx cache cleanup
 const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
 const HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;

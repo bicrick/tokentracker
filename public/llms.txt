@@ -2,8 +2,8 @@
 
 > tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx github:bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and uploads daily totals per tool and model. The API returns that usage as JSON or CSV.
 
-Base URL: https://tokentracker-nu.vercel.app/api/v1
-Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes.
+Base URL: https://tokentracker.patrickbrown.dev/api/v1
+Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes. Rate limit: 120 requests per minute per IP (cached responses excluded); over the limit returns 429 with `Retry-After`.
 Example user: `bicrick` (real data).
 
 ## Endpoints
@@ -45,7 +45,7 @@ Example user: `bicrick` (real data).
 
 ## More
 
-- [API docs](https://tokentracker-nu.vercel.app/docs): human-readable reference with live "try it" consoles
-- [OpenAPI 3.1 spec](https://tokentracker-nu.vercel.app/openapi.json)
+- [API docs](https://tokentracker.patrickbrown.dev/docs): human-readable reference with live "try it" consoles
+- [OpenAPI 3.1 spec](https://tokentracker.patrickbrown.dev/openapi.json)
 - [Source](https://github.com/bicrick/tokentracker): MIT; self-hostable on Vercel + Neon Postgres
 - Privacy: collectors upload only daily token counts per tool and model, never prompts, code, paths or keys.

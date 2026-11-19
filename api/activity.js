@@ -2,6 +2,7 @@ import { cors, OWNER, publicAccount } from '../lib/auth.js';
 import { refreshCursor } from '../lib/cursor.js';
 import { ensureSchema } from '../lib/db.js';
 import { getActivity } from '../lib/activity.js';
+import { limitHeaders, readLimit, tooMany } from '../lib/ratelimit.js';
 
 export default async function handler(req, res) {
   cors(res);
@@ -11,9 +12,16 @@ export default async function handler(req, res) {
   const handle = String(req.query.handle || OWNER).toLowerCase();
 
   try {
+    const limited = await readLimit(req);
+    limitHeaders(res, limited);
+    if (!limited.ok) return tooMany(res, limited);
+
     await ensureSchema();
     const account = await publicAccount(handle);
-    if (!account) return res.status(404).json({ error: 'No such profile' });
+    if (!account) {
+      res.setHeader('CDN-Cache-Control', 'public, s-maxage=300');
+      return res.status(404).json({ error: 'No such profile' });
+    }
 
     // Lazily refresh Cursor if the cron hasn't run recently
     if (account.cursor_handle) {

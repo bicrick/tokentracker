@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://tokentracker-nu.vercel.app"><img src="docs/assets/banner.png" alt="tokentracker: every AI token, every tool, every machine" width="100%"></a>
+  <a href="https://tokentracker.patrickbrown.dev"><img src="docs/assets/banner.png" alt="tokentracker: every AI token, every tool, every machine" width="100%"></a>
 </p>
 
 <p align="center">
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://tokentracker-nu.vercel.app">Website</a> ·
-  <a href="https://tokentracker-nu.vercel.app/u/bicrick">Live example</a> ·
+  <a href="https://tokentracker.patrickbrown.dev">Website</a> ·
+  <a href="https://tokentracker.patrickbrown.dev/u/bicrick">Live example</a> ·
   <a href="#getting-started">Get started</a> ·
   <a href="#api">API</a> ·
   <a href="#privacy">Privacy</a>
@@ -25,7 +25,7 @@
 **tokentracker** turns the AI tokens you spend across every coding tool and every computer into one public, queryable API: usage over time, models, tools, a ready-made heatmap, stats and machines, as JSON or CSV.
 
 ```sh
-curl https://tokentracker-nu.vercel.app/api/v1/users/bicrick/stats?range=ytd
+curl https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/stats?range=ytd
 ```
 
 ```sh
@@ -129,7 +129,7 @@ Connections live in `~/.config/tokentrack/config.json`:
 
 ## API
 
-Public and keyless. All endpoints are `GET`, CORS-enabled and edge-cached. Base URL: `https://tokentracker-nu.vercel.app/api/v1`.
+Public and keyless. All endpoints are `GET`, CORS-enabled and edge-cached. Base URL: `https://tokentracker.patrickbrown.dev/api/v1`.
 
 | Endpoint | Returns |
 |---|---|
@@ -143,9 +143,9 @@ Public and keyless. All endpoints are `GET`, CORS-enabled and edge-cached. Base 
 
 Filters on every endpoint: `range=all|ytd|30d|2026`, `from`/`to`, `tools`, `models`, and `format=csv` on list endpoints.
 
-- Docs with live "try it" consoles: https://tokentracker-nu.vercel.app/docs
-- For LLMs: https://tokentracker-nu.vercel.app/llms.txt
-- OpenAPI 3.1: https://tokentracker-nu.vercel.app/openapi.json
+- Docs with live "try it" consoles: https://tokentracker.patrickbrown.dev/docs
+- For LLMs: https://tokentracker.patrickbrown.dev/llms.txt
+- OpenAPI 3.1: https://tokentracker.patrickbrown.dev/openapi.json
 
 ## Self-hosting
 

@@ -108,7 +108,7 @@ async function renderStats() {
 async function renderRaw() {
   const term = document.getElementById('api-term');
   const path = `/api/v1/users/${HANDLE}/usage?range=30d&group=week`;
-  const cmd = `curl tokentracker-nu.vercel.app${path}`;
+  const cmd = `curl tokentracker.patrickbrown.dev${path}`;
   const res = await fetch(path).then((r) => r.json()).catch(() => null);
   if (!reduced) {
     for (let n = 1; n <= cmd.length; n += 1) {

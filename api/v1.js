@@ -1,6 +1,7 @@
 import { publicAccount } from '../lib/auth.js';
 import { refreshCursor } from '../lib/cursor.js';
 import { ensureSchema } from '../lib/db.js';
+import { limitHeaders, readLimit, tooMany } from '../lib/ratelimit.js';
 import {
   ApiError, devices, deviceSyncs, heatmap, loadRows, models, parseFilters, stats, toCsv, tools, totals, usage,
 } from '../lib/query.js';
@@ -49,6 +50,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Only requests that miss the CDN cache reach this point
+    const limited = await readLimit(req);
+    limitHeaders(res, limited);
+    if (!limited.ok) {
+      return tooMany(res, limited, { error: { code: 'rate_limited', message: `Too many requests. Try again in ${limited.retryAfter}s.` } });
+    }
+
     if (!RESOURCES.includes(resource)) throw new ApiError(404, 'unknown_resource', `Unknown resource. Use one of: ${RESOURCES.slice(1).join(', ')}`);
     await ensureSchema();
     const account = await publicAccount(handle);
@@ -114,7 +122,14 @@ export default async function handler(req, res) {
     }
     return send(res, 200, { ...meta, ...data });
   } catch (err) {
-    if (err instanceof ApiError) return send(res, err.status, { error: { code: err.code, message: err.message } });
+    if (err instanceof ApiError) {
+      // Cache client errors briefly so repeated junk requests never reach the database
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      res.setHeader('CDN-Cache-Control', `public, s-maxage=${err.status === 404 ? 300 : 60}`);
+      return send(res, err.status, { error: { code: err.code, message: err.message } });
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('CDN-Cache-Control', 'no-store');
     console.error(err);
     return send(res, 500, { error: { code: 'internal', message: 'Something went wrong' } });
   }

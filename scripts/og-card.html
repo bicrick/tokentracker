@@ -1,0 +1,88 @@
+<!doctype html>
+<!-- Social card source (public/og.png). Rendered at 1200x630 against the dev server so it uses the live CSS, coin and hoard code. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #121317; }
+    body.has-sea { position: relative; }
+    .card {
+      position: relative;
+      width: 1200px;
+      height: 630px;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      align-items: start;
+      padding: 64px 72px 0;
+      box-sizing: border-box;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--mono);
+      font-size: 24px;
+      font-weight: 600;
+      color: #ecece8;
+    }
+    .brand img { width: 30px; height: 30px; }
+    h1 {
+      margin: 36px 0 0;
+      font-family: var(--sans);
+      font-size: 64px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: #ecece8;
+    }
+    .sub {
+      margin: 22px 0 0;
+      font-family: var(--sans);
+      font-size: 24px;
+      line-height: 1.4;
+      color: #a9acb5;
+      max-width: 640px;
+    }
+    .coin { width: 260px; margin-top: 40px; image-rendering: pixelated; }
+    .sea { position: absolute; inset: 0; width: 1200px; height: 630px; z-index: 0; }
+    .card > * { position: relative; z-index: 1; }
+    footer.ground {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 44px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+  </style>
+</head>
+<body class="has-sea">
+  <canvas class="sea" id="sea"></canvas>
+  <div class="card" id="content">
+    <div id="copy">
+      <div class="brand"><img src="/logo.svg" alt="">tokentracker</div>
+      <h1>Your AI token usage,<br>as an API.</h1>
+      <p class="sub">Every coding tool, every machine. One public, keyless API.</p>
+    </div>
+    <canvas class="coin" id="coin"></canvas>
+  </div>
+  <footer class="ground" id="ground"></footer>
+  <script type="module">
+    import { renderCoin } from '/coin.js';
+    import { mountTokenSea } from '/sea.js';
+    const coin = document.getElementById('coin');
+    coin.width = coin.height = 72;
+    coin.style.height = '260px';
+    renderCoin(coin.getContext('2d'), 72, 0.35);
+    // Card is 1200px wide: render the hoard as desktop, kept clear of the copy
+    mountTokenSea(document.getElementById('sea'), {
+      content: document.getElementById('copy'),
+      avoid: [document.getElementById('copy')],
+      ground: document.getElementById('ground'),
+    });
+    document.body.dataset.ready = '1';
+  </script>
+</body>
+</html>

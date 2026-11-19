@@ -93,7 +93,7 @@ function timeline(totals) {
       '',
       `  ${span('t-gray', `╭${'─'.repeat(W)}╮`)}`,
       row("✓ You're all set", `${span('t-green', '✓')} ${span('t-bold', "You're all set")}`),
-      row('profile  tokentracker-nu.vercel.app/u/you', `${span('t-gray', 'profile ')} ${span('t-blue t-under', 'tokentracker-nu.vercel.app/u/you')}`),
+      row('profile  tokentracker.patrickbrown.dev/u/you', `${span('t-gray', 'profile ')} ${span('t-blue t-under', 'tokentracker.patrickbrown.dev/u/you')}`),
       row('api      /api/v1/users/you', `${span('t-gray', 'api     ')} ${span('t-blue', '/api/v1/users/you')}`),
       row('try      /api/v1/users/you/usage', `${span('t-gray', 'try     ')} /api/v1/users/you/usage`),
       `  ${span('t-gray', `╰${'─'.repeat(W)}╯`)}`,

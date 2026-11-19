@@ -4,6 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>API docs · tokentracker</title>
+  <link rel="canonical" href="https://tokentracker.patrickbrown.dev/docs">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="tokentracker">
+  <meta property="og:url" content="https://tokentracker.patrickbrown.dev/docs">
+  <meta property="og:title" content="API docs · tokentracker">
+  <meta property="og:description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
+  <meta property="og:image" content="https://tokentracker.patrickbrown.dev/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="tokentracker: your AI token usage, as an API. A pixel-art gold coin over a hoard of coins.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="API docs · tokentracker">
+  <meta name="twitter:description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
+  <meta name="twitter:image" content="https://tokentracker.patrickbrown.dev/og.png">
   <meta name="description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
@@ -62,13 +76,13 @@
             and <i>which days</i>, as JSON or CSV.
           </p>
           <p>Reads are public and need no key. Base URL:</p>
-          <pre>https://tokentracker-nu.vercel.app/api/v1</pre>
+          <pre>https://tokentracker.patrickbrown.dev/api/v1</pre>
         </section>
 
         <section id="quickstart">
           <h2>Quickstart</h2>
-          <pre>curl https://tokentracker-nu.vercel.app/api/v1/users/bicrick/stats?range=ytd</pre>
-          <pre>const res = await fetch('https://tokentracker-nu.vercel.app/api/v1/users/bicrick/usage?range=30d&amp;group=day');
+          <pre>curl https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/stats?range=ytd</pre>
+          <pre>const res = await fetch('https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/usage?range=30d&amp;group=day');
 const { totals, rows } = await res.json();
 // rows: [{ period: "2026-10-20", tokens, input, output, reasoning, cacheRead, cacheWrite, responses }, ...]</pre>
           <p>Swap <code>bicrick</code> for your handle once you've installed the collector.</p>
@@ -94,6 +108,7 @@ const { totals, rows } = await res.json();
             <li><b>Auth:</b> none for reads. Profiles are public.</li>
             <li><b>CORS:</b> <code>Access-Control-Allow-Origin: *</code>, so you can call it from any browser page.</li>
             <li><b>Caching:</b> responses are cached at the edge for 5 minutes. Collectors sync hourly.</li>
+            <li><b>Rate limit:</b> 120 requests per minute per IP, cached responses excluded. Over the limit you get <code>429</code> with <code>Retry-After</code>.</li>
             <li><b>Tokens:</b> <code>tokens = input + output + reasoning + cacheRead + cacheWrite</code>. <code>input</code> excludes cached input. <code>responses</code> counts model calls.</li>
             <li><b>Dates:</b> <code>YYYY-MM-DD</code> days in the collector's local time zone.</li>
             <li><b>Every response</b> echoes <code>handle</code> and the applied <code>filters</code>.</li>
@@ -179,8 +194,9 @@ const { totals, rows } = await res.json();
             <tr><td>400</td><td><code>bad_range</code>, <code>bad_date</code>, <code>bad_group</code>, <code>bad_split</code>, <code>bad_tools</code>, <code>bad_models</code>, <code>bad_levels</code>, <code>csv_unsupported</code></td></tr>
             <tr><td>404</td><td><code>user_not_found</code>, <code>unknown_resource</code></td></tr>
             <tr><td>405</td><td><code>method_not_allowed</code></td></tr>
+            <tr><td>429</td><td><code>rate_limited</code></td></tr>
           </table>
-          <p>Reads aren't rate limited; they're served from the edge cache. Be reasonable.</p>
+          <p>Reads are limited to 120 requests per minute per IP. Responses served from the edge cache don't count. Every response carries <code>RateLimit-Limit</code> and <code>RateLimit-Remaining</code>; a <code>429</code> includes <code>Retry-After</code> in seconds.</p>
         </section>
 
         <section id="recipe-heatmap">

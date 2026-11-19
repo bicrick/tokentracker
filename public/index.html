@@ -4,6 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>tokentracker · your AI token usage, as an API</title>
+  <link rel="canonical" href="https://tokentracker.patrickbrown.dev/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="tokentracker">
+  <meta property="og:url" content="https://tokentracker.patrickbrown.dev/">
+  <meta property="og:title" content="tokentracker · your AI token usage, as an API">
+  <meta property="og:description" content="A collector reads every AI coding tool on every machine you use. One public, keyless API answers how many tokens, which models, which tools and which days.">
+  <meta property="og:image" content="https://tokentracker.patrickbrown.dev/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="tokentracker: your AI token usage, as an API. A pixel-art gold coin over a hoard of coins.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="tokentracker · your AI token usage, as an API">
+  <meta name="twitter:description" content="A collector reads every AI coding tool on every machine you use. One public, keyless API answers how many tokens, which models, which tools and which days.">
+  <meta name="twitter:image" content="https://tokentracker.patrickbrown.dev/og.png">
   <meta name="description" content="A collector reads every AI coding tool on every machine. One public API answers how many tokens, which models, which tools and which days.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
@@ -36,6 +50,7 @@
       <button type="button" id="copy">Copy command</button>
     </div>
     <p class="note">Free and open source. Needs Node 22.13+ on macOS, Linux or Windows.</p>
+    <p class="note">Only daily token counts per tool and model leave your machine. Never prompts, code, file paths or keys. Run <code>sync --dry</code> to see the exact payload.</p>
       </div>
       <canvas class="coin" id="coin" aria-hidden="true"></canvas>
     </div>
