@@ -54,71 +54,93 @@ export function mountCoin(canvas, { cells = 72 } = {}) {
   raf = requestAnimationFrame(draw);
 }
 
-/** Draw one frame of the coin at the given turn angle onto a cells×cells context. */
+const HALF = 0.09; // half the coin's thickness, in coin radii
+// Fixed light from the upper left, towards the viewer (who looks along +z)
+const LIGHT = (() => {
+  const v = [-0.45, -0.55, -0.7];
+  const m = Math.hypot(...v);
+  return v.map((x) => x / m);
+})();
+
+/**
+ * Draw one frame of the coin at the given turn angle onto a cells×cells context.
+ * The coin is a real 3D disc (two faces and a rim) spinning about its vertical
+ * axis, ray-cast per pixel with a fixed light, so it reads as one continuous
+ * revolution: the rim and the highlight keep moving the same way all the way round.
+ */
 export function renderCoin(ctx, cells, angle) {
-  {
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-    const squash = Math.max(Math.abs(c), 0.04);
-    const thick = 0.12 * Math.abs(s);
-    // Light sweeps across the face as it turns
-    const light = 0.5 + 0.5 * Math.sin(angle + 0.8);
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  const ct = Math.cos(TILT);
+  const st = Math.sin(TILT);
+  ctx.clearRect(0, 0, cells, cells);
+  const half = cells / 2;
+  const radius = half * 0.86;
 
-    ctx.clearRect(0, 0, cells, cells);
-    const half = cells / 2;
-    const radius = half * 0.86;
+  for (let py = 0; py < cells; py += 1) {
+    for (let px = 0; px < cells; px += 1) {
+      const ux = (px + 0.5 - half) / radius;
+      const uy = (py + 0.5 - half) / radius;
+      // Screen into the tilted frame
+      const x = ux * ct - uy * st;
+      const y = ux * st + uy * ct;
+      if (Math.abs(y) > 1) continue;
 
-    for (let py = 0; py < cells; py += 1) {
-      for (let px = 0; px < cells; px += 1) {
-        const ux = (px + 0.5 - half) / radius;
-        const uy = (py + 0.5 - half) / radius;
-        // Rotate screen space into the coin's tilted frame
-        const sx = ux * Math.cos(TILT) - uy * Math.sin(TILT);
-        const ny = ux * Math.sin(TILT) + uy * Math.cos(TILT);
-        const threshold = (BAYER8[(py % 8) * 8 + (px % 8)] + 0.5) / 64;
+      // Ray (x, y, z), z increasing away from the viewer. In coin space:
+      //   x' = x cos a - z sin a,  z' = x sin a + z cos a
+      let best = Infinity;
+      let kind = null; // 'face' | 'rim'
+      let lx = 0;
+      let face = 0;
 
-        // Face coordinates after undoing the horizontal squash of the turn
-        // Past 90° we're looking at the back: mirror it so the turn reads as one
-        // continuous revolution instead of bouncing back off the edge
-        const back = c < 0;
-        const fx = (sx / squash) * (back ? -1 : 1);
-        const r = Math.hypot(fx, ny);
-
-        let level = -1;
-        let shade = 0;
-
-        // The rim: the band swept between the front face and the back face,
-        // which sits `thick` behind it and shifts sideways as it turns
-        const inEdge = () => {
-          if (Math.abs(ny) >= 1 || thick <= 0.005) return false;
-          const w = squash * Math.sqrt(1 - ny * ny);
-          const shift = thick * Math.sign(s);
-          return sx >= Math.min(-w, -w - shift) && sx <= Math.max(w, w - shift);
-        };
-
-        if (r <= RIM && !inStar(fx, ny)) {
-          const base = r > INNER ? 3 : 2;
-          // Diagonal gradient plus the moving highlight
-          shade = (-fx * 0.35 - ny * 0.45) * 0.6 + (light - 0.5) * 0.9 * (back ? -1 : 1) - (back ? 0.35 : 0);
-          if (r > INNER && r < INNER + 0.05) shade -= 0.6; // bevel line
-          level = base;
-        } else if ((r > RIM || squash < 0.3) && inEdge()) {
-          // Outside the face, or through the star when nearly edge-on: solid rim, not a hole
-          level = 1;
-          shade = 0.4 - Math.abs(ny) * 0.8;
-        } else if (r <= RIM) {
-          continue; // see-through star, face-on
+      if (Math.abs(ca) > 1e-4) {
+        for (const side of [-1, 1]) {
+          const z = (side * HALF - x * sa) / ca;
+          const fx = x * ca - z * sa;
+          const r = Math.hypot(fx, y);
+          if (r <= RIM && !inStar(fx * side, y) && z < best) {
+            best = z;
+            kind = 'face';
+            lx = fx * side; // mirror the back so it isn't a reflection of the front
+            face = side;
+          }
         }
-
-        if (level < 0) continue;
-        // Ordered dither between this level and its neighbour
-        const value = level + shade;
-        const lo = Math.floor(value);
-        const frac = value - lo;
-        const idx = Math.min(RAMP.length - 1, Math.max(0, frac > threshold ? lo + 1 : lo));
-        ctx.fillStyle = RAMP[idx];
-        ctx.fillRect(px, py, 1, 1);
       }
+      if (Math.abs(sa) > 1e-4) {
+        const w = Math.sqrt(1 - y * y);
+        for (const xr of [-w, w]) {
+          const z = (x * ca - xr) / sa;
+          const zr = x * sa + z * ca;
+          if (Math.abs(zr) <= HALF && z < best) {
+            best = z;
+            kind = 'rim';
+            lx = xr;
+          }
+        }
+      }
+      if (!kind) continue;
+
+      // World-space normal of what we hit, facing the viewer
+      let n;
+      if (kind === 'face') n = [face * sa, 0, face * ca];
+      else n = [lx * ca, y, -lx * sa];
+      if (n[2] > 0) n = n.map((v) => -v);
+      const diffuse = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
+
+      let value;
+      if (kind === 'face') {
+        const r = Math.hypot(lx, y);
+        value = (r > INNER ? 3 : 2) + (diffuse - 0.55) * 2.2 + (face > 0 ? -0.25 : 0);
+        if (r > INNER && r < INNER + 0.05) value -= 0.6; // bevel line
+      } else {
+        value = 1 + (diffuse - 0.4) * 2;
+      }
+
+      const threshold = (BAYER8[(py % 8) * 8 + (px % 8)] + 0.5) / 64;
+      const lo = Math.floor(value);
+      const idx = Math.min(RAMP.length - 1, Math.max(0, value - lo > threshold ? lo + 1 : lo));
+      ctx.fillStyle = RAMP[idx];
+      ctx.fillRect(px, py, 1, 1);
     }
   }
 }
