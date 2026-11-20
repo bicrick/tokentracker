@@ -8,6 +8,8 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// claude-opus-5-5 -> claude-opus-5.5 (tools log versions differently)
+const pretty = (name) => String(name).replace(/-(\d)-(\d)(?=$|-)/, '-$1.$2');
 
 /** Reveal a section the first time it scrolls into view (observer + scroll fallback). */
 function onEnter(el, fn) {
@@ -70,7 +72,7 @@ async function renderModels() {
   el.innerHTML = rows.map((m, i) => `
     <li>
       <span class="rank">${i + 1}</span>
-      <span class="name">${esc(m.name)}<small>${esc(m.provider || '')} · ${esc(m.tool)}</small></span>
+      <span class="name">${esc(pretty(m.name))}<small>${esc(m.provider || '')} · ${esc(m.tool)}</small></span>
       <span class="bar"><i style="--w:${(m.tokens / max) * 100}%;--delay:${i * 60}ms"></i></span>
       <span class="num">${formatCount(m.tokens)}<small>${m.responses.toLocaleString()} responses</small></span>
     </li>`).join('');
@@ -98,10 +100,10 @@ async function renderStats() {
     ['longest streak', `${s.longestStreak}d`],
     ['current streak', `${s.currentStreak}d`],
     ['busiest day', s.busiestDay ? `${formatCount(s.busiestDay.tokens)}` : '-', s.busiestDay?.date],
-    ['top model', s.topModel ? s.topModel.model.split('/').pop() : '-', s.topModel?.tool],
+    ['top model', s.topModel ? pretty(s.topModel.model.split('/').pop()) : '-', s.topModel?.tool],
   ];
   el.classList.remove('skeleton');
-  el.innerHTML = items.map(([k, v, note]) => `<div><dt>${k}</dt><dd>${esc(v)}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`).join('');
+  el.innerHTML = items.map(([k, v, note]) => `<div${String(v).length > 9 ? ' class="long"' : ''}><dt>${k}</dt><dd>${esc(v)}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`).join('');
 }
 
 // ── raw: typed curl and its real response ────────────────────────────────────
@@ -146,7 +148,7 @@ async function renderChat() {
   const el = document.getElementById('q-chat-answer');
   const [s, m] = await Promise.all([api(`/users/${HANDLE}/stats`), api(`/users/${HANDLE}/models?from=${new Date().toISOString().slice(0, 7)}-01`)]);
   // One model can be logged by two tools under slightly different names (4-5 vs 4.5)
-  const top = [...new Set(m.rows.filter((x) => x.model !== 'cursor/all').map((x) => x.name.replace(/-(\d)-(\d)(?=$|-)/, '-$1.$2')))].slice(0, 2);
+  const top = [...new Set(m.rows.filter((x) => x.model !== 'cursor/all').map((x) => pretty(x.name)))].slice(0, 2);
   const big = (n) => formatCount(n).toUpperCase();
   el.textContent = `${big(s.thisMonth)} tokens so far this month${s.today ? `, ${big(s.today)} of them today` : ''}. Mostly ${top.join(' and ') || 'Cursor'}${s.topTool ? `, and ${s.topTool.name} is your biggest tool overall` : ''}. You're on a ${s.currentStreak}-day streak.`;
 }
