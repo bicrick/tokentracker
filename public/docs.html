@@ -3,27 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>API docs · tokentracker</title>
+  <title>Docs · tokentracker</title>
   <link rel="canonical" href="https://tokentracker.patrickbrown.dev/docs">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="tokentracker">
   <meta property="og:url" content="https://tokentracker.patrickbrown.dev/docs">
-  <meta property="og:title" content="API docs · tokentracker">
-  <meta property="og:description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
+  <meta property="og:title" content="Docs · tokentracker">
+  <meta property="og:description" content="Your AI coding token usage as plain JSON files on your own GitHub Pages. Public, keyless, no server, free forever.">
   <meta property="og:image" content="https://tokentracker.patrickbrown.dev/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="tokentracker: your AI token usage, as an API. A pixel-art gold coin over a hoard of coins.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="API docs · tokentracker">
-  <meta name="twitter:description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
+  <meta name="twitter:title" content="Docs · tokentracker">
+  <meta name="twitter:description" content="Your AI coding token usage as plain JSON files on your own GitHub Pages. Public, keyless, no server, free forever.">
   <meta name="twitter:image" content="https://tokentracker.patrickbrown.dev/og.png">
-  <meta name="description" content="The tokentracker API: query AI token usage by day, model, tool and machine. Public, keyless JSON and CSV.">
+  <meta name="description" content="Your AI coding token usage as plain JSON files on your own GitHub Pages. Public, keyless, no server, free forever.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-  <link rel="stylesheet" href="/style.css?v=47">
-  <link rel="stylesheet" href="/mobile.css?v=47" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=48">
+  <link rel="stylesheet" href="/mobile.css?v=48" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -48,17 +48,15 @@
         <a href="#quickstart">Quickstart</a>
         <a href="#install">Install</a>
         <p>API</p>
-        <a href="#static">On GitHub Pages</a>
-        <a href="#custom">Custom queries</a>
-        <a href="#conventions">Conventions</a>
-        <a href="#filters">Filters</a>
-        <a href="#profile">Profile</a>
-        <a href="#usage">Usage</a>
-        <a href="#models">Models</a>
-        <a href="#tools">Tools</a>
-        <a href="#heatmap">Heatmap</a>
-        <a href="#stats">Stats</a>
-        <a href="#devices">Devices</a>
+        <a href="#static">Overview</a>
+        <a href="#stats">stats.json</a>
+        <a href="#usage">usage.json</a>
+        <a href="#models">models.json</a>
+        <a href="#tools">tools.json</a>
+        <a href="#devices">devices.json</a>
+        <a href="#heatmap">heatmap.json</a>
+        <a href="#profile">profile.json</a>
+        <a href="#rows">rows.json</a>
         <a href="#errors">Errors</a>
         <p>Recipes</p>
         <a href="#recipe-heatmap">Heatmap</a>
@@ -70,7 +68,8 @@
         <a href="#sources">Data sources</a>
         <a href="#cli">CLI</a>
         <a href="#troubleshooting">Troubleshooting</a>
-        <a href="#machine-readable">llms.txt and OpenAPI</a>
+        <a href="#custom">Custom queries</a>
+        <a href="#machine-readable">llms.txt</a>
       </aside>
 
       <main class="docs-body">
@@ -114,137 +113,71 @@ const { totals, rows } = await res.json();
         </section>
 
         <section id="static">
-          <h2>API on GitHub Pages</h2>
-          <p>Base: <code>https://&lt;you&gt;.github.io/tokentracker-data/api/v1/</code>. Plain JSON files, public, no key, CORS <code>*</code>.
-            Rebuilt by your repo's Action within about a minute of each sync (hourly), and cached by GitHub for up to 10 minutes.</p>
-          <table>
-            <tr><th>File</th><th>Contents</th></tr>
-            <tr><td><code>stats.json</code></td><td>Totals, active days, busiest day, streaks, today, this month, top tool, top model</td></tr>
-            <tr><td><code>usage.json</code> · <code>usage-week.json</code> · <code>usage-month.json</code></td><td>Usage over time by day, week (from Monday) or month, split by tool</td></tr>
-            <tr><td><code>models.json</code></td><td>Per model and tool: tokens, responses, share, first and last used</td></tr>
-            <tr><td><code>tools.json</code></td><td>Per tool</td></tr>
-            <tr><td><code>devices.json</code></td><td>Per computer, with last sync</td></tr>
-            <tr><td><code>heatmap.json</code> · <code>heatmap-365d.json</code> · <code>heatmap-90d.json</code></td><td>Ready-to-render calendar grid</td></tr>
-            <tr><td><code>profile.json</code></td><td>Summary and links to everything</td></tr>
-            <tr><td><code>rows.json</code></td><td>Every daily row, for your own queries</td></tr>
-            <tr><td><code>index.json</code></td><td>List of every file</td></tr>
-          </table>
-          <p>The same files exist for a time range in a folder: <code>ytd/</code>, <code>30d/</code>, <code>90d/</code>, <code>365d/</code>, e.g. <code>30d/usage-week.json</code>.
-            Without a folder, files cover all time. Each file's shape is described in <a href="#resources">Resources</a> below.</p>
-          <p>Your repo's Pages site is also your profile page, and <code>llms.txt</code> there tells an agent how to read your data:
-            <a href="https://bicrick.github.io/tokentracker-data/">bicrick.github.io/tokentracker-data</a>.</p>
-        </section>
-
-        <section id="custom">
-          <h2>Custom queries</h2>
-          <p>Static files can't take parameters. For any other range, tool or model filter, grouping or CSV, use the query layer.
-            It reads your <code>rows.json</code> from GitHub Pages on each request, computes the answer, and stores nothing:</p>
-          <pre>https://tokentracker.patrickbrown.dev/api/v1/users/&lt;you&gt;/usage?from=2026-11-01&amp;tools=claude-code&amp;group=week</pre>
-          <p>Every resource below works there with the filters listed, and the live consoles on this page use it.</p>
-        </section>
-
-        <section id="conventions">
-          <h2>Conventions</h2>
+          <h2>The API</h2>
+          <p>Your API is a set of JSON files on your GitHub Pages, rebuilt by your repo's Action about a minute after each sync:</p>
+          <pre>https://&lt;you&gt;.github.io/tokentracker-data/api/v1/</pre>
           <ul>
-            <li><b>Method:</b> every endpoint is <code>GET</code>. Responses are JSON unless <code>format=csv</code>.</li>
-            <li><b>Auth:</b> none. All data is public, in your public repo.</li>
-            <li><b>CORS:</b> <code>Access-Control-Allow-Origin: *</code>, so you can call it from any browser page.</li>
-            <li><b>Freshness:</b> machines sync hourly; GitHub Pages rebuilds within about a minute and caches up to 10 minutes; the query layer caches up to 5 minutes.</li>
-            <li><b>Tokens:</b> <code>tokens = input + output + reasoning + cacheRead + cacheWrite</code>. <code>input</code> excludes cached input. <code>responses</code> counts model calls.</li>
-            <li><b>Dates:</b> <code>YYYY-MM-DD</code> days in the collector's local time zone.</li>
-            <li><b>Every response</b> echoes <code>handle</code> (your GitHub username) and the applied <code>filters</code>.</li>
+            <li><b>Public:</b> no key, plain <code>GET</code>, CORS <code>*</code>, so any page, script or agent can read it.</li>
+            <li><b>Fresh:</b> machines sync hourly; GitHub caches files for up to 10 minutes.</li>
+            <li><b>Time ranges are folders:</b> no folder means all time; <code>ytd/</code>, <code>30d/</code>, <code>90d/</code> and <code>365d/</code> hold the same files for that range, e.g. <code>30d/usage-week.json</code>.</li>
+            <li><b>Tokens:</b> <code>tokens = input + output + reasoning + cacheRead + cacheWrite</code>; <code>input</code> excludes cached input; <code>responses</code> counts model calls. Dates are calendar days on the machine.</li>
+            <li><b>Every file</b> includes <code>handle</code> (your GitHub username), <code>generatedAt</code> and <code>filters</code> (<code>from</code> and <code>to</code> show the range it covers).</li>
           </ul>
+          <p>Each file below has a live console: change the username or range and press Send.</p>
         </section>
 
-        <section id="filters">
-          <h2>Filters (query layer)</h2>
-          <p>Accepted by every resource on <code>tokentracker.patrickbrown.dev/api/v1/users/&lt;you&gt;/…</code>. On GitHub Pages, use the range folders instead.</p>
-          <table>
-            <tr><th>Param</th><th>Values</th><th>Default</th></tr>
-            <tr><td><code>range</code></td><td><code>all</code>, <code>ytd</code>, <code>Nd</code> (e.g. <code>30d</code>, <code>365d</code>), or a year like <code>2026</code></td><td><code>all</code></td></tr>
-            <tr><td><code>from</code>, <code>to</code></td><td><code>YYYY-MM-DD</code>, inclusive. Override <code>range</code></td><td></td></tr>
-            <tr><td><code>tools</code></td><td>Comma-separated tool ids, e.g. <code>claude-code,codex</code></td><td>all</td></tr>
-            <tr><td><code>models</code></td><td>Comma-separated model ids, e.g. <code>anthropic/claude-opus-5-5</code></td><td>all</td></tr>
-            <tr><td><code>format</code></td><td><code>csv</code> on <code>usage</code>, <code>models</code>, <code>tools</code>, <code>devices</code></td><td>json</td></tr>
-          </table>
+        <section id="stats" class="endpoint" data-file="stats.json" data-ranges="1">
+          <h2>stats.json</h2>
+          <p>Totals plus <code>activeDays</code>, <code>firstDay</code>, <code>lastDay</code>, <code>busiestDay</code>, <code>longestStreak</code>, <code>currentStreak</code>, <code>averagePerActiveDay</code>, <code>today</code>, <code>thisMonth</code>, <code>topTool</code>, <code>topModel</code> (by responses) and short <code>display</code> strings like <code>"9.83B"</code>.</p>
         </section>
 
-        <h2 id="resources" class="resources-title">Resources</h2>
-        <section id="profile" class="endpoint" data-path="/users/{handle}" data-params="">
-          <h2>Profile</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}</p>
-          <p>A summary: all-time and this-year totals, tools, model and machine counts, first and last active day, last sync, and links to every resource.</p>
+        <section id="usage" class="endpoint" data-file="usage.json" data-ranges="1" data-variants="usage.json,usage-week.json,usage-month.json">
+          <h2>usage.json · usage-week.json · usage-month.json</h2>
+          <p>Usage over time by day, week (starting Monday) or month, split by tool. Daily rows include empty days.</p>
+          <pre>{ group, split: "tool", totals, rows: [{ period, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split: { "claude-code": 123, … } }] }</pre>
         </section>
 
-        <section id="usage" class="endpoint" data-path="/users/{handle}/usage" data-params="range=30d&amp;group=day">
-          <h2>Usage</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/usage</p>
-          <p>Token usage over time.</p>
-          <table>
-            <tr><th>Param</th><th>Values</th></tr>
-            <tr><td><code>group</code></td><td><code>day</code> (default), <code>week</code> (ISO, starts Monday), <code>month</code>, <code>year</code>, <code>total</code></td></tr>
-            <tr><td><code>split</code></td><td><code>tool</code> or <code>model</code>: adds <code>split: { key: tokens }</code> to each row</td></tr>
-            <tr><td><code>fill</code></td><td><code>false</code> to omit empty days (daily series are continuous by default)</td></tr>
-          </table>
-          <p>Returns <code>{ group, split, totals, rows: [{ period, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split? }] }</code>.</p>
+        <section id="models" class="endpoint" data-file="models.json" data-ranges="1">
+          <h2>models.json</h2>
+          <p>One row per model and tool, sorted by tokens: <code>{ model, provider, name, tool, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, share, firstUsed, lastUsed }</code>. Cursor has totals only, as <code>cursor/all</code>.</p>
         </section>
 
-        <section id="models" class="endpoint" data-path="/users/{handle}/models" data-params="range=ytd">
-          <h2>Models</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/models</p>
-          <p>One row per model and tool, sorted by tokens: <code>{ model, provider, name, tool, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, share, firstUsed, lastUsed }</code>. Cursor reports totals only, as <code>cursor/all</code>.</p>
-        </section>
-
-        <section id="tools" class="endpoint" data-path="/users/{handle}/tools" data-params="range=ytd">
-          <h2>Tools</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/tools</p>
+        <section id="tools" class="endpoint" data-file="tools.json" data-ranges="1">
+          <h2>tools.json</h2>
           <p>One row per tool: <code>{ tool, name, tokens, …, responses, share, models, firstUsed, lastUsed }</code>.</p>
         </section>
 
-        <section id="heatmap" class="endpoint" data-path="/users/{handle}/heatmap" data-params="range=90d">
-          <h2>Heatmap</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/heatmap</p>
-          <p>A ready-to-render calendar grid. Colour levels are ranked among active days so one huge day doesn't wash out the rest.</p>
-          <table>
-            <tr><th>Param</th><th>Values</th></tr>
-            <tr><td><code>range</code></td><td><code>year</code> (default: this calendar year, padded to Dec 31), <code>365d</code>, <code>90d</code>, any <code>Nd</code>, or a year</td></tr>
-            <tr><td><code>levels</code></td><td>2–10 colour steps including empty (default 5)</td></tr>
-            <tr><td><code>weekStart</code></td><td><code>sun</code> (default) or <code>mon</code></td></tr>
-            <tr><td><code>tools</code></td><td>Filter to some tools</td></tr>
-          </table>
-          <p>Returns <code>{ range, levels, weekStart, total, max, activeDays, months: [{ label, week }], weeks: [[{ date, tokens, level } | null × 7], …] }</code>. Days after today have <code>tokens: null</code>; cells outside the range are <code>null</code>.</p>
+        <section id="devices" class="endpoint" data-file="devices.json" data-ranges="1">
+          <h2>devices.json</h2>
+          <p>One row per computer: <code>{ device, tools, lastSync, tokens, …, firstUsed, lastUsed }</code>.</p>
         </section>
 
-        <section id="stats" class="endpoint" data-path="/users/{handle}/stats" data-params="range=ytd">
-          <h2>Stats</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/stats</p>
-          <p>Totals plus <code>activeDays</code>, <code>firstDay</code>, <code>lastDay</code>, <code>busiestDay</code>, <code>longestStreak</code>, <code>currentStreak</code>, <code>averagePerActiveDay</code>, <code>today</code>, <code>thisMonth</code>, <code>topTool</code> and <code>topModel</code> (by responses).</p>
+        <section id="heatmap" class="endpoint" data-file="heatmap.json" data-variants="heatmap.json,heatmap-365d.json,heatmap-90d.json">
+          <h2>heatmap.json · heatmap-365d.json · heatmap-90d.json</h2>
+          <p>A ready-to-render calendar grid for this calendar year, the last 365 days or the last 90. Levels 0–4 are ranked among active days, so one huge day doesn't wash out the rest.</p>
+          <pre>{ range, levels, weekStart, total, max, activeDays, months: [{ label, week }], weeks: [[{ date, tokens, level } | null × 7], …] }</pre>
+          <p>Days after today have <code>tokens: null</code>; cells outside the range are <code>null</code>.</p>
         </section>
 
-        <section id="devices" class="endpoint" data-path="/users/{handle}/devices" data-params="">
-          <h2>Devices</h2>
-          <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}/devices</p>
-          <p>One row per machine: <code>{ device, tools, lastSync, tokens, …, firstUsed, lastUsed }</code>.</p>
+        <section id="profile" class="endpoint" data-file="profile.json">
+          <h2>profile.json</h2>
+          <p>A one-file summary of your data (not an account; there are none): all-time and this-year totals, tools, model and machine counts, first and last day, last sync, and links to every other file.</p>
+        </section>
+
+        <section id="rows" class="endpoint" data-file="rows.json">
+          <h2>rows.json and index.json</h2>
+          <p><code>rows.json</code> has every daily row (<code>{ date, source, model, input, output, reasoning, cache_read, cache_write, messages, device }</code>) for your own queries. <code>index.json</code> lists every file.</p>
         </section>
 
         <section id="errors">
-          <h2>Errors and limits</h2>
-          <p>Errors use HTTP status codes and one shape:</p>
-          <pre>{ "error": { "code": "bad_range", "message": "range must be all, ytd, Nd (e.g. 30d) or a year (e.g. 2026)" } }</pre>
-          <table>
-            <tr><th>Status</th><th>Codes</th></tr>
-            <tr><td>400</td><td><code>bad_range</code>, <code>bad_date</code>, <code>bad_group</code>, <code>bad_split</code>, <code>bad_tools</code>, <code>bad_models</code>, <code>bad_levels</code>, <code>csv_unsupported</code></td></tr>
-            <tr><td>400</td><td><code>bad_owner</code> (not a valid GitHub username)</td></tr>
-            <tr><td>404</td><td><code>user_not_found</code> (no <code>tokentracker-data</code> Pages yet), <code>unknown_resource</code></td></tr>
-            <tr><td>502</td><td><code>github_unavailable</code> (GitHub Pages didn't answer)</td></tr>
-            <tr><td>405</td><td><code>method_not_allowed</code></td></tr>
-          </table>
-          <p>Responses are cached at the edge for 5 minutes; your repo's data updates within about an hour of use.</p>
+          <h2>Errors</h2>
+          <p>A file that doesn't exist returns GitHub's <code>404</code> page. Usually that means the username is wrong, or the repo's first build hasn't finished (check <code>github.com/&lt;you&gt;/tokentracker-data/actions</code>).</p>
         </section>
 
         <section id="recipe-heatmap">
           <h2>Recipe: a heatmap</h2>
-          <pre>const hm = await (await fetch(`${API}/users/you/heatmap?range=year`)).json();
+          <pre>const API = 'https://you.github.io/tokentracker-data/api/v1';
+const hm = await (await fetch(`${API}/heatmap.json`)).json();
 grid.style.gridTemplateColumns = `repeat(${hm.weeks.length}, 1fr)`;
 grid.innerHTML = hm.weeks.flat().map((d) =&gt;
   d ? `&lt;i class="lvl-${d.level}" title="${d.date}: ${d.tokens ?? ''}"&gt;&lt;/i&gt;` : '&lt;i class="out"&gt;&lt;/i&gt;'
@@ -254,14 +187,14 @@ grid.innerHTML = hm.weeks.flat().map((d) =&gt;
 
         <section id="recipe-chart">
           <h2>Recipe: a monthly chart by tool</h2>
-          <pre>const { rows } = await (await fetch(`${API}/users/you/usage?range=ytd&amp;group=month&amp;split=tool`)).json();
+          <pre>const { rows } = await (await fetch(`${API}/ytd/usage-month.json`)).json();
 // rows[i] = { period: "2026-07", tokens, split: { "claude-code": 812345678, cursor: 123456789 } }
 // Stack split values per bar; height = tokens / max(tokens).</pre>
         </section>
 
         <section id="recipe-leaderboard">
           <h2>Recipe: a model leaderboard</h2>
-          <pre>const { rows } = await (await fetch(`${API}/users/you/models?range=30d`)).json();
+          <pre>const { rows } = await (await fetch(`${API}/30d/models.json`)).json();
 rows.filter((m) =&gt; m.model !== 'cursor/all')
     .sort((a, b) =&gt; b.responses - a.responses)
     .slice(0, 5);</pre>
@@ -321,7 +254,7 @@ FORMAT.md                          the data format, so it stays readable forever
           <table>
             <tr><th>Symptom</th><th>Fix</th></tr>
             <tr><td><code>init</code> printed a code and exited (status 2)</td><td>Open <code>github.com/login/device</code>, enter the code, then run the same command again</td></tr>
-            <tr><td>API says <code>user_not_found</code></td><td>Your repo's first build hasn't finished. Check <code>github.com/&lt;you&gt;/tokentracker-data/actions</code>; it takes about a minute</td></tr>
+            <tr><td>A file returns 404</td><td>Your repo's first build hasn't finished. Check <code>github.com/&lt;you&gt;/tokentracker-data/actions</code>; it takes about a minute</td></tr>
             <tr><td><code>status</code> says "No upload since…", or an issue "X stopped syncing" opened in your repo</td><td>Run <code>npx @bicrick/tokentracker@latest init --yes</code> on that computer. The issue closes itself</td></tr>
             <tr><td>"No scheduler on this machine"</td><td>Minimal Linux and containers may lack cron and systemd: run <code>npx @bicrick/tokentracker sync</code> from your own scheduler</td></tr>
             <tr><td>No Cursor data</td><td><code>npx @bicrick/tokentracker connect --cursor &lt;cursor.com username&gt;</code></td></tr>
@@ -331,12 +264,19 @@ FORMAT.md                          the data format, so it stays readable forever
           <p>Logs: <code>~/Library/Logs/tokentrack.log</code> (macOS), <code>~/.local/state/tokentrack/sync.log</code> (Linux), <code>%LOCALAPPDATA%\tokentrack\sync.log</code> (Windows).</p>
         </section>
 
+        <section id="custom">
+          <h2>Custom queries (optional)</h2>
+          <p>The files cover the common ranges. For anything else (exact dates, one tool or model, other groupings, CSV), <code>tokentracker.patrickbrown.dev</code> can compute it from your <code>rows.json</code> on request. It stores nothing:</p>
+          <pre>https://tokentracker.patrickbrown.dev/api/v1/users/&lt;you&gt;/usage?from=2026-11-01&amp;tools=claude-code&amp;group=week</pre>
+          <p>Resources: <code>usage</code>, <code>models</code>, <code>tools</code>, <code>heatmap</code>, <code>stats</code>, <code>devices</code>. Filters: <code>range</code>, <code>from</code>, <code>to</code>, <code>tools</code>, <code>models</code>, <code>group</code>, <code>split</code>, <code>fill=false</code>, <code>format=csv</code>. Full spec: <a href="/openapi.json">openapi.json</a>.</p>
+        </section>
+
         <section id="machine-readable">
-          <h2>llms.txt and OpenAPI</h2>
+          <h2>llms.txt</h2>
           <ul>
-            <li><a href="/llms.txt">/llms.txt</a>: a compact guide to this API for LLMs and agents.</li>
-            <li><a href="/openapi.json">/openapi.json</a>: OpenAPI 3.1 spec for code generation and tooling.</li>
-            <li><a href="/api/v1">/api/v1</a>: a JSON index of every endpoint.</li>
+            <li><a href="/llms.txt">/llms.txt</a>: how an agent installs tokentracker and reads the files above.</li>
+            <li><code>https://&lt;you&gt;.github.io/tokentracker-data/llms.txt</code>: the same guide for your own data, published with it.</li>
+            <li><a href="/openapi.json">/openapi.json</a>: spec for the optional custom-query helper.</li>
           </ul>
         </section>
       </main>
@@ -349,35 +289,36 @@ FORMAT.md                          the data format, so it stays readable forever
   </div>
 
   <script type="module">
-    // "Try it" console on every endpoint section
+    // Live console on every file section: fetches straight from the user's GitHub Pages
     for (const sec of document.querySelectorAll('section.endpoint')) {
+      const variants = (sec.dataset.variants || sec.dataset.file).split(',');
+      const ranges = sec.dataset.ranges ? ['', 'ytd/', '30d/', '90d/', '365d/'] : [''];
       const box = document.createElement('div');
       box.className = 'try-api';
       box.innerHTML = `
         <form>
           <span class="method">GET</span>
-          <span class="path">/api/v1${sec.dataset.path.replace('{handle}', '<input name="handle" value="bicrick" spellcheck="false" size="10">')}</span>
-          <span class="q">?</span><input name="params" value="${sec.dataset.params}" placeholder="params" spellcheck="false">
+          <span class="path"><input name="handle" value="bicrick" spellcheck="false" size="10">.github.io/tokentracker-data/api/v1/</span>
+          ${ranges.length > 1 ? `<select name="range">${ranges.map((r) => `<option value="${r}">${r || 'all time'}</option>`).join('')}</select>` : ''}
+          ${variants.length > 1 ? `<select name="file">${variants.map((v) => `<option>${v}</option>`).join('')}</select>` : `<span class="path">${variants[0]}</span>`}
           <button type="submit">Send</button>
         </form>
-        <pre class="try-out">Press Send to run a live request.</pre>`;
+        <pre class="try-out">Press Send to fetch it live.</pre>`;
       sec.appendChild(box);
       const out = box.querySelector('.try-out');
       box.querySelector('form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
         const handle = String(f.get('handle') || 'bicrick').toLowerCase().replace(/[^a-z0-9-]/g, '');
-        const params = String(f.get('params') || '').replace(/^\?/, '');
-        const url = `/api/v1${sec.dataset.path.replace('{handle}', handle)}${params ? `?${params}` : ''}`;
+        const url = `https://${handle}.github.io/tokentracker-data/api/v1/${f.get('range') || ''}${f.get('file') || variants[0]}`;
         out.textContent = `GET ${url}\n\n…`;
         const started = performance.now();
         try {
           const res = await fetch(url);
           const text = await res.text();
-          let body = text;
+          let body = res.ok ? text : '(not found: check the username, or wait for the first build)';
           try {
             const j = JSON.parse(text);
-            // keep long arrays readable
             if (Array.isArray(j.rows) && j.rows.length > 8) j.rows = [...j.rows.slice(0, 8), `… ${j.rows.length - 8} more rows`];
             if (Array.isArray(j.weeks) && j.weeks.length > 3) j.weeks = [...j.weeks.slice(0, 2), `… ${j.weeks.length - 2} more weeks`];
             body = JSON.stringify(j, null, 2);
@@ -398,6 +339,6 @@ FORMAT.md                          the data format, so it stays readable forever
     }, { rootMargin: '-20% 0px -70% 0px' });
     document.querySelectorAll('.docs-body section').forEach((s) => io.observe(s));
   </script>
-  <script type="module" src="/nav.js?v=47"></script>
+  <script type="module" src="/nav.js?v=48"></script>
 </body>
 </html>
