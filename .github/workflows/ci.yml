@@ -51,7 +51,7 @@ jobs:
             echo "::error::Unexpected files in the npm package"; exit 1
           fi
           mkdir /tmp/try && tar -xzf bicrick-tokentracker-*.tgz -C /tmp/try
-          node /tmp/try/package/cli/tokentrack.js --help | grep -q 'tokentrack init'
+          node /tmp/try/package/cli/tokentrack.js --help | grep -q 'npx @bicrick/tokentracker'
 
   secrets:
     name: secret scan
