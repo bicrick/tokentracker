@@ -9,8 +9,11 @@ const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tt-home-'));
 process.env.HOME = home;
 process.env.USERPROFILE = home;
 process.env.XDG_CONFIG_HOME = path.join(home, '.config');
+process.env.APPDATA = path.join(home, 'AppData', 'Roaming');
 process.env.XDG_DATA_HOME = path.join(home, '.local', 'share');
 process.env.TOKENTRACK_TZ = 'UTC';
+const HAS_ZSTD = typeof (await import('node:zlib')).zstdCompressSync === 'function';
+const Z = HAS_ZSTD ? 1 : 0; // the zstd session's share of the DeepSeek totals
 
 const write = (rel, content) => {
   const file = path.join(home, rel);
@@ -49,7 +52,8 @@ write('.gemini/tmp/proj1/chats/session-1.json', {
 
 const clineTask = 'Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/tasks/1731400000000';
 const linuxClineTask = '.config/Code/User/globalStorage/saoudrizwan.claude-dev/tasks/1731400000000';
-for (const dir of [clineTask, linuxClineTask]) {
+const winClineTask = 'AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/tasks/1731400000000';
+for (const dir of [clineTask, linuxClineTask, winClineTask]) {
   write(`${dir}/ui_messages.json`, [
     { ts: Date.parse('2026-11-13T12:00:00Z'), type: 'say', say: 'text', text: 'hi' },
     { ts: Date.parse('2026-11-13T12:00:01Z'), type: 'say', say: 'api_req_started',
@@ -90,8 +94,9 @@ write('.dsh/sessions/proj/session-b/session.v4.jsonl', jsonl([
   const zlib = await import('node:zlib');
   const lines = dshEvents('session-c').slice(0, 3).map((e) => `${JSON.stringify(e)}\n`);
   // one zstd frame per append, plus a truncated frame at the end (still writing)
-  const frames = lines.map((l) => zlib.zstdCompressSync(Buffer.from(l)));
-  const tail = zlib.zstdCompressSync(Buffer.from(`${JSON.stringify({ type: 'assistant/message', seq: 9, time: 1, data: { usage: { inputTokens: 999 } } })}\n`));
+  // zstd needs Node 22.15+; on older Node the collector skips .zstd logs
+  const frames = HAS_ZSTD ? lines.map((l) => zlib.zstdCompressSync(Buffer.from(l))) : [];
+  const tail = !HAS_ZSTD ? Buffer.alloc(0) : zlib.zstdCompressSync(Buffer.from(`${JSON.stringify({ type: 'assistant/message', seq: 9, time: 1, data: { usage: { inputTokens: 999 } } })}\n`));
   const file = path.join(home, '.dsh/sessions/proj/session-c/session.v4.jsonl.zstd');
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, Buffer.concat([...frames, tail.subarray(0, tail.length - 4)]));
@@ -159,13 +164,13 @@ test('deepseek harness: current generation only, stream usage, compaction model,
   const day = (d, m) => rows.find((r) => r.date === d && r.model === m);
   // 2026-11-15: session-a (400+50 input) + session-c zstd (400 input, truncated tail dropped)
   const v4 = day('2026-11-15', 'deepseek/deepseek-v4');
-  assert.equal(v4.input, 400 + 50 + 400);
-  assert.equal(v4.cacheRead, 9000 * 2);
-  assert.equal(v4.reasoning, 20 * 2);
-  assert.equal(v4.output, (120 - 20) * 2 + 10);
+  assert.equal(v4.input, 400 + 50 + 400 * Z);
+  assert.equal(v4.cacheRead, 9000 * (1 + Z));
+  assert.equal(v4.reasoning, 20 * (1 + Z));
+  assert.equal(v4.output, (120 - 20) * (1 + Z) + 10);
   // compaction uses its own model
   assert.equal(day('2026-11-16', 'deepseek/deepseek-v4-flash').input, 300);
   // fork: only the post-seed call counts, nothing duplicated from the parent
   assert.equal(day('2026-11-17', 'deepseek/deepseek-v4').input, 70);
-  assert.equal(rows.reduce((s, r) => s + r.messages, 0), 3 + 1 + 1); // session-a, fork, zstd
+  assert.equal(rows.reduce((s, r) => s + r.messages, 0), 3 + 1 + Z); // session-a, fork, zstd
 });
