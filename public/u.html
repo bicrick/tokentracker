@@ -21,8 +21,8 @@
   <meta name="twitter:image" content="https://tokentracker.patrickbrown.dev/og.png">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="stylesheet" href="/style.css?v=43">
-  <link rel="stylesheet" href="/mobile.css?v=43" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=44">
+  <link rel="stylesheet" href="/mobile.css?v=44" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -37,7 +37,7 @@
         <a href="/">Get your own</a>
         <a href="/docs">Docs</a>
         <a href="https://www.npmjs.com/package/@bicrick/tokentracker">npm ↗</a>
-        <a class="star" href="https://github.com/bicrick/tokentracker"><svg class="pixel-star" viewBox="0 0 9 9" width="13" height="13" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor"><rect x="4" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="1" y="8" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/></svg>Star on GitHub</a>
+        <a class="star" href="https://github.com/bicrick/tokentracker" aria-label="Star on GitHub" title="Star on GitHub"><svg class="pixel-star" viewBox="0 0 9 9" width="13" height="13" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor"><rect x="4" y="0" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="1" y="8" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/></svg>on GitHub</a>
       </div>
     </nav>
 
@@ -68,7 +68,7 @@
 
   <script type="module">
     // Built entirely from the public v1 API
-    import { api, formatCount, renderHeatmapGrid, renderSplit } from '/app.js?v=43';
+    import { api, formatCount, renderHeatmapGrid, renderSplit } from '/app.js?v=44';
 
     const handle = (location.pathname.split('/').filter(Boolean)[1] || '').toLowerCase();
     document.getElementById('handle').textContent = `@${handle}`;
@@ -92,6 +92,6 @@
       missing.textContent = /no tokentracker profile/i.test(err.message) ? `No profile for @${handle} yet.` : 'Could not load this profile.';
     });
   </script>
-  <script type="module" src="/nav.js?v=43"></script>
+  <script type="module" src="/nav.js?v=44"></script>
 </body>
 </html>
