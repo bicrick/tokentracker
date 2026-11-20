@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=46">
-  <link rel="stylesheet" href="/mobile.css?v=46" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=47">
+  <link rel="stylesheet" href="/mobile.css?v=47" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -93,28 +93,28 @@
     <section class="chapter q-chapter" id="ch-usage" aria-labelledby="q1">
       <h2 id="q1">Usage over time.</h2>
       <p class="chapter-lede">By day, week or month. Split by tool or model.</p>
-      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/usage?range=ytd&amp;group=month&amp;split=tool</p>
+      <p class="query-line"><span class="method">GET</span> bicrick.github.io/tokentracker-data/api/v1/ytd/usage-month.json</p>
       <div class="q-out"><div class="stack-chart skeleton" id="q-usage"></div><div class="q-legend" id="q-usage-legend"></div></div>
     </section>
 
     <section class="chapter q-chapter" id="ch-models" aria-labelledby="q2">
       <h2 id="q2">Every model you've used.</h2>
       
-      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/models?range=ytd</p>
+      <p class="query-line"><span class="method">GET</span> bicrick.github.io/tokentracker-data/api/v1/ytd/models.json</p>
       <ol class="rank-list skeleton" id="q-models"></ol>
     </section>
 
     <section class="chapter q-chapter" id="ch-tools" aria-labelledby="q3">
       <h2 id="q3">Across every tool.</h2>
       <p class="chapter-lede">Added up across all your machines.</p>
-      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/tools?range=ytd</p>
+      <p class="query-line"><span class="method">GET</span> bicrick.github.io/tokentracker-data/api/v1/ytd/tools.json</p>
       <div class="share skeleton" id="q-tools"><div class="share-bar"></div><ul class="share-list"></ul></div>
     </section>
 
     <section class="chapter q-chapter" id="ch-stats" aria-labelledby="q4">
       <h2 id="q4">The numbers people ask about.</h2>
       
-      <p class="query-line"><span class="method">GET</span> /api/v1/users/bicrick/stats?range=ytd</p>
+      <p class="query-line"><span class="method">GET</span> bicrick.github.io/tokentracker-data/api/v1/ytd/stats.json</p>
       <dl class="stat-grid skeleton" id="q-stats"></dl>
     </section>
 
@@ -123,14 +123,14 @@
       <p class="chapter-lede">Your agent can set it up, and answer questions from it. See <a href="/llms.txt">llms.txt</a>.</p>
       <div class="chat" id="q-chat">
         <p class="you"><span>you</span>How many tokens did I use this month, and on what?</p>
-        <p class="agent"><span>agent</span><code>GET /api/v1/users/bicrick/stats</code></p>
+        <p class="agent"><span>agent</span><code>GET bicrick.github.io/tokentracker-data/api/v1/stats.json</code></p>
         <p class="agent answer"><span></span><span id="q-chat-answer">…</span></p>
       </div>
     </section>
 
     <section class="chapter q-chapter" id="ch-api" aria-labelledby="q5">
       <h2 id="q5">Build whatever you want.</h2>
-      <p class="chapter-lede">Plain JSON. No key. Every chart on this page is one request.</p>
+      <p class="chapter-lede">Plain JSON on your GitHub Pages. No key, no server. Every chart on this page is one file.</p>
       <div class="term api-term">
         <div class="term-bar"><span></span><span></span><span></span></div>
         <pre class="term-body api-body" id="api-term"></pre>
@@ -149,12 +149,12 @@
   </div>
 
   <script type="module">
-    import { api, wireCopy } from '/app.js?v=46';
-    import { mountDemo } from '/demo.js?v=46';
-    import { mountCoin } from '/coin.js?v=46';
+    import { api, wireCopy } from '/app.js?v=47';
+    import { mountDemo } from '/demo.js?v=47';
+    import { mountCoin } from '/coin.js?v=47';
     import { mountTokenSea } from '/sea.js?v=49';
     import { mountStipple } from '/stipple.js?v=2';
-    import { mountChapters } from '/chapters.js?v=46';
+    import { mountChapters } from '/chapters.js?v=47';
 
 
     mountStipple(document.getElementById('stipple'), { content: document.querySelector('.wrap') });
@@ -173,7 +173,7 @@
     wireCopy(document.getElementById('copy'), document.getElementById('cmd').textContent);
 
     // Everything on this page comes from the public v1 API
-    const data = api('/users/bicrick/tools?range=ytd')
+    const data = fetch('https://bicrick.github.io/tokentracker-data/api/v1/ytd/tools.json').then((r) => r.json())
       .then((t) => ({ totals: Object.fromEntries(t.rows.map((r) => [r.tool, r.tokens])) }))
       .catch(() => null);
     mountChapters();
@@ -184,6 +184,6 @@
       skipButton: document.getElementById('skip'),
     });
   </script>
-  <script type="module" src="/nav.js?v=46"></script>
+  <script type="module" src="/nav.js?v=47"></script>
 </body>
 </html>

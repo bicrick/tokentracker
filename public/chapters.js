@@ -3,6 +3,12 @@
 import { api, formatCount } from '/app.js?v=33';
 
 const HANDLE = 'bicrick';
+// The landing page reads the example user's API straight from their GitHub Pages
+const PAGES = `https://${HANDLE}.github.io/tokentracker-data/api/v1`;
+const pages = (file) => fetch(`${PAGES}/${file}`).then((r) => {
+  if (!r.ok) throw new Error(`GitHub Pages ${r.status}`);
+  return r.json();
+});
 const COLORS = ['#6b9eff', '#f0c463', '#d97757', '#6fd39b', '#c58af9', '#4fd1c5', '#f687b3', '#a0aec0'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -49,7 +55,7 @@ function skeletonBars(el, n) {
 async function renderUsage() {
   const el = document.getElementById('q-usage');
   const legend = document.getElementById('q-usage-legend');
-  const res = await api(`/users/${HANDLE}/usage?range=ytd&group=month&split=tool`);
+  const res = await pages('ytd/usage-month.json');
   const tools = [...new Set(res.rows.flatMap((r) => Object.keys(r.split)))];
   const color = Object.fromEntries(tools.map((t, i) => [t, COLORS[i % COLORS.length]]));
   const max = Math.max(1, ...res.rows.map((r) => r.tokens));
@@ -65,7 +71,7 @@ async function renderUsage() {
 // ── models: ranked list ──────────────────────────────────────────────────────
 async function renderModels() {
   const el = document.getElementById('q-models');
-  const res = await api(`/users/${HANDLE}/models?range=ytd`);
+  const res = await pages('ytd/models.json');
   const rows = res.rows.filter((m) => m.model !== 'cursor/all').slice(0, 6);
   const max = Math.max(1, ...rows.map((m) => m.tokens));
   el.classList.remove('skeleton');
@@ -81,7 +87,7 @@ async function renderModels() {
 // ── tools: share bar + list ──────────────────────────────────────────────────
 async function renderTools() {
   const el = document.getElementById('q-tools');
-  const res = await api(`/users/${HANDLE}/tools?range=ytd`);
+  const res = await pages('ytd/tools.json');
   el.classList.remove('skeleton');
   el.querySelector('.share-bar').innerHTML = res.rows.map((t, i) => `<span style="flex-grow:${t.tokens};background:${COLORS[i % COLORS.length]}" title="${esc(t.name)} · ${Math.round(t.share * 100)}%"></span>`).join('');
   el.querySelector('.share-list').innerHTML = res.rows.map((t, i) => `
@@ -91,7 +97,7 @@ async function renderTools() {
 // ── stats: grid ──────────────────────────────────────────────────────────────
 async function renderStats() {
   const el = document.getElementById('q-stats');
-  const s = await api(`/users/${HANDLE}/stats?range=ytd`);
+  const s = await pages('ytd/stats.json');
   const items = [
     ['tokens', formatCount(s.tokens)],
     ['this month', formatCount(s.thisMonth)],
@@ -109,9 +115,9 @@ async function renderStats() {
 // ── raw: typed curl and its real response ────────────────────────────────────
 async function renderRaw() {
   const term = document.getElementById('api-term');
-  const path = `/api/v1/users/${HANDLE}/usage?range=30d&group=week`;
-  const cmd = `curl tokentracker.patrickbrown.dev${path}`;
-  const res = await fetch(path).then((r) => r.json()).catch(() => null);
+  const url = `${PAGES}/30d/usage-week.json`;
+  const cmd = `curl ${url.replace('https://', '')}`;
+  const res = await fetch(url).then((r) => r.json()).catch(() => null);
   if (!reduced) {
     for (let n = 1; n <= cmd.length; n += 1) {
       term.innerHTML = `<span class="t-gray">$</span> ${esc(cmd.slice(0, n))}<span class="caret"></span>`;
@@ -146,7 +152,7 @@ const safe = (fn, el) => () => fn().catch((err) => {
 // ── agents: a chat answered from the live API ────────────────────────────────
 async function renderChat() {
   const el = document.getElementById('q-chat-answer');
-  const [s, m] = await Promise.all([api(`/users/${HANDLE}/stats`), api(`/users/${HANDLE}/models?from=${new Date().toISOString().slice(0, 7)}-01`)]);
+  const [s, m] = await Promise.all([pages('stats.json'), pages('30d/models.json')]);
   // One model can be logged by two tools under slightly different names (4-5 vs 4.5)
   const top = [...new Set(m.rows.filter((x) => x.model !== 'cursor/all').map((x) => pretty(x.name)))].slice(0, 2);
   const big = (n) => formatCount(n).toUpperCase();
