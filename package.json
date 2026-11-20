@@ -1,6 +1,6 @@
 {
   "name": "@bicrick/tokentracker",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Track AI token usage across tools and devices. Only daily totals leave your machine.",
   "license": "MIT",
   "type": "module",

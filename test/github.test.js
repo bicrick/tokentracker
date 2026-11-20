@@ -176,3 +176,17 @@ test('checkMachines: opens one issue for a quiet machine and closes it when it i
     globalThis.fetch = real;
   }
 });
+
+test('putFile updates non-JSON files (README, workflow) instead of failing', async () => {
+  const { putFile } = await import('../cli/github.js');
+  const real = globalThis.fetch;
+  const gh = fakeGithub();
+  gh.files.set('README.md', { sha: 'r1', text: '# old readme\n' });
+  try {
+    assert.equal((await putFile('t', 'me', 'tokentracker-data', 'README.md', '# new\n', 'msg')).changed, true);
+    assert.equal(gh.files.get('README.md').text, '# new\n');
+    assert.equal((await putFile('t', 'me', 'tokentracker-data', 'README.md', '# new\n', 'msg')).changed, false);
+  } finally {
+    globalThis.fetch = real;
+  }
+});

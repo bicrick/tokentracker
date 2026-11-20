@@ -71,7 +71,7 @@ export async function githubUser(token) {
 
 const contentsRoute = (owner, repo, file) => `/repos/${owner}/${repo}/contents/${file.split('/').map(encodeURIComponent).join('/')}`;
 
-/** Read a JSON file from the repo, or null if it doesn't exist. */
+/** Read a file from the repo ({ sha, text, json }), or null if it doesn't exist. */
 async function getJson(token, owner, repo, file) {
   const r = await gh(token, 'GET', contentsRoute(owner, repo, file));
   if (r.status === 404) return null;
@@ -80,12 +80,16 @@ async function getJson(token, owner, repo, file) {
   const text = r.json.content
     ? Buffer.from(r.json.content, 'base64').toString('utf8')
     : await fetch(r.json.download_url).then((x) => x.text());
-  return { sha: r.json.sha, text, json: JSON.parse(text) };
+  let json = null;
+  try { json = JSON.parse(text); } catch {} // README.md, workflow YAML etc. aren't JSON
+  return { sha: r.json.sha, text, json };
 }
 
 /** Create or update a file. Skips unchanged content; retries if another write raced us. */
 export async function putFile(token, owner, repo, file, content, message, { merge = null } = {}) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    // A brand-new repo answers reads with 409 for a few seconds: back off and retry
+    if (attempt) await new Promise((r) => setTimeout(r, 1500 * attempt));
     const cur = await getJson(token, owner, repo, file).catch(() => null);
     const body = merge ? merge(cur?.json ?? null) : content;
     if (body === null) return { changed: false };
@@ -146,22 +150,58 @@ jobs:
         uses: actions/deploy-pages@v4
 `;
 
-const README = (owner, repo) => `# tokentracker data
+const README = (owner, repo) => {
+  const h = owner.toLowerCase();
+  const pages = pagesUrl(owner, repo);
+  const badge = (label, path, color) => `![${label}](https://img.shields.io/badge/dynamic/json?url=${encodeURIComponent(`${pages}/api/v1/${path}`)}&query=${encodeURIComponent(`$.display.${label === 'tokens this year' ? 'tokens' : label === 'active days' ? 'activeDays' : 'currentStreak'}`)}&label=${encodeURIComponent(label)}&color=${color}&style=flat-square&cacheSeconds=3600)`;
+  return `<p align="center">
+  <a href="https://tokentracker.patrickbrown.dev/u/${h}"><img src="https://raw.githubusercontent.com/bicrick/tokentracker/main/docs/assets/banner.png" alt="tokentracker" width="100%"></a>
+</p>
 
-My AI coding token usage, collected by [tokentracker](https://github.com/bicrick/tokentracker).
-This repo is the whole database: plain JSON I own. See [FORMAT.md](FORMAT.md).
+<p align="center">
+  ${badge('tokens this year', 'ytd/stats.json', 'f0c463')}
+  ${badge('active days', 'ytd/stats.json', '6b9eff')}
+  ${badge('current streak', 'stats.json', '6b9eff')}
+</p>
 
-| | |
+<p align="center">
+  <a href="https://tokentracker.patrickbrown.dev/u/${h}">Profile</a> ·
+  <a href="https://tokentracker.patrickbrown.dev/api/v1/users/${h}">API</a> ·
+  <a href="${pages}/api/v1/index.json">Static API</a> ·
+  <a href="FORMAT.md">Data format</a>
+</p>
+
+---
+
+**@${h}'s AI coding token usage**, tracked by [tokentracker](https://github.com/bicrick/tokentracker) across every tool and every machine. This repo is the database: plain JSON, owned by @${h}. Only daily token counts per tool and model are stored, never prompts, code, paths or keys.
+
+## Query it
+
+\`\`\`sh
+curl https://tokentracker.patrickbrown.dev/api/v1/users/${h}/stats
+curl "https://tokentracker.patrickbrown.dev/api/v1/users/${h}/usage?range=30d&group=week"
+\`\`\`
+
+| Static JSON (GitHub Pages, no server) | |
 |---|---|
-| Full API (any filter, CSV) | https://tokentracker.patrickbrown.dev/api/v1/users/${owner.toLowerCase()} |
-| Static API (GitHub Pages) | ${pagesUrl(owner, repo)}/api/v1/index.json |
-| Stats | ${pagesUrl(owner, repo)}/api/v1/stats.json |
-| Last 30 days | ${pagesUrl(owner, repo)}/api/v1/30d/usage.json |
-| Heatmap | ${pagesUrl(owner, repo)}/api/v1/heatmap.json |
+| [\`stats.json\`](${pages}/api/v1/stats.json) | totals, streaks, busiest day, top tool and model |
+| [\`usage.json\`](${pages}/api/v1/usage.json) · [\`usage-month.json\`](${pages}/api/v1/usage-month.json) | usage over time, split by tool |
+| [\`30d/usage.json\`](${pages}/api/v1/30d/usage.json) | also \`ytd/\`, \`90d/\`, \`365d/\` |
+| [\`models.json\`](${pages}/api/v1/models.json) · [\`tools.json\`](${pages}/api/v1/tools.json) | per model and per tool |
+| [\`heatmap.json\`](${pages}/api/v1/heatmap.json) | ready-to-render calendar |
+| [\`index.json\`](${pages}/api/v1/index.json) | everything |
 
-Only daily token counts per tool and model are stored: never prompts, code, paths or keys.
-To stop: run \`npx @bicrick/tokentracker uninstall\` on each machine. To delete everything: delete this repo.
+## Layout
+
+\`\`\`
+machines/<machine>/<year>.json   one file per computer per year (written by the CLI)
+tokentracker.json                settings
+.github/workflows/               rebuilds the static API on every change
+\`\`\`
+
+Set up your own: \`npx @bicrick/tokentracker init\`. Stop on a machine: \`npx @bicrick/tokentracker uninstall\`. Delete everything: delete this repo.
 `;
+};
 
 export const FORMAT_DOC = `# tokentracker data format
 
@@ -228,6 +268,13 @@ export async function ensureDataRepo(token, { cursorHandle = null, owner: knownO
   } else if (!r.json.has_issues) {
     await gh(token, 'PATCH', `/repos/${owner}/${repo}`, { has_issues: true }); // the stale-machine alert uses issues
   }
+
+  // Repo page details: description, profile link and topics (tags)
+  await gh(token, 'PATCH', `/repos/${owner}/${repo}`, {
+    description: `@${owner.toLowerCase()}'s AI coding token usage, as an API · tokentracker`,
+    homepage: `https://tokentracker.patrickbrown.dev/u/${owner.toLowerCase()}`,
+  });
+  await gh(token, 'PUT', `/repos/${owner}/${repo}/topics`, { names: ['tokentracker', 'tokentracker-data', 'ai-usage', 'token-usage', 'llm', 'claude-code'] });
 
   await putFile(token, owner, repo, 'tokentracker.json', null, 'tokentracker: settings', {
     merge: (cur) => {

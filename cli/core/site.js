@@ -5,6 +5,10 @@ import { devices, heatmap, models, stats, tools, totals, usage } from './query.j
 export const RANGES = ['all', 'ytd', '30d', '90d', '365d'];
 const GROUPS = ['day', 'week', 'month'];
 const iso = (d) => d.toISOString().slice(0, 10);
+const short = (n) => {
+  for (const [v, u] of [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']]) if (n >= v) return `${(n / v).toFixed(2).replace(/\.?0+$/, '')}${u}`;
+  return String(n);
+};
 
 function rangeFrom(range, today) {
   if (range === 'all') return null;
@@ -51,7 +55,10 @@ export function buildStaticApi({ handle, rows, machines, baseUrl, generatedAt = 
     }
     files[`${dir}/models.json`] = { ...meta(filters), rows: models(r) };
     files[`${dir}/tools.json`] = { ...meta(filters), rows: tools(r) };
-    files[`${dir}/stats.json`] = { ...meta(filters), ...stats(r) };
+    const st = stats(r);
+    // Short display strings (e.g. "9.79B"), used by the README's live badges
+    const display = { tokens: short(st.tokens), thisMonth: short(st.thisMonth), today: short(st.today), activeDays: String(st.activeDays), currentStreak: `${st.currentStreak}d`, longestStreak: `${st.longestStreak}d` };
+    files[`${dir}/stats.json`] = { ...meta(filters), ...st, display };
     files[`${dir}/devices.json`] = { ...meta(filters), rows: devices(r, syncs) };
   }
   // Heatmaps are calendar grids with their own range handling
