@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-  <link rel="stylesheet" href="/style.css?v=45">
-  <link rel="stylesheet" href="/mobile.css?v=45" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=46">
+  <link rel="stylesheet" href="/mobile.css?v=46" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -46,8 +46,10 @@
         <p>Start</p>
         <a href="#introduction">Introduction</a>
         <a href="#quickstart">Quickstart</a>
-        <a href="#install">Install the collector</a>
+        <a href="#install">Install</a>
         <p>API</p>
+        <a href="#static">On GitHub Pages</a>
+        <a href="#custom">Custom queries</a>
         <a href="#conventions">Conventions</a>
         <a href="#filters">Filters</a>
         <a href="#profile">Profile</a>
@@ -57,71 +59,106 @@
         <a href="#heatmap">Heatmap</a>
         <a href="#stats">Stats</a>
         <a href="#devices">Devices</a>
-        <a href="#errors">Errors and limits</a>
+        <a href="#errors">Errors</a>
         <p>Recipes</p>
         <a href="#recipe-heatmap">Heatmap</a>
         <a href="#recipe-chart">Monthly chart</a>
         <a href="#recipe-leaderboard">Model leaderboard</a>
         <p>Reference</p>
-        <a href="#sources">Data sources</a>
-        <a href="#privacy">Privacy</a>
         <a href="#storage">Storage</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#sources">Data sources</a>
         <a href="#cli">CLI</a>
-        <a href="#static">Static API</a>
+        <a href="#troubleshooting">Troubleshooting</a>
         <a href="#machine-readable">llms.txt and OpenAPI</a>
       </aside>
 
       <main class="docs-body">
         <section id="introduction">
-          <h1>tokentracker API</h1>
+          <h1>tokentracker</h1>
           <p>
-            tokentracker turns the token usage your AI coding tools already record into a public, queryable API.
-            A small collector runs on each of your machines and saves daily totals per tool and model to a repo on your own GitHub. The API
-            answers questions like <i>how many tokens did I use this month</i>, <i>which models</i>, <i>which tools</i>
-            and <i>which days</i>, as JSON or CSV.
+            tokentracker saves the token usage your AI coding tools already record (daily totals per tool and model,
+            on every machine) into a repo on your own GitHub, and publishes it as an API on GitHub Pages.
+            There is no tokentracker account and no tokentracker database.
           </p>
-          <p>Reads are public and need no key. Base URL:</p>
-          <pre>https://tokentracker.patrickbrown.dev/api/v1</pre>
+          <p>Your API lives at:</p>
+          <pre>https://&lt;your-github-username&gt;.github.io/tokentracker-data/api/v1/</pre>
         </section>
 
         <section id="quickstart">
           <h2>Quickstart</h2>
-          <pre>curl https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/stats?range=ytd</pre>
-          <pre>const res = await fetch('https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/usage?range=30d&amp;group=day');
+          <pre>curl https://bicrick.github.io/tokentracker-data/api/v1/stats.json</pre>
+          <pre>const res = await fetch('https://bicrick.github.io/tokentracker-data/api/v1/30d/usage.json');
 const { totals, rows } = await res.json();
-// rows: [{ period: "2026-10-20", tokens, input, output, reasoning, cacheRead, cacheWrite, responses }, ...]</pre>
-          <p>Swap <code>bicrick</code> for your GitHub username once you've installed the collector.</p>
+// rows: [{ period: "2026-10-22", tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split }, ...]</pre>
+          <p>That's real data for <code>bicrick</code>. Swap in your GitHub username once you've installed it.</p>
         </section>
 
         <section id="install">
-          <h2>Install the collector</h2>
-          <p>Needs Node 22.13+ on macOS, Linux or Windows.</p>
+          <h2>Install</h2>
+          <p>Needs Node 22.13+ on macOS, Linux or Windows, and a GitHub account. Nothing else.</p>
           <pre>npx @bicrick/tokentracker init</pre>
           <ol>
-            <li>Finds the AI tools on this machine and shows what it found before anything is sent.</li>
-            <li>You choose which tools to track.</li>
-            <li>Signs you in to GitHub with a code (or uses the <code>gh</code> CLI if you have it) and creates a public <code>tokentracker-data</code> repo on your GitHub. The sign-in can only touch public repos and workflows.</li>
-            <li>Saves your history there and turns on an hourly background sync (no admin rights).</li>
+            <li>Finds the AI tools on this computer and shows what it found. You choose which to track.</li>
+            <li>Asks for your Cursor username, if you use Cursor (optional).</li>
+            <li>Signs you in to GitHub: open <code>github.com/login/device</code> and enter the code it shows. (If the <code>gh</code> CLI is signed in, it uses that instead.) The sign-in can only touch public repos and workflows, and doesn't expire.</li>
+            <li>Creates a public <code>tokentracker-data</code> repo on your GitHub, saves your history there and turns on GitHub Pages.</li>
+            <li>Turns on an hourly background sync (no admin rights).</li>
           </ol>
-          <p>Your handle is your GitHub username. On each additional computer, run the same command while signed into the same GitHub; totals from all machines combine. There is no tokentracker account.</p>
+          <p>Setup takes under a minute. Your repo's Action then builds your API in about a minute more.
+            On another computer, run the same command with the same GitHub account; totals add up and the same computer is never counted twice.</p>
+          <h3>With an agent</h3>
+          <p>Ask: <q>Install tokentracker for me.</q> The agent asks whether you use Cursor, runs
+            <code>npx @bicrick/tokentracker@latest init --yes</code>, shows you the GitHub sign-in code (init exits with status 2 while it waits), then runs the same command again to finish.
+            Agents get everything from <a href="/llms.txt">llms.txt</a>.</p>
+        </section>
+
+        <section id="static">
+          <h2>API on GitHub Pages</h2>
+          <p>Base: <code>https://&lt;you&gt;.github.io/tokentracker-data/api/v1/</code>. Plain JSON files, public, no key, CORS <code>*</code>.
+            Rebuilt by your repo's Action within about a minute of each sync (hourly), and cached by GitHub for up to 10 minutes.</p>
+          <table>
+            <tr><th>File</th><th>Contents</th></tr>
+            <tr><td><code>stats.json</code></td><td>Totals, active days, busiest day, streaks, today, this month, top tool, top model</td></tr>
+            <tr><td><code>usage.json</code> · <code>usage-week.json</code> · <code>usage-month.json</code></td><td>Usage over time by day, week (from Monday) or month, split by tool</td></tr>
+            <tr><td><code>models.json</code></td><td>Per model and tool: tokens, responses, share, first and last used</td></tr>
+            <tr><td><code>tools.json</code></td><td>Per tool</td></tr>
+            <tr><td><code>devices.json</code></td><td>Per computer, with last sync</td></tr>
+            <tr><td><code>heatmap.json</code> · <code>heatmap-365d.json</code> · <code>heatmap-90d.json</code></td><td>Ready-to-render calendar grid</td></tr>
+            <tr><td><code>profile.json</code></td><td>Summary and links to everything</td></tr>
+            <tr><td><code>rows.json</code></td><td>Every daily row, for your own queries</td></tr>
+            <tr><td><code>index.json</code></td><td>List of every file</td></tr>
+          </table>
+          <p>The same files exist for a time range in a folder: <code>ytd/</code>, <code>30d/</code>, <code>90d/</code>, <code>365d/</code>, e.g. <code>30d/usage-week.json</code>.
+            Without a folder, files cover all time. Each file's shape is described in <a href="#resources">Resources</a> below.</p>
+          <p>Your repo's Pages site is also your profile page, and <code>llms.txt</code> there tells an agent how to read your data:
+            <a href="https://bicrick.github.io/tokentracker-data/">bicrick.github.io/tokentracker-data</a>.</p>
+        </section>
+
+        <section id="custom">
+          <h2>Custom queries</h2>
+          <p>Static files can't take parameters. For any other range, tool or model filter, grouping or CSV, use the query layer.
+            It reads your <code>rows.json</code> from GitHub Pages on each request, computes the answer, and stores nothing:</p>
+          <pre>https://tokentracker.patrickbrown.dev/api/v1/users/&lt;you&gt;/usage?from=2026-11-01&amp;tools=claude-code&amp;group=week</pre>
+          <p>Every resource below works there with the filters listed, and the live consoles on this page use it.</p>
         </section>
 
         <section id="conventions">
           <h2>Conventions</h2>
           <ul>
             <li><b>Method:</b> every endpoint is <code>GET</code>. Responses are JSON unless <code>format=csv</code>.</li>
-            <li><b>Auth:</b> none for reads. Profiles are public.</li>
+            <li><b>Auth:</b> none. All data is public, in your public repo.</li>
             <li><b>CORS:</b> <code>Access-Control-Allow-Origin: *</code>, so you can call it from any browser page.</li>
-            <li><b>Caching:</b> responses are cached at the edge for 5 minutes. Collectors sync hourly.</li>
+            <li><b>Freshness:</b> machines sync hourly; GitHub Pages rebuilds within about a minute and caches up to 10 minutes; the query layer caches up to 5 minutes.</li>
             <li><b>Tokens:</b> <code>tokens = input + output + reasoning + cacheRead + cacheWrite</code>. <code>input</code> excludes cached input. <code>responses</code> counts model calls.</li>
             <li><b>Dates:</b> <code>YYYY-MM-DD</code> days in the collector's local time zone.</li>
-            <li><b>Every response</b> echoes <code>handle</code> and the applied <code>filters</code>.</li>
+            <li><b>Every response</b> echoes <code>handle</code> (your GitHub username) and the applied <code>filters</code>.</li>
           </ul>
         </section>
 
         <section id="filters">
-          <h2>Filters</h2>
-          <p>Accepted by every endpoint below.</p>
+          <h2>Filters (query layer)</h2>
+          <p>Accepted by every resource on <code>tokentracker.patrickbrown.dev/api/v1/users/&lt;you&gt;/…</code>. On GitHub Pages, use the range folders instead.</p>
           <table>
             <tr><th>Param</th><th>Values</th><th>Default</th></tr>
             <tr><td><code>range</code></td><td><code>all</code>, <code>ytd</code>, <code>Nd</code> (e.g. <code>30d</code>, <code>365d</code>), or a year like <code>2026</code></td><td><code>all</code></td></tr>
@@ -132,6 +169,7 @@ const { totals, rows } = await res.json();
           </table>
         </section>
 
+        <h2 id="resources" class="resources-title">Resources</h2>
         <section id="profile" class="endpoint" data-path="/users/{handle}" data-params="">
           <h2>Profile</h2>
           <p class="sig"><span class="method">GET</span> /api/v1/users/{handle}</p>
@@ -196,7 +234,9 @@ const { totals, rows } = await res.json();
           <table>
             <tr><th>Status</th><th>Codes</th></tr>
             <tr><td>400</td><td><code>bad_range</code>, <code>bad_date</code>, <code>bad_group</code>, <code>bad_split</code>, <code>bad_tools</code>, <code>bad_models</code>, <code>bad_levels</code>, <code>csv_unsupported</code></td></tr>
-            <tr><td>404</td><td><code>user_not_found</code>, <code>unknown_resource</code></td></tr>
+            <tr><td>400</td><td><code>bad_owner</code> (not a valid GitHub username)</td></tr>
+            <tr><td>404</td><td><code>user_not_found</code> (no <code>tokentracker-data</code> Pages yet), <code>unknown_resource</code></td></tr>
+            <tr><td>502</td><td><code>github_unavailable</code> (GitHub Pages didn't answer)</td></tr>
             <tr><td>405</td><td><code>method_not_allowed</code></td></tr>
           </table>
           <p>Responses are cached at the edge for 5 minutes; your repo's data updates within about an hour of use.</p>
@@ -275,16 +315,20 @@ FORMAT.md                          the data format, so it stays readable forever
           </table>
         </section>
 
-        <section id="static">
-          <h2>Static API (no server at all)</h2>
-          <p>Your repo's Action also publishes pre-built JSON to GitHub Pages, so you can skip this API entirely:</p>
-          <pre>https://&lt;you&gt;.github.io/tokentracker-data/api/v1/stats.json
-https://&lt;you&gt;.github.io/tokentracker-data/api/v1/30d/usage.json   # ranges: ytd, 30d, 90d, 365d
-https://&lt;you&gt;.github.io/tokentracker-data/api/v1/usage-month.json
-https://&lt;you&gt;.github.io/tokentracker-data/api/v1/heatmap.json
-https://&lt;you&gt;.github.io/tokentracker-data/api/v1/rows.json         # every row, for your own queries
-https://&lt;you&gt;.github.io/tokentracker-data/api/v1/index.json        # the full list</pre>
-          <p>The API above reads the same <code>rows.json</code>, so both always agree. It adds any filter, grouping and CSV, and stores nothing.</p>
+
+        <section id="troubleshooting">
+          <h2>Troubleshooting</h2>
+          <table>
+            <tr><th>Symptom</th><th>Fix</th></tr>
+            <tr><td><code>init</code> printed a code and exited (status 2)</td><td>Open <code>github.com/login/device</code>, enter the code, then run the same command again</td></tr>
+            <tr><td>API says <code>user_not_found</code></td><td>Your repo's first build hasn't finished. Check <code>github.com/&lt;you&gt;/tokentracker-data/actions</code>; it takes about a minute</td></tr>
+            <tr><td><code>status</code> says "No upload since…", or an issue "X stopped syncing" opened in your repo</td><td>Run <code>npx @bicrick/tokentracker@latest init --yes</code> on that computer. The issue closes itself</td></tr>
+            <tr><td>"No scheduler on this machine"</td><td>Minimal Linux and containers may lack cron and systemd: run <code>npx @bicrick/tokentracker sync</code> from your own scheduler</td></tr>
+            <tr><td>No Cursor data</td><td><code>npx @bicrick/tokentracker connect --cursor &lt;cursor.com username&gt;</code></td></tr>
+            <tr><td>A tool is missing or wrong</td><td><code>npx @bicrick/tokentracker connect</code>, or <code>connect --add &lt;tool&gt; &lt;path&gt;</code></td></tr>
+            <tr><td>Want to see exactly what's saved</td><td><code>npx @bicrick/tokentracker sync --dry</code></td></tr>
+          </table>
+          <p>Logs: <code>~/Library/Logs/tokentrack.log</code> (macOS), <code>~/.local/state/tokentrack/sync.log</code> (Linux), <code>%LOCALAPPDATA%\tokentrack\sync.log</code> (Windows).</p>
         </section>
 
         <section id="machine-readable">
@@ -354,6 +398,6 @@ https://&lt;you&gt;.github.io/tokentracker-data/api/v1/index.json        # the f
     }, { rootMargin: '-20% 0px -70% 0px' });
     document.querySelectorAll('.docs-body section').forEach((s) => io.observe(s));
   </script>
-  <script type="module" src="/nav.js?v=45"></script>
+  <script type="module" src="/nav.js?v=46"></script>
 </body>
 </html>

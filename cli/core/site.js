@@ -85,13 +85,14 @@ export function buildStaticApi({ handle, rows, machines, baseUrl, generatedAt = 
   };
   // Every row, so other services (like the hosted bridge) can run any query
   files['api/v1/rows.json'] = { ...meta({}), machines: machines.map((m) => ({ device: m.device, updatedAt: m.updatedAt })), rows };
+  const all = [...Object.keys(files), 'api/v1/index.json'].map((p) => p.replace(/^api\/v1\//, '').replace(/\.json$/, ''));
   files['api/v1/index.json'] = {
     name: 'tokentracker static API',
     version: 'v1',
     handle,
     generatedAt,
     note: 'Pre-built JSON. Ranges: all (default), ytd, 30d, 90d, 365d as a folder, e.g. api/v1/30d/usage.json. For any other filter use the hosted bridge.',
-    resources: Object.keys(links).sort(),
+    resources: [...new Set(all)].sort(),
   };
   return files;
 }

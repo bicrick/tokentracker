@@ -1,61 +1,53 @@
 # tokentracker
 
-> tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx @bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and saves daily totals per tool and model into a repo on the user's own GitHub (`github.com/{handle}/tokentracker-data`). The API returns that usage as JSON or CSV. There are no accounts: `{handle}` is the user's GitHub username.
+> tokentracker saves a user's AI coding token usage (daily totals per tool and model, on every machine) into a public repo on their own GitHub, `github.com/{handle}/tokentracker-data`, and publishes it as JSON on GitHub Pages. `{handle}` is the user's GitHub username, lowercase. There is no tokentracker account or database. Tools: Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code, Kilo Code, and Cursor (from its public profile).
 
 ## Install it for a user
 
-Needs Node 22.13+ and a GitHub account (nothing else to install). If the GitHub CLI isn't signed in, init signs in by code: it prints a github.com/login/device link and code and exits with status 2; show those to the user, then run the same command again to finish. First ask the user: "Do you use Cursor? If so, what's your cursor.com username?" (the CLI can't prompt when you run it). Then run non-interactively:
+Needs Node 22.13+ and a GitHub account; nothing else. Steps for an agent:
 
-    npx @bicrick/tokentracker@latest init --yes [--cursor <cursor-handle>] [--device <name>]
+1. Ask the user: "Do you use Cursor? If so, what's your cursor.com username?" (The CLI can't prompt when you run it.)
+2. Run: `npx @bicrick/tokentracker@latest init --yes` (add `--cursor <username>` if given; optionally `--device <name>`).
+3. If the GitHub CLI isn't signed in, init prints `Open https://github.com/login/device and enter XXXX-XXXX` and exits with status 2. Show the user that link and code. After they approve, run the same command again to finish.
+4. It creates or reuses `{handle}/tokentracker-data`, saves history, turns on GitHub Pages and an hourly background job. If it says "No scheduler on this machine", tell the user to run `npx @bicrick/tokentracker sync` from their own scheduler.
+5. About a minute later, check `https://{handle}.github.io/tokentracker-data/api/v1/stats.json`.
 
-It creates or reuses `{handle}/tokentracker-data`, saves history, enables GitHub Pages and an hourly background job. Re-running on the same computer is safe (no double counting). Verify with `npx @bicrick/tokentracker@latest status`, then query `/users/{handle}/stats` about a minute later. Fix a machine that stopped syncing by running the same init command on it. Connect Cursor later with `npx @bicrick/tokentracker@latest connect --cursor <username>`.
+Re-running init on the same computer is safe (it is recognised; nothing is counted twice). Add another computer by running the same command there with the same GitHub account. Connect Cursor later: `npx @bicrick/tokentracker@latest connect --cursor <username>`. Health: `npx @bicrick/tokentracker@latest status`.
 
-Base URL: https://tokentracker.patrickbrown.dev/api/v1
-Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes.
-Example user: `bicrick` (real data).
+## Read the data (GitHub Pages, no server)
 
-## Endpoints
+Base: `https://{handle}.github.io/tokentracker-data/api/v1/` — public, GET, CORS `*`, rebuilt about a minute after each hourly sync, cached up to 10 minutes.
 
-- `GET /users/{handle}`: profile summary: `totals`, `thisYear`, `tools[]`, `models` (count), `devices` (count), `firstDay`, `lastDay`, `lastSync`, `links`.
-- `GET /users/{handle}/usage`: time series. Params: `group=day|week|month|year|total` (default day; week = ISO week starting Monday), `split=tool|model` (adds `split: {key: tokens}` per row), `fill=false` (omit empty days). Returns `{group, split, totals, rows: [{period, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split?}]}`.
-- `GET /users/{handle}/models`: per model+tool rows sorted by tokens: `{model, provider, name, tool, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, share, firstUsed, lastUsed}`. Cursor has no model detail and appears as `cursor/all`.
-- `GET /users/{handle}/tools`: per tool rows: `{tool, name, tokens, …, responses, share, models, firstUsed, lastUsed}`.
-- `GET /users/{handle}/heatmap`: calendar grid. Params: `range=year|365d|90d|Nd|YYYY` (default `year` = this calendar year padded to Dec 31), `levels=2..10` (default 5), `weekStart=sun|mon`, `tools`. Returns `{range:{start,end,last}, levels, weekStart, total, max, activeDays, months:[{label, week}], weeks:[[{date, tokens, level} | null] x7]}`. Future days have `tokens: null`; cells outside the range are `null`. Levels are rank-based among active days (0 = no usage).
-- `GET /users/{handle}/stats`: totals plus `activeDays, firstDay, lastDay, busiestDay{date,tokens}, longestStreak, currentStreak, averagePerActiveDay, today, thisMonth, topTool{tool,name,tokens}, topModel{model,tool,responses,tokens}` (top model by responses).
-- `GET /users/{handle}/devices`: per machine: `{device, tools[], lastSync, tokens, …, firstUsed, lastUsed}`.
-- `GET /` (i.e. `/api/v1`): JSON index of endpoints.
+- `stats.json`: `tokens, input, output, reasoning, cacheRead, cacheWrite, responses, activeDays, firstDay, lastDay, busiestDay{date,tokens}, longestStreak, currentStreak, averagePerActiveDay, today, thisMonth, topTool{tool,name,tokens}, topModel{model,tool,responses,tokens}` (top model by responses).
+- `usage.json` (daily), `usage-week.json` (weeks start Monday), `usage-month.json`: `{group, split:"tool", totals, rows:[{period, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, split:{tool: tokens}}]}`. Daily rows include empty days.
+- `models.json`: rows `{model, provider, name, tool, tokens, input, output, reasoning, cacheRead, cacheWrite, responses, share, firstUsed, lastUsed}`, sorted by tokens. Cursor has no model detail and appears as `cursor/all`.
+- `tools.json`: rows `{tool, name, tokens, …, responses, share, models, firstUsed, lastUsed}`.
+- `devices.json`: rows `{device, tools[], lastSync, tokens, …, firstUsed, lastUsed}`.
+- `heatmap.json` (this calendar year), `heatmap-365d.json`, `heatmap-90d.json`: `{range:{start,end,last}, levels, weekStart, total, max, activeDays, months:[{label, week}], weeks:[[{date, tokens, level} | null] x7]}`. Levels 0-4 are ranked among active days; future days have `tokens: null`.
+- `profile.json`: totals, this year, tools, model and machine counts, first/last day, last sync, links.
+- `rows.json`: every daily row `{date, source, model, input, output, reasoning, cache_read, cache_write, messages, device}` plus `machines`.
+- `index.json`: every file.
 
-## Filters (all endpoints)
+Time ranges: the same files exist in folders `ytd/`, `30d/`, `90d/`, `365d/` (e.g. `30d/usage-week.json`, `ytd/models.json`). Files without a folder cover all time.
 
-- `range=all|ytd|Nd|YYYY` (default all), or `from=YYYY-MM-DD` / `to=YYYY-MM-DD` (inclusive; override range).
-- `tools=claude-code,codex` and `models=anthropic/claude-opus-5-5` (comma-separated ids).
-- `format=csv` on `usage`, `models`, `tools`, `devices` (nested `split` flattens to `split.<key>` columns).
+## Custom queries (any filter)
+
+`https://tokentracker.patrickbrown.dev/api/v1/users/{handle}/{resource}` computes from the same `rows.json` on each request and stores nothing. Resources: profile (no resource), `usage`, `models`, `tools`, `heatmap`, `stats`, `devices`.
+
+- Filters on all: `range=all|ytd|Nd|YYYY`, `from=YYYY-MM-DD`, `to=YYYY-MM-DD` (inclusive), `tools=a,b`, `models=x,y`.
+- `usage`: `group=day|week|month|year|total`, `split=tool|model`, `fill=false` (omit empty days).
+- `heatmap`: `range=year|365d|90d|Nd|YYYY`, `levels=2..10`, `weekStart=sun|mon`, `tools`.
+- `format=csv` on usage, models, tools, devices.
+- Errors: `{"error":{"code","message"}}` — 400 `bad_range|bad_date|bad_group|bad_split|bad_tools|bad_models|bad_levels|bad_owner|csv_unsupported`, 404 `user_not_found` (no Pages build yet) or `unknown_resource`, 405 `method_not_allowed`, 502 `github_unavailable`. Cached up to 5 minutes.
+
+Examples: `…/users/bicrick/usage?range=30d&group=week&split=tool`, `…/users/bicrick/models?from=2026-11-01`, `…/users/bicrick/usage?group=month&format=csv`.
 
 ## Semantics
 
-- `tokens = input + output + reasoning + cacheRead + cacheWrite`. `input` excludes cached input; `responses` counts model calls.
-- Days are `YYYY-MM-DD` in the collector's local time zone. Data is daily, not per-request.
-- Tool ids: `claude-code, codex, opencode, gemini-cli, copilot-cli, deepseek-harness, cline, roo-code, kilo-code, cursor`.
-- Model ids are `provider/name`, e.g. `anthropic/claude-opus-5-5`, `openai/gpt-5-codex`, `github-copilot/claude-opus-5.5`.
-
-## Errors
-
-`{"error": {"code": "...", "message": "..."}}` with 400 (`bad_range`, `bad_date`, `bad_group`, `bad_split`, `bad_tools`, `bad_models`, `bad_levels`, `csv_unsupported`), 404 (`user_not_found`, `unknown_resource`), 405 (`method_not_allowed`).
-
-## Examples
-
-- Tokens this year: `GET /users/bicrick/stats?range=ytd` → `.tokens`
-- Last 30 days per day: `GET /users/bicrick/usage?range=30d&group=day`
-- Monthly by tool: `GET /users/bicrick/usage?range=ytd&group=month&split=tool`
-- Top models this month: `GET /users/bicrick/models?from=2026-11-01`
-- Heatmap to render: `GET /users/bicrick/heatmap?range=year`
-- CSV export: `GET /users/bicrick/usage?group=month&format=csv`
+`tokens = input + output + reasoning + cacheRead + cacheWrite`; `input` excludes cached input; `responses` counts model calls. Dates are local calendar days on the machine. Tool ids: `claude-code, codex, opencode, gemini-cli, copilot-cli, deepseek-harness, cline, roo-code, kilo-code, cursor`. Model ids are `provider/name`.
 
 ## More
 
-- [API docs](https://tokentracker.patrickbrown.dev/docs): human-readable reference with live "try it" consoles
-- [OpenAPI 3.1 spec](https://tokentracker.patrickbrown.dev/openapi.json)
-- [Source](https://github.com/bicrick/tokentracker): MIT
-- Storage: there is no tokentracker database. Each user's data lives in their own public GitHub repo `github.com/{handle}/tokentracker-data` (handle = GitHub username), as `machines/<machine-id>/<year>.json` (format described in that repo's FORMAT.md). This API reads `https://{handle}.github.io/tokentracker-data/api/v1/rows.json` and computes every resource from it.
-- Static API, no server: `https://{handle}.github.io/tokentracker-data/api/v1/{stats|usage|usage-week|usage-month|models|tools|devices|heatmap|profile|rows|index}.json`, plus range folders `ytd/`, `30d/`, `90d/`, `365d/` (e.g. `api/v1/30d/usage.json`).
-- Privacy: collectors upload only daily token counts per tool and model, never prompts, code, paths or keys.
+- [Docs](https://tokentracker.patrickbrown.dev/docs) · [OpenAPI](https://tokentracker.patrickbrown.dev/openapi.json) (query layer) · [Source](https://github.com/bicrick/tokentracker) · [Example data repo](https://github.com/bicrick/tokentracker-data)
+- Each data repo also has its own `AGENTS.md`, `FORMAT.md` (file format), and an agent guide at `https://{handle}.github.io/tokentracker-data/llms.txt`.
+- Privacy: only daily token counts per tool and model are saved, never prompts, code, paths or keys. Deleting the repo deletes everything.

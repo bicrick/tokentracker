@@ -43,7 +43,7 @@ Ask your agent:
 Agents get everything they need from [`llms.txt`](https://tokentracker.patrickbrown.dev/llms.txt) and [`AGENTS.md`](AGENTS.md). People can read the [docs](https://tokentracker.patrickbrown.dev/docs).
 
 ```sh
-curl https://tokentracker.patrickbrown.dev/api/v1/users/<github-username>/stats
+curl https://<github-username>.github.io/tokentracker-data/api/v1/stats.json
 ```
 
 ## License

@@ -42,54 +42,42 @@ Connect or change Cursor later: `npx @bicrick/tokentracker@latest connect --curs
 (`connect --cursor` with no name disconnects it).
 
 Verify: `npx @bicrick/tokentracker@latest status` (shows repo, last upload, version), then after
-about a minute `curl https://tokentracker.patrickbrown.dev/api/v1/users/<github-user>/stats`.
+about a minute `curl https://<github-user>.github.io/tokentracker-data/api/v1/stats.json`.
 
-## Query the API
+## Read the data
 
-Base: `https://tokentracker.patrickbrown.dev/api/v1`. GET only, no auth, CORS `*`, JSON (or CSV).
-`{handle}` is the user's GitHub username, lowercase.
-
-| Endpoint | Returns |
-|---|---|
-| `/users/{handle}` | profile: totals (all time, this year), tools, model and machine counts, first/last day, last sync, links |
-| `/users/{handle}/usage` | time series. `group=day\|week\|month\|year\|total`, `split=tool\|model`, `fill=false` |
-| `/users/{handle}/models` | per model and tool: tokens, responses, share, first/last used |
-| `/users/{handle}/tools` | per tool: tokens, responses, share, model count |
-| `/users/{handle}/heatmap` | calendar grid: `range=year\|365d\|90d\|Nd\|YYYY`, `levels=2..10`, `weekStart=sun\|mon` |
-| `/users/{handle}/stats` | totals, active days, busiest day, streaks, today, this month, top tool, top model |
-| `/users/{handle}/devices` | per machine: tokens, tools, last sync |
-
-Filters on every endpoint: `range=all|ytd|Nd|YYYY`, `from=YYYY-MM-DD`, `to=YYYY-MM-DD`,
-`tools=a,b`, `models=x,y`; `format=csv` on usage, models, tools, devices.
-Errors: `{ "error": { "code", "message" } }` with 400 / 404 (`user_not_found`) / 405.
-
-Semantics: `tokens = input + output + reasoning + cacheRead + cacheWrite` (input excludes cached
-input). `responses` counts model calls. Dates are local calendar days on the machine that used them.
-Tool ids: `claude-code, codex, opencode, gemini-cli, copilot-cli, deepseek-harness, cline,
-roo-code, kilo-code, cursor`. Cursor has totals only (model `cursor/all`).
-
-Examples:
-
-```sh
-curl "$BASE/users/bicrick/stats?range=ytd"                       # this year
-curl "$BASE/users/bicrick/usage?range=30d&group=week&split=tool" # last 30 days by week and tool
-curl "$BASE/users/bicrick/models?from=2026-11-01"                # models this month
-curl "$BASE/users/bicrick/usage?group=month&format=csv"          # CSV export
-```
-
-### Without any tokentracker server
-
-Each user's repo publishes the same data as static files on GitHub Pages:
+The data is static JSON on the user's GitHub Pages; no tokentracker server is involved:
 
 ```
-https://{handle}.github.io/tokentracker-data/api/v1/{stats|usage|usage-week|usage-month|models|tools|devices|heatmap|profile}.json
-https://{handle}.github.io/tokentracker-data/api/v1/{ytd|30d|90d|365d}/{same}.json
-https://{handle}.github.io/tokentracker-data/api/v1/rows.json     every row, for custom queries
-https://{handle}.github.io/tokentracker-data/api/v1/index.json    list of files
+https://{handle}.github.io/tokentracker-data/api/v1/{stats|usage|usage-week|usage-month|models|tools|devices|heatmap|profile|rows|index}.json
+https://{handle}.github.io/tokentracker-data/api/v1/{ytd|30d|90d|365d}/{stats|usage|usage-week|usage-month|models|tools|devices}.json
+https://{handle}.github.io/tokentracker-data/api/v1/heatmap-{365d|90d}.json
 https://{handle}.github.io/tokentracker-data/llms.txt             this user's own agent guide
 ```
 
-The hosted API reads `rows.json` and computes everything from it, so both always agree.
+`{handle}` is the user's GitHub username, lowercase. Rebuilt about a minute after each hourly sync; cached up to 10 minutes.
+Field-by-field shapes: https://tokentracker.patrickbrown.dev/llms.txt
+
+### Custom queries
+
+For any other range, tool/model filter, grouping or CSV, the query layer computes from the same `rows.json`
+(GET, no auth, CORS `*`, stores nothing):
+
+| Endpoint | Returns |
+|---|---|
+| `/api/v1/users/{handle}` | profile and links |
+| `/api/v1/users/{handle}/usage` | `group=day\|week\|month\|year\|total`, `split=tool\|model`, `fill=false` |
+| `/api/v1/users/{handle}/models` | per model and tool |
+| `/api/v1/users/{handle}/tools` | per tool |
+| `/api/v1/users/{handle}/heatmap` | `range=year\|365d\|90d\|Nd\|YYYY`, `levels=2..10`, `weekStart=sun\|mon` |
+| `/api/v1/users/{handle}/stats` | totals, streaks, busiest day, top tool and model |
+| `/api/v1/users/{handle}/devices` | per machine, last sync |
+
+Base `https://tokentracker.patrickbrown.dev`. Filters on all: `range=all|ytd|Nd|YYYY`, `from`, `to`, `tools=a,b`,
+`models=x,y`; `format=csv` on usage, models, tools, devices. Errors: `{ "error": { "code", "message" } }`.
+
+Semantics: `tokens = input + output + reasoning + cacheRead + cacheWrite` (input excludes cached input). `responses`
+counts model calls. Dates are local calendar days. Cursor has totals only (model `cursor/all`).
 
 ## Data layout (in the user's repo)
 

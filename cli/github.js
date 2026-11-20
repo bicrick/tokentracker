@@ -193,24 +193,21 @@ export const AGENTS_DOC = (owner, repo) => {
 This repo holds @${h}'s AI coding token usage: daily totals per tool and model, per machine,
 written by the tokentracker CLI. Do not edit files in \`machines/\` by hand.
 
-## Answer questions with the API (no auth, GET, JSON)
+## Answer questions from the static files (GitHub Pages, no server)
 
-    ${api}                  profile and links
-    ${api}/stats            totals, active days, busiest day, streaks, today, this month, top tool and model
-    ${api}/usage            time series: group=day|week|month|year|total, split=tool|model
-    ${api}/models           per model: tokens, responses, share, first/last used
-    ${api}/tools            per tool
-    ${api}/heatmap          calendar grid (range=year|365d|90d)
-    ${api}/devices          per machine, last sync
+    ${pages}/stats.json        totals, active days, busiest day, streaks, today, this month, top tool and model
+    ${pages}/usage.json        daily usage split by tool (also usage-week.json, usage-month.json)
+    ${pages}/models.json       per model: tokens, responses, share, first/last used
+    ${pages}/tools.json        per tool
+    ${pages}/devices.json      per machine, last sync
+    ${pages}/heatmap.json      calendar grid (also heatmap-365d.json, heatmap-90d.json)
+    ${pages}/rows.json         every daily row      ${pages}/index.json   every file
 
-Filters on all: range=all|ytd|Nd|YYYY, from=YYYY-MM-DD, to=YYYY-MM-DD, tools=a,b, models=x,y,
-format=csv (usage, models, tools, devices). Example: \`${api}/usage?range=30d&group=week&split=tool\`
+Time ranges are folders: ${pages}/{ytd,30d,90d,365d}/<file>.json, e.g. ${pages}/30d/usage-week.json
 
-The same data as static files, with no tokentracker server involved:
-
-    ${pages}/stats.json  usage.json  usage-week.json  usage-month.json  models.json  tools.json
-    ${pages}/devices.json  heatmap.json  profile.json  rows.json (every row)  index.json
-    ${pages}/{ytd,30d,90d,365d}/<same>.json
+For anything else (from/to dates, tools=a,b, models=x,y, group=, split=, format=csv), the query layer computes
+from the same rows.json and stores nothing: ${api}/usage?from=2026-11-01&group=week&split=tool
+(resources: usage, models, tools, heatmap, stats, devices; profile at ${api})
 
 Semantics: tokens = input + output + reasoning + cacheRead + cacheWrite. responses = model calls.
 Dates are local days. Cursor has totals only (model "cursor/all"). Full reference:

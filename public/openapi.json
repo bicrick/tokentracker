@@ -3,7 +3,7 @@
   "info": {
     "title": "tokentracker API",
     "version": "1.0.0",
-    "description": "Public, keyless API for AI coding token usage by day, model, tool and machine. Each user's data lives in their own GitHub repo (github.com/{handle}/tokentracker-data); this API reads it and stores nothing.",
+    "description": "Query layer for tokentracker. Each user's data lives in their own public GitHub repo (github.com/{handle}/tokentracker-data) and is published as static JSON at https://{handle}.github.io/tokentracker-data/api/v1/ (stats.json, usage.json, models.json, \u2026; see llms.txt). These endpoints read the same rows.json and add any date range, tool or model filter, grouping and CSV. Nothing is stored.",
     "license": {
       "name": "MIT"
     }
