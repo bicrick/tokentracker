@@ -1138,3 +1138,8 @@ footer {
 .chat .you { color: var(--ink); }
 .chat .agent code { font-size: 12px; color: var(--ink-soft); }
 .chat .answer { color: var(--ink); }
+
+/* version next to the logo */
+.brand-wrap { display: inline-flex; align-items: baseline; gap: 10px; }
+.version { font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: none; padding: 1px 6px; border: 1px solid var(--rule-strong); }
+.version:hover { color: var(--ink); border-color: var(--ink-soft); }

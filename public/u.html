@@ -29,10 +29,14 @@
 <body>
   <div class="wrap">
     <nav>
-      <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
+      <span class="brand-wrap">
+        <a class="brand" href="/"><img src="/logo.svg" alt="" width="18" height="18">tokentracker</a>
+        <a class="version" id="version" href="https://www.npmjs.com/package/@bicrick/tokentracker?activeTab=versions" title="Latest release on npm" hidden></a>
+      </span>
       <div class="links">
         <a href="/">Get your own</a>
         <a href="/docs">Docs</a>
+        <a href="https://www.npmjs.com/package/@bicrick/tokentracker">npm ↗</a>
         <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
       </div>
     </nav>
@@ -88,5 +92,6 @@
       missing.textContent = /no tokentracker profile/i.test(err.message) ? `No profile for @${handle} yet.` : 'Could not load this profile.';
     });
   </script>
+  <script type="module" src="/nav.js?v=40"></script>
 </body>
 </html>
