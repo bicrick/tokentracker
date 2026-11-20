@@ -1116,3 +1116,6 @@ footer {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* settings: machine that stopped uploading */
+.device-list .stale, li .stale { display: block; margin-top: 4px; font-family: var(--mono); font-size: 12px; color: #e5826a; }

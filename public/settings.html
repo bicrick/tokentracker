@@ -82,6 +82,13 @@
       for (const d of me.devices) {
         const li = document.createElement('li');
         li.innerHTML = `<span class="device-name"></span><span class="muted">added ${when(d.createdAt)} · last sync ${when(d.lastUsed)}</span>`;
+        // An hourly job more than a day behind has stopped: say so, with the fix
+        if (!d.revokedAt && d.lastUsed && Date.now() - Date.parse(d.lastUsed) > 864e5) {
+          const warn = document.createElement('span');
+          warn.className = 'stale';
+          warn.textContent = 'stopped syncing · run npx @bicrick/tokentracker init on it';
+          li.append(warn);
+        }
         li.querySelector('.device-name').textContent = d.device;
         if (d.revokedAt) {
           li.classList.add('revoked');

@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectAll, CONNECTORS, resolveConnections } from './sources/index.js';
 import { installSchedule, LOG_PATH, removeSchedule, scheduleInstalled, supported as scheduleSupported } from './scheduler.js';
+import { ago, autoUpdate, healthProblem, maybeNotify, readState, recordSync } from './health.js';
 import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, spinner, sym, task } from './ui.js';
 
 const CONFIG_DIR = process.env.TOKENTRACK_CONFIG_DIR || path.join(os.homedir(), '.config', 'tokentrack');
@@ -17,6 +18,14 @@ const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker.patrickbro
 const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
 const HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;
 const RECENT_DAYS = 7;
+const FIX = 'npx @bicrick/tokentracker status';
+// This CLI's version, from its package.json (npm package or installed copy)
+const VERSION = (() => {
+  for (const p of [path.join(path.dirname(SELF), '..', 'package.json')]) {
+    try { return JSON.parse(fs.readFileSync(p, 'utf8')).version || '0.0.0'; } catch {}
+  }
+  return '0.0.0';
+})();
 
 // node:sqlite is stable enough for read-only use; hide its experimental warning
 const emitWarning = process.emitWarning.bind(process);
@@ -105,7 +114,7 @@ async function upload(config, { sources, rows }, { full = false } = {}) {
     ...(since ? { since } : {}),
   };
   const res = await api(config.server, '/api/ingest', { method: 'POST', key: config.key, body });
-  if (!res.ok) throw new Error(res.json.error || `upload failed (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error(res.json.error || `upload failed (${res.status})`), { status: res.status });
   const updates = incremental ? {} : { fullSyncAt: new Date().toISOString() };
   // Configs from older versions don't know their handle; learn it once
   if (!config.handle) {
@@ -205,13 +214,29 @@ async function sync(flags) {
   // Background runs log plain lines; interactive runs get spinners
   if (!isTTY) {
     const summary = data.report.filter((r) => !r.skipped).map((r) => `${r.id}=${r.error ? 'error' : formatTokens(r.tokens)}`).join(' ');
+    let failed = false;
     try {
       const res = await upload(config, data, { full: !!flags.full });
-      line(`[${new Date().toISOString()}] sync ok ${summary} rows=${res.rows}${res.since ? ` since=${res.since}` : ' full'}`);
+      recordSync(CONFIG_DIR, { ok: true });
+      line(`[${new Date().toISOString()}] sync ok v${VERSION} ${summary} rows=${res.rows}${res.since ? ` since=${res.since}` : ' full'}`);
     } catch (err) {
-      line(`[${new Date().toISOString()}] sync failed ${summary}: ${networkHint(err)}`);
-      process.exit(1);
+      failed = true;
+      const signedOut = err.status === 401;
+      const reason = signedOut ? 'this machine was signed out' : networkHint(err);
+      const state = recordSync(CONFIG_DIR, { ok: false, error: reason, signedOut });
+      line(`[${new Date().toISOString()}] sync failed v${VERSION} ${summary}: ${reason}`);
+      if (maybeNotify(CONFIG_DIR, state, signedOut ? 'npx @bicrick/tokentracker init' : FIX)) line(`[${new Date().toISOString()}] notified the user`);
     }
+    // The background copy keeps itself current (at most one check a day)
+    if (path.dirname(SELF) === path.join(INSTALL_DIR, 'cli')) {
+      try {
+        const v = await autoUpdate({ configDir: CONFIG_DIR, installDir: INSTALL_DIR, current: VERSION });
+        if (v) line(`[${new Date().toISOString()}] updated ${VERSION} -> ${v}`);
+      } catch (err) {
+        line(`[${new Date().toISOString()}] update skipped: ${err.message}`);
+      }
+    }
+    if (failed) process.exit(1);
     return;
   }
 
@@ -470,7 +495,7 @@ function copyCli() {
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   fs.cpSync(src, dest, { recursive: true });
   // node needs to know these are ES modules
-  fs.writeFileSync(path.join(INSTALL_DIR, 'package.json'), '{ "type": "module" }\n');
+  fs.writeFileSync(path.join(INSTALL_DIR, 'package.json'), `${JSON.stringify({ type: 'module', version: VERSION })}\n`);
   return path.join(dest, 'tokentrack.js');
 }
 
@@ -560,6 +585,11 @@ function status() {
   row('server', config.server || c.gray('-'));
   row('machine', config.device || defaultDevice());
   row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(tokentrack install)')}`);
+  const state = readState(CONFIG_DIR);
+  const problem = healthProblem(state);
+  if (problem) row('uploads', `${sym.fail} ${c.red(problem)}`);
+  else if (state.lastSuccess) row('uploads', `${sym.ok} last upload ${ago(Date.now() - Date.parse(state.lastSuccess))}`);
+  row('version', VERSION);
   row('config', tildify(CONFIG_PATH));
   if (config.server && config.handle) row('profile', c.blue(new URL(`/u/${config.handle}`, config.server).toString()));
   line(`\n  ${c.gray('tools')}`);
