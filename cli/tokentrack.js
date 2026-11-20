@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectAll, CONNECTORS, resolveConnections } from './sources/index.js';
 import { installSchedule, LOG_PATH, removeSchedule, scheduleInstalled, supported as scheduleSupported } from './scheduler.js';
-import { buildSite, checkMachines, DATA_REPO, ensureDataRepo, githubToken, pagesUrl, refreshWorkflow, uploadMachine } from './github.js';
+import { buildSite, checkMachines, DATA_REPO, ensureDataRepo, githubToken, pagesUrl, pollDeviceLogin, refreshWorkflow, startDeviceLogin, uploadMachine } from './github.js';
 import { ago, autoUpdate, healthProblem, markWorkflowChecked, maybeNotify, readState, recordSync } from './health.js';
 import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, spinner, sym, task } from './ui.js';
 
@@ -94,7 +94,7 @@ function daysAgo(n) {
 // ask the server to replace just that window, which keeps syncs small.
 async function upload(config, { sources, rows }) {
   const token = githubToken(config);
-  if (!token) throw Object.assign(new Error('no GitHub login found (run gh auth login, or set TOKENTRACK_GITHUB_TOKEN)'), { status: 401 });
+  if (!token) throw Object.assign(new Error('no GitHub login found (run npx @bicrick/tokentracker init to sign in again)'), { status: 401 });
   const target = { owner: config.github.owner, repo: config.github.repo };
   const save = () => uploadMachine(token, { ...target, machineId: machineId().slice(0, 16), device: config.device || defaultDevice(), sources, rows });
   let res;
@@ -242,6 +242,71 @@ async function sync(flags) {
     });
 }
 
+// ─── sign in ───────────────────────────────────────────────────────────────────
+
+const PENDING = path.join(CONFIG_DIR, 'signin.json');
+
+function openBrowser(url) {
+  try {
+    if (process.platform === 'darwin') execFileSync('/usr/bin/open', [url], { stdio: 'ignore' });
+    else if (process.platform === 'win32') execFileSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore' });
+    else execFileSync('xdg-open', [url], { stdio: 'ignore' });
+  } catch {}
+}
+
+/**
+ * Sign in with GitHub by code. In a terminal: show the code, open the
+ * browser, wait. For agents and scripts (no terminal): print the code, save
+ * the pending sign-in and exit, so the agent can show the user; running init
+ * again finishes it.
+ */
+async function signInWithGitHub() {
+  let pending = null;
+  try {
+    pending = JSON.parse(fs.readFileSync(PENDING, 'utf8'));
+    if (Date.now() > pending.startedAt + (pending.expires_in || 900) * 1000 - 30_000) pending = null;
+  } catch {}
+
+  const show = (p) => {
+    line(`  ${c.bold('Sign in to GitHub')} ${c.gray('(creates and updates your tokentracker-data repo, nothing else)')}`);
+    line(`  ${sym.arrow} Open ${c.blue(c.under(p.verification_uri))} and enter ${c.bold(p.user_code)}`);
+  };
+
+  if (!pending) {
+    pending = await startDeviceLogin().catch((err) => { line(`  ${sym.fail} ${networkHint(err)}`); process.exit(1); });
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(PENDING, JSON.stringify(pending), { mode: 0o600 });
+  }
+  show(pending);
+
+  if (!isTTY) {
+    // Give a quick chance in case the code was already entered, then hand over
+    const token = await pollDeviceLogin(pending, { maxWaitMs: 20_000 }).catch(() => null);
+    if (token) {
+      fs.rmSync(PENDING, { force: true });
+      line(`  ${sym.ok} Signed in`);
+      return token;
+    }
+    line();
+    line(`  ${c.bold('Waiting for GitHub sign-in.')} Ask the user to open ${pending.verification_uri} and enter ${pending.user_code},`);
+    line(`  then run this same command again to finish. The code is valid for ${Math.round((pending.expires_in || 900) / 60)} minutes.`);
+    process.exit(2);
+  }
+
+  openBrowser(pending.verification_uri);
+  const wait = spinner(`Waiting for you to enter the code ${c.gray('(ctrl+c to cancel)')}`);
+  try {
+    const token = await pollDeviceLogin(pending);
+    fs.rmSync(PENDING, { force: true });
+    wait.succeed('Signed in to GitHub');
+    return token;
+  } catch (err) {
+    fs.rmSync(PENDING, { force: true });
+    wait.fail(`${err.message}. Run init again.`);
+    process.exit(1);
+  }
+}
+
 // ─── init ──────────────────────────────────────────────────────────────────────
 
 async function init(flags) {
@@ -285,18 +350,11 @@ async function init(flags) {
 
   // 4. Your GitHub: the data repo is the account
   line();
-  let token = githubToken();
-  if (!token && isTTY) {
-    line(`  ${c.bold('Sign in to GitHub')}`);
-    line(`  ${c.gray('Your usage is stored in a')} ${c.blue(DATA_REPO)} ${c.gray('repo on your own GitHub. Either:')}`);
-    line(`  ${sym.dot} install the GitHub CLI and run ${c.blue('gh auth login')}, then run init again, or`);
-    line(`  ${sym.dot} paste a token from ${c.blue('https://github.com/settings/tokens/new?scopes=repo,workflow&description=tokentracker')}`);
-    token = (await input('GitHub token', { placeholder: 'ghp_… (enter to quit)' })) || null;
-    if (token) process.env.TOKENTRACK_GITHUB_TOKEN = token;
-  }
+  let token = githubToken(existing);
+  let signedIn = false;
   if (!token) {
-    line(`  ${sym.fail} No GitHub login found. Run ${c.blue('gh auth login')} (or set TOKENTRACK_GITHUB_TOKEN), then run init again.`);
-    process.exit(1);
+    token = await signInWithGitHub();
+    signedIn = true;
   }
   const prevRepo = existing.storage === 'github' && !flags.reset ? existing.github : null;
   const cursorHandle = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
@@ -314,7 +372,8 @@ async function init(flags) {
     device,
     machineId: machineId(),
     connections: connectionSettings,
-    ...(process.env.TOKENTRACK_GITHUB_TOKEN && !process.env.GITHUB_TOKEN && token === process.env.TOKENTRACK_GITHUB_TOKEN && !existing.token ? { token } : existing.token ? { token: existing.token } : {}),
+    // A sign-in token is saved for the hourly job; gh and env logins are looked up fresh each run
+    ...(signedIn ? { token } : existing.token ? { token: existing.token } : {}),
   });
   const config = readConfig();
 
@@ -511,7 +570,8 @@ const HELP = `
     --cursor <handle>   --device <name>   --reset   --no-install   --yes (accept detected tools)
 
   ${c.bold('GitHub login')}
-    Uses the GitHub CLI login (gh auth login) or TOKENTRACK_GITHUB_TOKEN.
+    init signs you in with a code (github.com/login/device), or uses the gh CLI login
+    or TOKENTRACK_GITHUB_TOKEN. Without a terminal it prints the code and exits 2; run init again to finish.
     To delete everything, delete your ${DATA_REPO} repo and run tokentrack uninstall.
 `;
 

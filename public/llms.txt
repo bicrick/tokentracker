@@ -4,7 +4,7 @@
 
 ## Install it for a user
 
-Needs Node 22.13+ and a GitHub login (`gh auth login`, or `TOKENTRACK_GITHUB_TOKEN` with repo + workflow scopes). First ask the user: "Do you use Cursor? If so, what's your cursor.com username?" (the CLI can't prompt when you run it). Then run non-interactively:
+Needs Node 22.13+ and a GitHub account (nothing else to install). If the GitHub CLI isn't signed in, init signs in by code: it prints a github.com/login/device link and code and exits with status 2; show those to the user, then run the same command again to finish. First ask the user: "Do you use Cursor? If so, what's your cursor.com username?" (the CLI can't prompt when you run it). Then run non-interactively:
 
     npx @bicrick/tokentracker@latest init --yes [--cursor <cursor-handle>] [--device <name>]
 

@@ -28,7 +28,7 @@ Ask your agent:
 
 > Install tokentracker for me: run `npx @bicrick/tokentracker init`
 
-Or run it yourself (Node 22.13+, signed into the [GitHub CLI](https://cli.github.com)):
+Or run it yourself (Node 22.13+; you'll sign in to GitHub with a code):
 
 ```sh
 npx @bicrick/tokentracker init

@@ -97,7 +97,7 @@ const { totals, rows } = await res.json();
           <ol>
             <li>Finds the AI tools on this machine and shows what it found before anything is sent.</li>
             <li>You choose which tools to track.</li>
-            <li>Uses your GitHub login (the <code>gh</code> CLI, or a token you paste) to create a public <code>tokentracker-data</code> repo on your GitHub.</li>
+            <li>Signs you in to GitHub with a code (or uses the <code>gh</code> CLI if you have it) and creates a public <code>tokentracker-data</code> repo on your GitHub. The sign-in can only touch public repos and workflows.</li>
             <li>Saves your history there and turns on an hourly background sync (no admin rights).</li>
           </ol>
           <p>Your handle is your GitHub username. On each additional computer, run the same command while signed into the same GitHub; totals from all machines combine. There is no tokentracker account.</p>

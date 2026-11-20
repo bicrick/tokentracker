@@ -6,8 +6,13 @@ This file tells an agent how to install it, query it, and fix it. Humans: see RE
 
 ## Install for the user
 
-Requirements: Node 22.13+ and a GitHub login (the GitHub CLI `gh auth login`, or a token in
-`TOKENTRACK_GITHUB_TOKEN` with `repo` and `workflow` scopes).
+Requirements: Node 22.13+ and a GitHub account. Nothing else to install.
+
+GitHub sign-in: if the GitHub CLI is signed in, that login is used. Otherwise `init` signs in
+by code: it prints `Open https://github.com/login/device and enter XXXX-XXXX`, saves the pending
+sign-in and exits with status 2. **Show the user that link and code**, wait for them to approve,
+then run the same `init` command again to finish. The sign-in only allows public repos and
+workflows, does not expire, and is saved for the hourly sync. (`TOKENTRACK_GITHUB_TOKEN` also works.)
 
 ```sh
 npx @bicrick/tokentracker init
@@ -102,7 +107,8 @@ Writes merge and never delete, so history survives tools pruning their logs.
 | Symptom | Fix |
 |---|---|
 | `status` shows "No upload since…" | run `npx @bicrick/tokentracker@latest init --yes` on that machine |
-| "No GitHub login found" | `gh auth login`, or export `TOKENTRACK_GITHUB_TOKEN` |
+| `init` exited with status 2 and a code | show the user the link and code, then run `init` again |
+| GitHub login expired or was revoked | run `init --yes` again to sign in by code |
 | API returns `user_not_found` | the repo's first Action run hasn't finished; check `github.com/<user>/tokentracker-data/actions` |
 | An issue "X stopped syncing" appeared in the data repo | run `init --yes` on machine X; the issue closes itself |
 | Wrong or missing tool | `npx @bicrick/tokentracker connect`, or `connect --add <tool> <path>` |

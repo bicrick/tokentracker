@@ -16,6 +16,10 @@ import { fetchCursorDaily } from './core/cursor-profile.js';
 import { buildStaticApi, toQueryRows } from './core/site.js';
 
 export const DATA_REPO = 'tokentracker-data';
+// tokentracker's GitHub OAuth app (device flow, no client secret). Public by design.
+export const CLIENT_ID = process.env.TOKENTRACK_GITHUB_CLIENT_ID || 'Ov23liqz1LHTOQMSNiss';
+// Enough to create and write one public repo and its workflow; never private repos
+export const SCOPES = 'public_repo workflow';
 export const FORMAT = 1;
 export const WORKFLOW_VERSION = 1;
 const API = 'https://api.github.com';
@@ -28,7 +32,7 @@ const today = () => iso(new Date());
 export function githubToken(config = {}) {
   if (process.env.TOKENTRACK_GITHUB_TOKEN) return process.env.TOKENTRACK_GITHUB_TOKEN;
   if (config.token) return config.token;
-  for (const gh of ['gh', '/opt/homebrew/bin/gh', '/usr/local/bin/gh', '/usr/bin/gh']) {
+  for (const gh of process.env.TOKENTRACK_NO_GH ? [] : ['gh', '/opt/homebrew/bin/gh', '/usr/local/bin/gh', '/usr/bin/gh']) {
     try {
       const t = execFileSync(gh, ['auth', 'token'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 }).trim();
       if (t) return t;
@@ -538,4 +542,47 @@ export async function checkMachines({ repoDir, token = process.env.GITHUB_TOKEN,
   }
   log(`stale: ${stale.map((m) => m.device).join(', ') || 'none'} · opened ${opened.length} · closed ${closed.length}`);
   return { stale: stale.map((m) => m.device), opened, closed };
+}
+
+// ─── sign in with GitHub (device flow) ────────────────────────────────────────
+
+async function oauth(route, params) {
+  const res = await fetch(`https://github.com${route}`, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'tokentracker' },
+    body: new URLSearchParams(params).toString(),
+  });
+  return res.json().catch(() => ({}));
+}
+
+/** Start a sign-in: returns { device_code, user_code, verification_uri, expires_in, interval }. */
+export async function startDeviceLogin() {
+  const r = await oauth('/login/device/code', { client_id: CLIENT_ID, scope: SCOPES });
+  if (!r.device_code) throw new Error(`GitHub sign-in could not start (${r.error_description || r.error || 'no response'})`);
+  return { ...r, startedAt: Date.now() };
+}
+
+/**
+ * Wait for the user to enter the code. Resolves to the token, or null if
+ * `maxWaitMs` passes first (the sign-in stays valid until it expires).
+ * Throws if the code expired or the user said no.
+ */
+export async function pollDeviceLogin(pending, { maxWaitMs = Infinity } = {}) {
+  let interval = (pending.interval || 5) * 1000;
+  const expiresAt = pending.startedAt + (pending.expires_in || 900) * 1000;
+  const giveUpAt = Math.min(expiresAt, Date.now() + maxWaitMs);
+  for (;;) {
+    const r = await oauth('/login/oauth/access_token', {
+      client_id: CLIENT_ID,
+      device_code: pending.device_code,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+    }).catch(() => ({ error: 'authorization_pending' }));
+    if (r.access_token) return r.access_token;
+    if (r.error === 'slow_down') interval += 5000;
+    else if (r.error === 'expired_token' || Date.now() > expiresAt) throw Object.assign(new Error('the sign-in code expired'), { code: 'expired' });
+    else if (r.error === 'access_denied') throw Object.assign(new Error('sign-in was cancelled on GitHub'), { code: 'denied' });
+    else if (r.error && r.error !== 'authorization_pending') throw new Error(`GitHub sign-in failed (${r.error_description || r.error})`);
+    if (Date.now() + interval > giveUpAt) return null;
+    await new Promise((res) => setTimeout(res, interval));
+  }
 }
