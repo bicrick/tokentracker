@@ -7,14 +7,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectAll, CONNECTORS, resolveConnections } from './sources/index.js';
 import { installSchedule, LOG_PATH, removeSchedule, scheduleInstalled, supported as scheduleSupported } from './scheduler.js';
-import { buildSite, checkMachines, DATA_REPO, ensureDataRepo, githubToken, pagesUrl, pollDeviceLogin, refreshWorkflow, startDeviceLogin, uploadMachine } from './github.js';
+import { buildSite, checkMachines, DATA_REPO, shareSnippets, ensureDataRepo, githubToken, pagesUrl, pollDeviceLogin, refreshWorkflow, startDeviceLogin, uploadMachine } from './github.js';
 import { ago, autoUpdate, healthProblem, markWorkflowChecked, maybeNotify, readState, recordSync } from './health.js';
 import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, spinner, sym, task } from './ui.js';
 
 const CONFIG_DIR = process.env.TOKENTRACK_CONFIG_DIR || path.join(os.homedir(), '.config', 'tokentrack');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 const SELF = fileURLToPath(import.meta.url);
-const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker.patrickbrown.dev';
 // Stable copy of the CLI for the background job, so it survives npx cache cleanup
 const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
 const RECENT_DAYS = 7;
@@ -395,21 +394,19 @@ async function init(flags) {
   }
 
   // 6. Done
-  const handle = repo.owner.toLowerCase();
-  const api = new URL(`/api/v1/users/${handle}`, HOSTED).toString();
+  const share = shareSnippets(repo.owner, repo.repo);
   line();
   box([
     `${sym.ok} ${c.bold("You're all set")}`,
     '',
-    `${c.gray('profile ')} ${c.blue(c.under(new URL(`/u/${handle}`, HOSTED).toString()))}`,
-    `${c.gray('api     ')} ${api}`,
-    `${c.gray('static  ')} ${repo.url}/api/v1/stats.json`,
+    `${c.gray('page    ')} ${c.blue(c.under(share.page))}`,
+    `${c.gray('api     ')} ${share.api}`,
     `${c.gray('data    ')} https://github.com/${repo.owner}/${repo.repo}`,
   ], { pad: 2 });
   line();
   line(`  ${c.bold('Next')}`);
-  line(`  ${sym.dot} Your API is live in about a minute, once the repo's ${c.italic('tokentracker')} Action finishes`);
-  line(`  ${sym.dot} Query it: ${c.blue(`curl ${api}/stats`)}`);
+  line(`  ${sym.dot} Your page and API go live in about a minute, once the repo's ${c.italic('tokentracker')} Action finishes`);
+  line(`  ${sym.dot} Share it: ${c.blue('npx @bicrick/tokentracker share')} ${c.gray('(your link and a live README badge)')}`);
   line(`  ${sym.dot} Another machine: run ${c.blue('npx @bicrick/tokentracker init')} there, signed into the same GitHub`);
   line(`  ${sym.dot} See exactly what gets saved: ${c.blue('npx @bicrick/tokentracker sync --dry')}`);
   if (!cursorHandle && !repo.cursorHandle) {
@@ -417,6 +414,28 @@ async function init(flags) {
     line(`  ${sym.dot} Cursor not connected. If you use Cursor (an agent should ask the user), run:`);
     line(`    ${c.blue('npx @bicrick/tokentracker@latest connect --cursor <cursor.com username>')}`);
   }
+  line();
+}
+
+function share() {
+  const config = readConfig();
+  if (!config.github?.owner) {
+    line(`\n  Not set up yet. Run ${c.blue('npx @bicrick/tokentracker init')} first.\n`);
+    process.exitCode = 1;
+    return;
+  }
+  const s = shareSnippets(config.github.owner, config.github.repo);
+  line();
+  line(`  ${c.bold('Your page')}      ${c.blue(s.page)}`);
+  line(`  ${c.bold('Your API')}       ${s.api}`);
+  line();
+  line(`  ${c.bold('README badge')} ${c.gray('(live: shows your tokens this year)')}`);
+  line(`  ${s.markdown}`);
+  line();
+  line(`  ${c.bold('HTML badge')}`);
+  line(`  ${s.html}`);
+  line();
+  line(`  ${c.gray(`Every number is in a public repo, and every change is in its history: ${s.history}`)}`);
   line();
 }
 
@@ -541,8 +560,9 @@ function status() {
   row('version', VERSION);
   row('config', tildify(CONFIG_PATH));
   if (config.storage === 'github') {
-    row('api', c.blue(new URL(`/api/v1/users/${config.handle}`, HOSTED).toString()));
-    row('static', c.gray(`${pagesUrl(config.github.owner, config.github.repo)}/api/v1/`));
+    const sh = shareSnippets(config.github.owner, config.github.repo);
+    row('page', c.blue(sh.page));
+    row('api', c.gray(sh.api));
   }
   line(`\n  ${c.gray('tools')}`);
   for (const conn of resolveConnections(config)) {
@@ -565,6 +585,7 @@ const HELP = `
     connect                    choose tools, add folders, connect Cursor
     sync [--dry]               save daily totals now (--dry prints exactly what is saved)
     status                     machine, repo, last upload and recent syncs
+    share                      your page link and a live README badge
     install                    sync hourly in the background (macOS, Linux, Windows)
     uninstall                  stop background sync
     build                      build the static API in a ${DATA_REPO} checkout (its Action runs this)
@@ -590,6 +611,7 @@ switch (command) {
   case 'install': install(); break;
   case 'uninstall': uninstall(); break;
   case 'status': status(); break;
+  case 'share': share(); break;
   case 'check': await checkMachines({ repoDir: flags.repo && flags.repo !== true ? flags.repo : '.', log: (m) => line(`  ${m}`) }); break;
   case 'build': await buildSite({ repoDir: flags.repo && flags.repo !== true ? flags.repo : '.', outDir: flags.out && flags.out !== true ? flags.out : '_site', owner: flags.owner && flags.owner !== true ? flags.owner : undefined, log: (m) => line(`  ${m}`) }); break;
   default: line(HELP);

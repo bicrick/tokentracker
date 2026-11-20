@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-  <link rel="stylesheet" href="/style.css?v=49">
-  <link rel="stylesheet" href="/mobile.css?v=49" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=50">
+  <link rel="stylesheet" href="/mobile.css?v=50" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -47,6 +47,7 @@
         <a href="#introduction">Introduction</a>
         <a href="#quickstart">Quickstart</a>
         <a href="#install">Install</a>
+        <a href="#share">Share</a>
         <p>API</p>
         <a href="#static">Overview</a>
         <a href="#stats">stats.json</a>
@@ -109,6 +110,15 @@ const { totals, rows } = await res.json();
           <p>Ask: <q>Install tokentracker for me.</q> The agent asks whether you use Cursor, runs
             <code>npx @bicrick/tokentracker@latest init --yes</code>, shows you the GitHub sign-in code (init exits with status 2 while it waits), then runs the same command again to finish.
             Agents get everything from <a href="/llms.txt">llms.txt</a>.</p>
+        </section>
+
+        <section id="share">
+          <h2>Share</h2>
+          <p>Your page is <code>https://&lt;you&gt;.github.io/tokentracker-data/</code>: a heatmap, monthly chart, numbers and top models, with copy buttons for the link and a badge. Or in a terminal:</p>
+          <pre>npx @bicrick/tokentracker share</pre>
+          <p>It prints your link and a live badge for your GitHub profile README, which shows your tokens this year and updates by itself:</p>
+          <pre>[![AI tokens this year](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2F&lt;you&gt;.github.io%2Ftokentracker-data%2Fapi%2Fv1%2Fytd%2Fstats.json&amp;query=%24.display.tokens&amp;label=AI%20tokens%20this%20year&amp;color=f0c463&amp;labelColor=121317&amp;style=flat-square)](https://&lt;you&gt;.github.io/tokentracker-data/)</pre>
+          <p>Numbers are self-reported, but they're public and versioned: every sync is a commit in your repo, so any change to past days shows up in its history.</p>
         </section>
 
         <section id="static">
@@ -237,6 +247,7 @@ FORMAT.md                          the data format, so it stays readable forever
             <tr><td><code>init</code></td><td>Guided setup</td></tr>
             <tr><td><code>connect</code></td><td>Choose tools, add custom folders, connect Cursor</td></tr>
             <tr><td><code>sync [--dry]</code></td><td>Save now; <code>--dry</code> prints exactly what is saved</td></tr>
+            <tr><td><code>share</code></td><td>Your page link and a live README badge</td></tr>
             <tr><td><code>status</code></td><td>Repo, machine, last upload, tools and recent syncs</td></tr>
             <tr><td><code>install</code> / <code>uninstall</code></td><td>Background sync on or off</td></tr>
             <tr><td><code>build</code> / <code>check</code></td><td>Run by your repo's Action: build the static API, flag quiet machines</td></tr>
@@ -334,6 +345,6 @@ FORMAT.md                          the data format, so it stays readable forever
     }, { rootMargin: '-20% 0px -70% 0px' });
     document.querySelectorAll('.docs-body section').forEach((s) => io.observe(s));
   </script>
-  <script type="module" src="/nav.js?v=49"></script>
+  <script type="module" src="/nav.js?v=50"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@ Needs Node 22.13+ and a GitHub account; nothing else. Steps for an agent:
 2. Run: `npx @bicrick/tokentracker@latest init --yes` (add `--cursor <username>` if given; optionally `--device <name>`, a label shown only on that computer).
 3. If the GitHub CLI isn't signed in, init prints `Open https://github.com/login/device and enter XXXX-XXXX` and exits with status 2. Show the user that link and code. After they approve, run the same command again to finish.
 4. It creates or reuses `{handle}/tokentracker-data`, saves history, turns on GitHub Pages and an hourly background job. If it says "No scheduler on this machine", tell the user to run `npx @bicrick/tokentracker sync` from their own scheduler.
-5. About a minute later, check `https://{handle}.github.io/tokentracker-data/api/v1/stats.json`.
+5. About a minute later, check `https://{handle}.github.io/tokentracker-data/api/v1/stats.json`. Give the user their page, `https://{handle}.github.io/tokentracker-data/`, and offer the badge from `npx @bicrick/tokentracker share` for their GitHub profile README.
 
 Re-running init on the same computer is safe (it is recognised; nothing is counted twice). Add another computer by running the same command there with the same GitHub account. Connect Cursor later: `npx @bicrick/tokentracker@latest connect --cursor <username>`. Health: `npx @bicrick/tokentracker@latest status`.
 

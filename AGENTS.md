@@ -41,6 +41,8 @@ id, so nothing is counted twice. On another computer, run the same command with 
 Connect or change Cursor later: `npx @bicrick/tokentracker@latest connect --cursor <username>`
 (`connect --cursor` with no name disconnects it).
 
+Share: `npx @bicrick/tokentracker@latest share` prints the user's page (`https://<github-user>.github.io/tokentracker-data/`) and a live README badge; offer it when setup finishes.
+
 Verify: `npx @bicrick/tokentracker@latest status` (shows repo, last upload, version), then after
 about a minute `curl https://<github-user>.github.io/tokentracker-data/api/v1/stats.json`.
 
@@ -109,7 +111,7 @@ Stop syncing: `npx @bicrick/tokentracker uninstall`. Delete everything: delete t
 
 ## Commands
 
-`init`, `connect`, `sync [--dry]`, `status`, `install`, `uninstall`, and (run by the data repo's
+`init`, `connect`, `sync [--dry]`, `status`, `share`, `install`, `uninstall`, and (run by the data repo's
 Action) `build --repo . --out _site` and `check --repo .`.
 
 ## Working on this repo

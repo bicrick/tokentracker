@@ -15,7 +15,8 @@ import path from 'node:path';
 import { fetchCursorDaily } from './core/cursor-profile.js';
 import { buildStaticApi, toQueryRows } from './core/site.js';
 
-export const DATA_REPO = 'tokentracker-data';
+// TOKENTRACK_REPO is only for end-to-end tests (a throwaway repo next to the real one)
+export const DATA_REPO = process.env.TOKENTRACK_REPO || 'tokentracker-data';
 // tokentracker's GitHub OAuth app (device flow, no client secret). Public by design.
 export const CLIENT_ID = process.env.TOKENTRACK_GITHUB_CLIENT_ID || 'Ov23liqz1LHTOQMSNiss';
 // Enough to create and write one public repo and its workflow; never private repos
@@ -154,13 +155,27 @@ jobs:
         uses: actions/deploy-pages@v4
 `;
 
+/** Everything a user needs to share their page: link, live badge (Markdown and HTML). */
+export function shareSnippets(owner, repo = DATA_REPO) {
+  const page = `${pagesUrl(owner, repo).replace(/\/$/, '')}/`;
+  const img = `https://img.shields.io/badge/dynamic/json?url=${encodeURIComponent(`${page}api/v1/ytd/stats.json`)}&query=${encodeURIComponent('$.display.tokens')}&label=${encodeURIComponent('AI tokens this year')}&color=f0c463&labelColor=121317&style=flat-square&cacheSeconds=3600`;
+  return {
+    page,
+    api: `${page}api/v1/stats.json`,
+    history: `https://github.com/${owner}/${repo}/commits/main`,
+    badgeImage: img,
+    markdown: `[![AI tokens this year](${img})](${page})`,
+    html: `<a href="${page}"><img alt="AI tokens this year" src="${img}"></a>`,
+  };
+}
+
 const README = (owner, repo) => {
   const h = owner.toLowerCase();
   const pages = pagesUrl(owner, repo);
   // Live numbers drawn by shields.io from this repo's own Pages JSON (no server)
   const badge = (label, path, field, color) => `<img alt="${label}" src="https://img.shields.io/badge/dynamic/json?url=${encodeURIComponent(`${pages}/api/v1/${path}`)}&query=${encodeURIComponent(`$.display.${field}`)}&label=${encodeURIComponent(label)}&color=${color}&style=flat-square&cacheSeconds=3600">`;
   return `<p align="center">
-  <a href="https://tokentracker.patrickbrown.dev/u/${h}"><img src="https://raw.githubusercontent.com/bicrick/tokentracker/main/docs/assets/banner.png" alt="tokentracker" width="100%"></a>
+  <a href="${pages}/"><img src="https://raw.githubusercontent.com/bicrick/tokentracker/main/docs/assets/banner.png" alt="tokentracker" width="100%"></a>
 </p>
 
 <p align="center">
@@ -170,8 +185,8 @@ const README = (owner, repo) => {
 </p>
 
 <p align="center">
-  <a href="https://tokentracker.patrickbrown.dev/u/${h}">Profile</a> ·
-  <a href="https://tokentracker.patrickbrown.dev/api/v1/users/${h}">API</a> ·
+  <a href="${pages}/">Page</a> ·
+  <a href="${pages}/api/v1/index.json">API</a> ·
   <a href="AGENTS.md">For agents</a>
 </p>
 
@@ -279,7 +294,7 @@ export async function ensureDataRepo(token, { cursorHandle = null, owner: knownO
       has_issues: true,
       has_wiki: false,
       has_projects: false,
-      homepage: `${pagesUrl(owner)}/api/v1/`,
+      homepage: `${pagesUrl(owner, repo)}/`,
     });
     if (!r.ok) throw fail(`could not create ${owner}/${repo}`, r);
     created = true;
@@ -292,7 +307,7 @@ export async function ensureDataRepo(token, { cursorHandle = null, owner: knownO
   // Repo page details: description, profile link and topics (tags)
   await gh(token, 'PATCH', `/repos/${owner}/${repo}`, {
     description: `@${owner.toLowerCase()}'s AI coding token usage, as an API · tokentracker`,
-    homepage: `https://tokentracker.patrickbrown.dev/u/${owner.toLowerCase()}`,
+    homepage: `${pagesUrl(owner, repo)}/`,
   });
   await gh(token, 'PUT', `/repos/${owner}/${repo}/topics`, { names: ['tokentracker', 'tokentracker-data', 'ai-usage', 'token-usage', 'llm', 'claude-code'] });
 
@@ -447,6 +462,8 @@ const PAGE = (owner, repo) => `<!doctype html><html lang="en"><head><meta charse
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@${esc(owner)} · AI token usage</title>
 <meta name="description" content="@${esc(owner)}'s AI coding token usage, tracked by tokentracker.">
+<meta property="og:title" content="@${esc(owner)} · AI token usage"><meta property="og:description" content="Daily AI coding token usage by tool and model, stored in @${esc(owner)}'s GitHub.">
+<meta property="og:image" content="https://tokentracker.patrickbrown.dev/og.png"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="https://tokentracker.patrickbrown.dev/favicon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#121317;--ink:#ecece8;--soft:#b9bbc2;--muted:#8b8e97;--rule:#24262d;--rule2:#33363f;--blue:#6b9eff;--gold:#f0c463;
@@ -461,6 +478,8 @@ nav a{color:var(--soft);text-decoration:none;margin-left:18px}nav a:hover{color:
 h1{font-size:15px;font-weight:600;margin:40px 0 4px;color:var(--soft)}
 .big{font-size:clamp(44px,9vw,76px);font-weight:650;letter-spacing:-.03em;line-height:1.05;margin:0}
 .sub{color:var(--muted);font-size:13px;margin:6px 0 28px}
+button{font:12px ui-monospace,Menlo,monospace;color:var(--soft);background:transparent;border:1px solid var(--rule2);padding:5px 9px;cursor:pointer}button:hover{color:var(--ink);border-color:var(--muted)}
+.share{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.share img{display:block;margin-right:8px}.note{font-size:12px;color:var(--muted);margin-top:14px}.note a{color:var(--soft)}
 h2{font-size:13px;font-weight:600;color:var(--muted);margin:40px 0 12px;font-family:ui-monospace,Menlo,monospace}
 .hm{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px}.hm i{aspect-ratio:1;background:var(--l0)}
 .hm i.out{background:transparent}.hm .l1{background:var(--l1)}.hm .l2{background:var(--l2)}.hm .l3{background:var(--l3)}.hm .l4{background:var(--l4)}
@@ -487,6 +506,9 @@ footer a{color:var(--soft)}
 <h2>by month</h2><div class="bars" id="bars"></div><div class="bl" id="bl"></div><div class="legend" id="legend"></div>
 <h2>numbers</h2><dl id="stats"></dl>
 <h2>top models</h2><ol id="models"></ol>
+<h2>share</h2><div class="share"><a href="${esc(shareSnippets(owner, repo).page)}"><img alt="AI tokens this year" src="${esc(shareSnippets(owner, repo).badgeImage)}"></a>
+<button data-copy="${esc(shareSnippets(owner, repo).page)}">copy link</button><button data-copy="${esc(shareSnippets(owner, repo).markdown)}">copy badge (Markdown)</button><button data-copy="${esc(shareSnippets(owner, repo).html)}">copy badge (HTML)</button></div>
+<p class="note">Every number here comes from <a href="https://github.com/${esc(owner)}/${esc(repo)}">this public repo</a>, and every change to it is in the <a href="${esc(shareSnippets(owner, repo).history)}">commit history</a>.</p>
 <footer><span>tracked with <a href="https://tokentracker.patrickbrown.dev">tokentracker</a> · updated <span id="updated">…</span></span><span>for agents: <a href="llms.txt">llms.txt</a></span></footer>
 </main><script>
 const C=['#6b9eff','#f0c463','#d97757','#6fd39b','#c58af9','#4fd1c5','#f687b3','#a0aec0'];
@@ -510,6 +532,7 @@ Promise.all([get('ytd/stats.json'),get('heatmap.json'),get('ytd/usage-month.json
   const rows=m.rows.filter((x)=>x.model!=='cursor/all').slice(0,6),mm=Math.max(1,...rows.map((x)=>x.tokens));
   document.getElementById('models').innerHTML=rows.map((x)=>'<li><span>'+e(pretty(x.name))+'<small>'+e((x.provider||'')+' · '+x.tool)+'</small></span><span class="track"><i style="width:'+x.tokens/mm*100+'%"></i></span><span class="r">'+f(x.tokens)+'<small>'+x.responses.toLocaleString()+' responses</small></span></li>').join('');
 }).catch(()=>{document.getElementById('total').textContent='No data yet';});
+for(const b of document.querySelectorAll('[data-copy]'))b.onclick=()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{const t=b.textContent;b.textContent='copied';setTimeout(()=>b.textContent=t,1200)});
 </script></body></html>
 `;
 
