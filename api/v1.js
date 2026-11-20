@@ -1,14 +1,13 @@
-import { publicAccount } from '../lib/auth.js';
-import { refreshCursor } from '../lib/cursor.js';
-import { ensureSchema } from '../lib/db.js';
-import { limitHeaders, readLimit, tooMany } from '../lib/ratelimit.js';
 import {
-  ApiError, devices, deviceSyncs, filterRows, heatmap, loadRows, models, parseFilters, stats, toCsv, tools, totals, usage,
-} from '../lib/query.js';
+  ApiError, devices, filterRows, heatmap, models, parseFilters, stats, toCsv, tools, totals, usage,
+} from '../cli/core/query.js';
 
-// Public, read-only v1 API. Routed by vercel.json:
+// Public, read-only v1 API. Stateless: a user's handle is their GitHub
+// username, and their rows come from their own tokentracker-data repo's
+// GitHub Pages (api/v1/rows.json). Nothing is stored here. Routed by vercel.json:
 //   /api/v1/users/:handle            -> resource=profile
 //   /api/v1/users/:handle/:resource  -> usage | models | tools | heatmap | stats | devices
+//   /api/v1/github/:owner(/:resource) is an alias
 const RESOURCES = ['profile', 'usage', 'models', 'tools', 'heatmap', 'stats', 'devices'];
 const LIST = new Set(['usage', 'models', 'tools', 'devices']);
 
@@ -20,14 +19,6 @@ const GITHUB_REPO = 'tokentracker-data';
 const OWNER_RE = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
 const pagesBase = (owner) => `https://${owner}.github.io/${GITHUB_REPO}`;
 const ghCache = new Map();
-
-async function hostedSource(handle) {
-  await ensureSchema();
-  const account = await publicAccount(handle);
-  if (!account) throw new ApiError(404, 'user_not_found', `No tokentracker profile for "${handle}"`);
-  if (account.cursor_handle) await refreshCursor({ account: handle, handle: account.cursor_handle }).catch(() => {});
-  return { loadRows: (f) => loadRows(handle, f), syncs: () => deviceSyncs(handle) };
-}
 
 /** Read a user's rows.json from their GitHub Pages; nothing is stored here. */
 async function githubSource(owner) {
@@ -83,15 +74,10 @@ export default async function handler(req, res) {
 
   try {
     // Only requests that miss the CDN cache reach this point
-    const limited = await readLimit(req);
-    limitHeaders(res, limited);
-    if (!limited.ok) {
-      return tooMany(res, limited, { error: { code: 'rate_limited', message: `Too many requests. Try again in ${limited.retryAfter}s.` } });
-    }
 
     if (!RESOURCES.includes(resource)) throw new ApiError(404, 'unknown_resource', `Unknown resource. Use one of: ${RESOURCES.slice(1).join(', ')}`);
     // Where the rows come from: our database, or a user's own GitHub data repo
-    const src = githubOwner ? await githubSource(githubOwner) : await hostedSource(handle);
+    const src = await githubSource(handle);
     const filters = parseFilters(req.query);
     const rows = await src.loadRows(filters);
     const meta = { handle, filters: { from: filters.from, to: filters.to, tools: filters.tools, models: filters.models } };
@@ -105,8 +91,9 @@ export default async function handler(req, res) {
         const last = [...syncs.values()].sort().at(-1) || null;
         data = {
           handle,
-          url: githubOwner ? `https://github.com/${githubOwner}/${GITHUB_REPO}` : `${origin}/u/${handle}`,
-          ...(githubOwner ? { storage: 'github', pages: pagesBase(githubOwner) } : {}),
+          url: `${origin}/u/${handle}`,
+          data: `https://github.com/${handle}/${GITHUB_REPO}`,
+          static: `${pagesBase(handle)}/api/v1/`,
           totals: totals(all),
           thisYear: totals(all.filter((r) => r.date >= ytdFrom)),
           tools: tools(all).map((t) => t.tool),
@@ -115,7 +102,7 @@ export default async function handler(req, res) {
           firstDay: all.reduce((m, r) => (!m || r.date < m ? r.date : m), null),
           lastDay: all.reduce((m, r) => (!m || r.date > m ? r.date : m), null),
           lastSync: last,
-          links: Object.fromEntries(RESOURCES.slice(1).map((r) => [r, `${origin}/api/v1/${githubOwner ? 'github' : 'users'}/${handle}/${r}`])),
+          links: Object.fromEntries(RESOURCES.slice(1).map((r) => [r, `${origin}/api/v1/users/${handle}/${r}`])),
         };
         break;
       }

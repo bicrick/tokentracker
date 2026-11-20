@@ -1,6 +1,6 @@
 {
   "name": "@bicrick/tokentracker",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Track AI token usage across tools and devices. Only daily totals leave your machine.",
   "license": "MIT",
   "type": "module",
@@ -23,9 +23,6 @@
     "sync:dry": "node --use-system-ca --disable-warning=ExperimentalWarning cli/tokentrack.js sync --dry",
     "deploy": "vercel --prod",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^1.0.0"
   },
   "devDependencies": {
     "vercel": "^66.2.0"

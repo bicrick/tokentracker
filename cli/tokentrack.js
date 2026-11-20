@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectAll, CONNECTORS, resolveConnections } from './sources/index.js';
 import { installSchedule, LOG_PATH, removeSchedule, scheduleInstalled, supported as scheduleSupported } from './scheduler.js';
-import { buildSite, DATA_REPO, ensureDataRepo, githubToken, pagesUrl, uploadMachine } from './github.js';
-import { ago, autoUpdate, healthProblem, maybeNotify, readState, recordSync } from './health.js';
+import { buildSite, checkMachines, DATA_REPO, ensureDataRepo, githubToken, pagesUrl, refreshWorkflow, uploadMachine } from './github.js';
+import { ago, autoUpdate, healthProblem, markWorkflowChecked, maybeNotify, readState, recordSync } from './health.js';
 import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, spinner, sym, task } from './ui.js';
 
 const CONFIG_DIR = process.env.TOKENTRACK_CONFIG_DIR || path.join(os.homedir(), '.config', 'tokentrack');
@@ -17,7 +17,6 @@ const SELF = fileURLToPath(import.meta.url);
 const HOSTED = process.env.TOKENTRACK_HOSTED || 'https://tokentracker.patrickbrown.dev';
 // Stable copy of the CLI for the background job, so it survives npx cache cleanup
 const INSTALL_DIR = path.join(os.homedir(), '.local', 'share', 'tokentrack');
-const HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;
 const RECENT_DAYS = 7;
 const FIX = 'npx @bicrick/tokentracker status';
 // This CLI's version, from its package.json (npm package or installed copy)
@@ -90,46 +89,30 @@ function daysAgo(n) {
   return d.toISOString().slice(0, 10);
 }
 
-async function api(server, pathname, { method = 'GET', key, body } = {}) {
-  const res = await fetch(new URL(pathname, server), {
-    method,
-    headers: {
-      'content-type': 'application/json',
-      ...(key ? { authorization: `Bearer ${key}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, json };
-}
 
 // The first upload sends full history; later ones send only recent days and
 // ask the server to replace just that window, which keeps syncs small.
-async function upload(config, { sources, rows }, { full = false } = {}) {
-  if (config.storage === 'github') {
-    const token = githubToken();
-    if (!token) throw Object.assign(new Error('no GitHub login found (run gh auth login, or set TOKENTRACK_GITHUB_TOKEN)'), { status: 401 });
-    const out = await uploadMachine(token, { owner: config.github.owner, repo: config.github.repo, machineId: machineId().slice(0, 16), device: config.device || defaultDevice(), sources, rows });
-    return { rows: out.rows, changed: out.changed };
+async function upload(config, { sources, rows }) {
+  const token = githubToken(config);
+  if (!token) throw Object.assign(new Error('no GitHub login found (run gh auth login, or set TOKENTRACK_GITHUB_TOKEN)'), { status: 401 });
+  const target = { owner: config.github.owner, repo: config.github.repo };
+  const save = () => uploadMachine(token, { ...target, machineId: machineId().slice(0, 16), device: config.device || defaultDevice(), sources, rows });
+  let res;
+  try {
+    res = await save();
+  } catch (err) {
+    // The repo was deleted: set it up again and save what this machine still has
+    if (err.status !== 404) throw err;
+    await ensureDataRepo(token, { owner: target.owner });
+    res = await save();
   }
-  const incremental = !full && config.fullSyncAt;
-  const since = incremental ? daysAgo(RECENT_DAYS) : undefined;
-  const body = {
-    device: config.device || defaultDevice(),
-    sources,
-    rows: since ? rows.filter((r) => r.date >= since) : rows,
-    ...(since ? { since } : {}),
-  };
-  const res = await api(config.server, '/api/ingest', { method: 'POST', key: config.key, body });
-  if (!res.ok) throw Object.assign(new Error(res.json.error || `upload failed (${res.status})`), { status: res.status });
-  const updates = incremental ? {} : { fullSyncAt: new Date().toISOString() };
-  // Configs from older versions don't know their handle; learn it once
-  if (!config.handle) {
-    const me = await api(config.server, '/api/account', { key: config.key }).catch(() => null);
-    if (me?.ok) updates.handle = me.json.handle;
+  // Keep the repo's workflow current with this CLI (checked at most once a day)
+  const state = readState(CONFIG_DIR);
+  if (!state.workflowCheckedAt || Date.now() - Date.parse(state.workflowCheckedAt) > 864e5) {
+    await refreshWorkflow(token, target).catch(() => {});
+    markWorkflowChecked(CONFIG_DIR);
   }
-  if (Object.keys(updates).length) writeConfig({ ...readConfig(), ...updates });
-  return { ...res.json, since };
+  return res;
 }
 
 /**
@@ -213,8 +196,8 @@ async function sync(flags) {
     return;
   }
 
-  if ((!config.server || !config.key) && config.storage !== 'github') {
-    line(`  ${sym.fail} Not set up yet. Run ${c.blue('tokentrack init')}`);
+  if (config.storage !== 'github') {
+    line(`  ${sym.fail} Not set up yet. Run ${c.blue('npx @bicrick/tokentracker init')}`);
     process.exit(1);
   }
 
@@ -223,13 +206,13 @@ async function sync(flags) {
     const summary = data.report.filter((r) => !r.skipped).map((r) => `${r.id}=${r.error ? 'error' : formatTokens(r.tokens)}`).join(' ');
     let failed = false;
     try {
-      const res = await upload(config, data, { full: !!flags.full });
+      const res = await upload(config, data);
       recordSync(CONFIG_DIR, { ok: true });
-      line(`[${new Date().toISOString()}] sync ok v${VERSION} ${summary} rows=${res.rows}${res.since ? ` since=${res.since}` : ' full'}`);
+      line(`[${new Date().toISOString()}] sync ok v${VERSION} ${summary} rows=${res.rows}${res.changed ? ' saved' : ' unchanged'}`);
     } catch (err) {
       failed = true;
       const signedOut = err.status === 401;
-      const reason = signedOut ? 'this machine was signed out' : networkHint(err);
+      const reason = signedOut ? 'GitHub login missing or expired' : networkHint(err);
       const state = recordSync(CONFIG_DIR, { ok: false, error: reason, signedOut });
       line(`[${new Date().toISOString()}] sync failed v${VERSION} ${summary}: ${reason}`);
       if (maybeNotify(CONFIG_DIR, state, signedOut ? 'npx @bicrick/tokentracker init' : FIX)) line(`[${new Date().toISOString()}] notified the user`);
@@ -248,53 +231,12 @@ async function sync(flags) {
   }
 
   printReport(data.report, { hideMissing: true });
-  await task('Uploading daily totals', () => upload(config, data, { full: !!flags.full }),
-    (res) => `Synced ${res.rows} day/model rows ${c.gray(res.since ? `(since ${res.since})` : '(full history)')}`)
+  await task('Saving daily totals', () => upload(config, data),
+    (res) => `${res.changed ? 'Saved' : 'Up to date:'} ${res.rows} day/model rows ${c.gray(`→ ${config.github.owner}/${config.github.repo}`)}`)
     .catch((err) => {
       line(`    ${c.gray(networkHint(err))}`);
       process.exit(1);
     });
-}
-
-const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
-
-/**
- * Email sign-in: ask the server to send a link, then wait while the user clicks
- * it. Returns { key, handle } (a key for this machine only) or null.
- */
-async function emailSignIn({ email, purpose, handle, cursorHandle, device }) {
-  const start = await task('Sending a sign-in link', () => api(HOSTED, '/api/auth/start', {
-    method: 'POST',
-    body: { email, purpose, handle, cursorHandle: cursorHandle || null, device, machineId: machineId() },
-  }).catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Sent a link to ${c.blue(email)}` : 'Could not send the link'));
-  if (!start.ok) {
-    line(`    ${c.red(start.json.error || `status ${start.status}`)}`);
-    return null;
-  }
-
-  const wait = spinner(`Waiting for you to click the link in your email ${c.gray('(ctrl+c to cancel)')}`);
-  const deadline = Date.now() + (start.json.expiresIn || 900) * 1000;
-  for (;;) {
-    await new Promise((r) => setTimeout(r, (start.json.interval || 3) * 1000));
-    let res;
-    try {
-      res = await api(HOSTED, '/api/auth/poll', { method: 'POST', body: { deviceCode: start.json.deviceCode } });
-    } catch {
-      continue; // transient network blip: keep waiting
-    }
-    const status = res.json.status;
-    if (status === 'approved') {
-      wait.succeed(purpose === 'signup' ? `Created ${c.blue(`@${res.json.handle}`)}` : `Signed in as ${c.blue(`@${res.json.handle}`)}`);
-      if (res.json.device && res.json.device !== device) {
-        line(`  ${sym.ok} Recognised this computer as ${c.blue(res.json.device)} ${c.gray('(same machine as before, so usage is not counted twice)')}`);
-      }
-      return { key: res.json.key, handle: res.json.handle, device: res.json.device || device };
-    }
-    if (status !== 'pending' || Date.now() > deadline) {
-      wait.fail(status === 'expired' || Date.now() > deadline ? 'The link expired. Run init again.' : `Sign-in failed (${status})`);
-      return null;
-    }
-  }
 }
 
 // ─── init ──────────────────────────────────────────────────────────────────────
@@ -329,128 +271,54 @@ async function init(flags) {
     line();
   }
 
-  // 3. Machine name (sign-in emails mention it, and each machine gets its own key)
-  let device = flags.device && flags.device !== true ? flags.device
+  // 3. Machine name (the file in your repo is keyed by this computer, so renaming never duplicates)
+  const device = flags.device && flags.device !== true ? flags.device
     : existing.device && !flags.reset ? existing.device
       : await input('Name this machine', {
         initial: defaultDevice(),
         validate: (v) => (/^[\w.-]{1,40}$/.test(v) ? null : 'Use up to 40 letters, numbers, dots or dashes'),
       });
 
-  // 4. Account
-  let { server, key, handle } = existing;
-  let githubRepo = existing.storage === 'github' && !flags.reset && !flags.github ? { ...existing.github, owner: existing.github.owner, url: pagesUrl(existing.github.owner, existing.github.repo) } : null;
-  let cursorHandle = null;
-
-  if (existing.storage === 'github' && !flags.reset && !flags.github) {
-    line(`  ${sym.ok} Storing in GitHub: ${c.blue(`${existing.github.owner}/${existing.github.repo}`)}`);
-    line(`    ${c.gray('run with --reset to start over')}`);
-  } else if (server && key && !flags.reset) {
-    line(`  ${sym.ok} Already connected as ${c.blue(`@${handle || 'unknown'}`)} ${c.gray(`on ${new URL(server).host}`)}`);
-    line(`    ${c.gray('run with --reset to start over')}`);
-  } else {
-    line();
-    const mode = flags.server || flags.key ? 'key'
-      : flags.github ? 'github'
-      : flags.hosted ? 'hosted'
-        : flags.email ? 'email'
-          : await select('Where should your usage live?', [
-            { value: 'hosted', label: 'Create a free account', hint: `tokentracker cloud · ${new URL(HOSTED).host}` },
-            { value: 'github', label: 'Store in my GitHub', hint: `your own ${DATA_REPO} repo + GitHub Pages API, no account` },
-            { value: 'email', label: 'Sign in with email', hint: 'you already have an account (another machine)' },
-            { value: 'key', label: 'Use a key or my own server', hint: 'paste a key, or point at a self-hosted server' },
-          ]);
-    line();
-
-    if (mode === 'github') {
-      const token = githubToken();
-      if (!token) {
-        line(`  ${sym.fail} No GitHub login found on this computer.`);
-        line(`    ${c.gray('Install the GitHub CLI and run')} ${c.blue('gh auth login')}${c.gray(', or set TOKENTRACK_GITHUB_TOKEN to a token with repo + workflow access. Then run init again.')}`);
-        process.exit(1);
-      }
-      const cursor = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
-        : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
-      const repo = await task(`Setting up ${DATA_REPO} on your GitHub`, () => ensureDataRepo(token, { cursorHandle: cursor || null }),
-        (r) => `${r.created ? 'Created' : 'Using'} ${c.blue(`${r.owner}/${r.repo}`)} ${c.gray('with GitHub Pages')}`)
-        .catch((err) => { line(`    ${c.red(err.message)}`); process.exit(1); });
-      githubRepo = repo;
-      handle = repo.owner.toLowerCase();
-      server = null;
-      key = null;
-    } else if (mode === 'hosted') {
-      server = HOSTED;
-      for (;;) {
-        handle = flags.handle || await input('Pick a public handle', {
-          placeholder: 'letters, numbers, dashes',
-          validate: (v) => (HANDLE_RE.test(v.toLowerCase()) ? null : 'Use 1-30 lowercase letters, numbers or dashes'),
-        });
-        handle = handle.toLowerCase();
-        cursorHandle = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
-          : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
-        const email = flags.email !== undefined ? (flags.email === true ? '' : flags.email)
-          : await input('Email', {
-            placeholder: 'to sign in on other machines and recover your account · enter to skip',
-            validate: (v) => (!v || EMAIL_RE.test(v) ? null : 'That doesn\'t look like an email address'),
-          });
-
-        if (email) {
-          const out = await emailSignIn({ email, purpose: 'signup', handle, cursorHandle, device });
-          if (out) {
-            ({ key, device } = out);
-            handle = out.handle;
-            break;
-          }
-          if (flags.handle) process.exit(1);
-          continue;
-        }
-
-        // No email: an instant account with a single key (no recovery)
-        const res = await task('Creating your account', () => api(server, '/api/signup', {
-          method: 'POST',
-          body: { handle, cursorHandle: cursorHandle || null },
-        }).catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Created ${c.blue(`@${handle}`)}` : 'Signup failed'));
-        if (res.ok) {
-          key = res.json.key;
-          line(`    ${c.gray('No email: keep your config safe, it is the only way back into this account.')}`);
-          break;
-        }
-        line(`    ${c.red(res.json.error || `status ${res.status}`)}`);
-        if (flags.handle) process.exit(1);
-      }
-    } else if (mode === 'email') {
-      server = HOSTED;
-      const email = flags.email && flags.email !== true ? flags.email : await input('Email on your account', {
-        validate: (v) => (EMAIL_RE.test(v) ? null : 'That doesn\'t look like an email address'),
-      });
-      const out = await emailSignIn({ email, purpose: 'login', device });
-      if (!out) process.exit(1);
-      ({ key, handle, device } = out);
-    } else {
-      server = flags.server && flags.server !== true ? flags.server
-        : await input('Server URL', { initial: HOSTED });
-      key = flags.key && flags.key !== true ? flags.key
-        : await input('Account key', { placeholder: `from ${tildify(CONFIG_PATH)} on your other machine` });
-      const me = await task('Checking your key', () => api(server, '/api/account', { key })
-        .catch((err) => { throw new Error(networkHint(err)); }), (r) => (r.ok ? `Signed in as ${c.blue(`@${r.json.handle}`)}` : 'Key rejected'));
-      if (!me.ok) {
-        line(`    ${c.gray('Double-check the server URL and key, then run init again.')}`);
-        process.exit(1);
-      }
-      handle = me.json.handle;
-    }
+  // 4. Your GitHub: the data repo is the account
+  line();
+  let token = githubToken();
+  if (!token && isTTY) {
+    line(`  ${c.bold('Sign in to GitHub')}`);
+    line(`  ${c.gray('Your usage is stored in a')} ${c.blue(DATA_REPO)} ${c.gray('repo on your own GitHub. Either:')}`);
+    line(`  ${sym.dot} install the GitHub CLI and run ${c.blue('gh auth login')}, then run init again, or`);
+    line(`  ${sym.dot} paste a token from ${c.blue('https://github.com/settings/tokens/new?scopes=repo,workflow&description=tokentracker')}`);
+    token = (await input('GitHub token', { placeholder: 'ghp_… (enter to quit)' })) || null;
+    if (token) process.env.TOKENTRACK_GITHUB_TOKEN = token;
   }
+  if (!token) {
+    line(`  ${sym.fail} No GitHub login found. Run ${c.blue('gh auth login')} (or set TOKENTRACK_GITHUB_TOKEN), then run init again.`);
+    process.exit(1);
+  }
+  const prevRepo = existing.storage === 'github' && !flags.reset ? existing.github : null;
+  const cursorHandle = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
+    : prevRepo ? null
+      : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
+  const repo = await task(`Setting up ${DATA_REPO} on your GitHub`, () => ensureDataRepo(token, { cursorHandle }),
+    (r) => `${r.created ? 'Created' : 'Using'} ${c.blue(`${r.owner}/${r.repo}`)} ${c.gray('· GitHub Pages on')}`)
+    .catch((err) => { line(`    ${c.red(err.message)}`); process.exit(1); });
 
-  writeConfig(githubRepo
-    ? { storage: 'github', github: { owner: githubRepo.owner, repo: githubRepo.repo }, handle, device, connections: connectionSettings }
-    : { server, key, handle, device, connections: connectionSettings });
+  // Only a token you pasted is saved; a gh login is looked up fresh each run
+  writeConfig({
+    storage: 'github',
+    github: { owner: repo.owner, repo: repo.repo },
+    handle: repo.owner.toLowerCase(),
+    device,
+    connections: connectionSettings,
+    ...(process.env.TOKENTRACK_GITHUB_TOKEN && !process.env.GITHUB_TOKEN && token === process.env.TOKENTRACK_GITHUB_TOKEN && !existing.token ? { token } : existing.token ? { token: existing.token } : {}),
+  });
   const config = readConfig();
 
-  // 5. Sync + background
+  // 5. Upload + background
   line();
-  await task('Uploading your history', () => upload(config, data, { full: true })
-    .catch((err) => { throw new Error(networkHint(err)); }), (res) => (githubRepo ? `Saved ${res.rows} day/model rows to ${c.blue(`${githubRepo.owner}/${githubRepo.repo}`)}` : `Uploaded ${res.rows} day/model rows`))
+  await task('Saving your history', () => upload(config, data)
+    .catch((err) => { throw new Error(networkHint(err)); }), (res) => `Saved ${res.rows} day/model rows to ${c.blue(`${repo.owner}/${repo.repo}`)}`)
     .catch(() => process.exit(1));
+  recordSync(CONFIG_DIR, { ok: true });
 
   if (!flags['no-install'] && scheduleSupported) {
     await task('Turning on background sync', async () => installSchedule({ node: process.execPath, entry: copyCli(), configDir: CONFIG_DIR }),
@@ -458,81 +326,25 @@ async function init(flags) {
       .catch(() => line(`    ${c.gray('Run tokentrack install later to retry.')}`));
   }
 
-  // 5. Done
-  if (githubRepo) {
-    const base = `${githubRepo.url}/api/v1`;
-    line();
-    box([
-      `${sym.ok} ${c.bold("You're all set")} ${c.gray('· stored in your GitHub')}`,
-      '',
-      `${c.gray('repo    ')} ${c.blue(c.under(`https://github.com/${githubRepo.owner}/${githubRepo.repo}`))}`,
-      `${c.gray('api     ')} ${base}/stats.json`,
-      `${c.gray('bridge  ')} ${new URL(`/api/v1/github/${githubRepo.owner}/stats`, HOSTED)}`,
-      `${c.gray('config  ')} ${tildify(CONFIG_PATH)}`,
-    ], { pad: 2 });
-    line();
-    line(`  ${c.bold('Next')}`);
-    line(`  ${sym.dot} Your API goes live in about a minute, once the repo's first ${c.italic('tokentracker')} Action finishes`);
-    line(`  ${sym.dot} Add another machine: run ${c.blue('npx @bicrick/tokentracker init --github')} there (same GitHub login)`);
-    line(`  ${sym.dot} Filters, CSV and every endpoint: ${c.blue(`${new URL(`/api/v1/github/${githubRepo.owner}/usage?range=30d`, HOSTED)}`)}`);
-    line();
-    return;
-  }
-  const profile = new URL(`/u/${handle}`, server).toString();
+  // 6. Done
+  const handle = repo.owner.toLowerCase();
+  const api = new URL(`/api/v1/users/${handle}`, HOSTED).toString();
   line();
   box([
     `${sym.ok} ${c.bold("You're all set")}`,
     '',
-    `${c.gray('profile ')} ${c.blue(c.under(profile))}`,
-    `${c.gray('api     ')} ${new URL(`/api/v1/users/${handle}`, server)}`,
-    `${c.gray('docs    ')} ${new URL('/docs', server)}`,
-    `${c.gray('config  ')} ${tildify(CONFIG_PATH)} ${c.gray('(keep private)')}`,
+    `${c.gray('profile ')} ${c.blue(c.under(new URL(`/u/${handle}`, HOSTED).toString()))}`,
+    `${c.gray('api     ')} ${api}`,
+    `${c.gray('static  ')} ${repo.url}/api/v1/stats.json`,
+    `${c.gray('data    ')} https://github.com/${repo.owner}/${repo.repo}`,
   ], { pad: 2 });
   line();
   line(`  ${c.bold('Next')}`);
-  line(`  ${sym.dot} Query your usage: ${c.blue(`curl ${new URL(`/api/v1/users/${handle}/stats`, server)}`)}`);
-  line(`  ${sym.dot} Add another machine: run ${c.blue('npx @bicrick/tokentracker init')} there and`);
-  line(`    choose ${c.italic('Sign in with email')}`);
-  line(`  ${sym.dot} Manage machines and settings: ${c.blue(new URL('/settings', server).toString())}`);
-  line(`  ${sym.dot} Add or change tools: ${c.blue('tokentrack connect')}`);
-  line(`  ${sym.dot} See exactly what gets sent: ${c.blue('tokentrack sync --dry')}`);
+  line(`  ${sym.dot} Your API is live in about a minute, once the repo's ${c.italic('tokentracker')} Action finishes`);
+  line(`  ${sym.dot} Query it: ${c.blue(`curl ${api}/stats`)}`);
+  line(`  ${sym.dot} Another machine: run ${c.blue('npx @bicrick/tokentracker init')} there, signed into the same GitHub`);
+  line(`  ${sym.dot} See exactly what gets saved: ${c.blue('tokentrack sync --dry')}`);
   line();
-}
-
-// ─── account ───────────────────────────────────────────────────────────────────
-
-async function deleteAccount(flags) {
-  const { server, key, handle } = readConfig();
-  if (!server || !key) {
-    line(`  ${sym.fail} Not set up.`);
-    process.exit(1);
-  }
-  if (!flags.yes) {
-    line(`  ${c.red('This deletes')} ${c.bold(`@${handle}`)} ${c.red('and all its data from')} ${new URL(server).host}.`);
-    const answer = await input('Type your handle to confirm');
-    if (answer !== handle) {
-      line(`  ${sym.skip} Cancelled.`);
-      return;
-    }
-  }
-  const res = await task('Deleting account', () => api(server, '/api/account', { method: 'DELETE', key }), 'Account deleted');
-  if (res.ok) {
-    removeSchedule(CONFIG_DIR);
-    fs.rmSync(CONFIG_PATH, { force: true });
-  } else {
-    line(`  ${sym.fail} ${res.json.error || res.status}`);
-  }
-}
-
-function login(flags) {
-  if (!flags.server || !flags.key) {
-    line('Usage: tokentrack login --server <url> --key <key> [--device <name>]');
-    process.exit(1);
-  }
-  const config = { ...readConfig(), server: flags.server, key: flags.key };
-  if (flags.device) config.device = flags.device;
-  writeConfig(config);
-  line(`  ${sym.ok} Saved ${tildify(CONFIG_PATH)}`);
 }
 
 // ─── background sync ───────────────────────────────────────────────────────────
@@ -551,8 +363,8 @@ function copyCli() {
 
 function install() {
   const config = readConfig();
-  if ((!config.server || !config.key) && config.storage !== 'github') {
-    line(`  ${sym.fail} Run ${c.blue('tokentrack init')} first.`);
+  if (config.storage !== 'github') {
+    line(`  ${sym.fail} Run ${c.blue('npx @bicrick/tokentracker init')} first.`);
     process.exit(1);
   }
   const r = installSchedule({ node: process.execPath, entry: copyCli(), configDir: CONFIG_DIR });
@@ -606,23 +418,23 @@ async function connect(flags) {
     const s = config.connections?.[id] || {};
     config.connections = { ...config.connections, [id]: { ...s, enabled: true, paths: [...new Set([...(s.paths || []), target])] } };
   } else if (action === 'cursor') {
-    if (!config.server || !config.key) {
-      line(`  ${sym.fail} Run ${c.blue('tokentrack init')} first.`);
+    if (config.storage !== 'github') {
+      line(`  ${sym.fail} Run ${c.blue('npx @bicrick/tokentracker init')} first.`);
       return;
     }
     const cursorHandle = await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to disconnect' });
-    const res = await task('Saving', () => api(config.server, '/api/account', { method: 'POST', key: config.key, body: { cursorHandle: cursorHandle || null } }),
-      (r) => (r.ok ? (cursorHandle ? `Cursor connected as @${cursorHandle}` : 'Cursor disconnected') : 'Could not save'));
-    if (!res.ok) line(`    ${c.red(res.json.error || res.status)}`);
-    else config.cursorHandle = cursorHandle || undefined;
+    // The data repo's Action fetches Cursor's public profile; it only needs the handle
+    await task('Saving', () => ensureDataRepo(githubToken(config), { cursorHandle: cursorHandle || '' }),
+      () => (cursorHandle ? `Cursor connected as @${cursorHandle}` : 'Cursor disconnected'))
+      .catch((err) => line(`    ${c.red(err.message)}`));
   }
 
   writeConfig(config);
-  if (config.server && config.key && action !== 'cursor') {
+  if (config.storage === 'github' && action !== 'cursor') {
     line();
     const data = await collect(config);
     printReport(data.report, { hideMissing: true });
-    await task('Syncing', () => upload(config, data, { full: true }), (r) => `Synced ${r.rows} day/model rows`);
+    await task('Saving', () => upload(config, data), (r) => `Saved ${r.rows} day/model rows`);
   }
   line();
 }
@@ -632,8 +444,8 @@ function status() {
   const row = (k, v) => line(`  ${c.gray(k.padEnd(9))}${v}`);
   line();
   row('account', config.handle ? c.blue(`@${config.handle}`) : c.gray('not set up'));
-  if (config.storage === 'github') row('storage', `GitHub · ${c.blue(`${config.github.owner}/${config.github.repo}`)} ${c.gray(`→ ${pagesUrl(config.github.owner, config.github.repo)}/api/v1/`)}`);
-  else row('server', config.server || c.gray('-'));
+  if (config.storage === 'github') row('data', `${c.blue(`github.com/${config.github.owner}/${config.github.repo}`)}`);
+  else if (config.server) row('data', `${c.red('old hosted account')} ${c.gray('· run init to move to your GitHub')}`);
   row('machine', config.device || defaultDevice());
   row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(tokentrack install)')}`);
   const state = readState(CONFIG_DIR);
@@ -642,7 +454,10 @@ function status() {
   else if (state.lastSuccess) row('uploads', `${sym.ok} last upload ${ago(Date.now() - Date.parse(state.lastSuccess))}`);
   row('version', VERSION);
   row('config', tildify(CONFIG_PATH));
-  if (config.server && config.handle && config.storage !== 'github') row('profile', c.blue(new URL(`/u/${config.handle}`, config.server).toString()));
+  if (config.storage === 'github') {
+    row('api', c.blue(new URL(`/api/v1/users/${config.handle}`, HOSTED).toString()));
+    row('static', c.gray(`${pagesUrl(config.github.owner, config.github.repo)}/api/v1/`));
+  }
   line(`\n  ${c.gray('tools')}`);
   for (const conn of resolveConnections(config)) {
     if (!conn.paths.length) continue;
@@ -657,24 +472,24 @@ function status() {
 }
 
 const HELP = `
-  ${c.bold('tokentrack')} ${c.gray('· every AI token you spend, in one place')}
+  ${c.bold('tokentrack')} ${c.gray('· every AI token you spend, as an API, stored in your GitHub')}
 
   ${c.bold('Usage')}
-    tokentrack init              guided setup
+    tokentrack init              guided setup (creates your ${DATA_REPO} repo)
     tokentrack connect           choose tools, add folders, connect Cursor
-    tokentrack sync [--dry]      upload daily totals (--dry prints the payload, --full resends history)
-    tokentrack status            account, machine and recent syncs
-    tokentrack build             build the static API in a ${DATA_REPO} checkout (used by its Action)
+    tokentrack sync [--dry]      save daily totals now (--dry prints exactly what is saved)
+    tokentrack status            machine, repo, last upload and recent syncs
     tokentrack install           sync hourly in the background (macOS, Linux, Windows)
     tokentrack uninstall         stop background sync
-    tokentrack delete-account    delete your account and all data
+    tokentrack build             build the static API in a ${DATA_REPO} checkout (its Action runs this)
+    tokentrack check             open or close a "machine stopped syncing" issue (its Action runs this)
 
   ${c.bold('init flags')}
-    --hosted --handle <h> [--cursor <h>] [--email <e>]   create a cloud account
-    --email <e>                            sign in on this machine with email
-    --github [--cursor <h>]                store in your own GitHub repo (uses your gh login)
-    --server <url> --key <key>             connect an existing account
-    --device <name>  --reset  --no-install  --yes (accept detected tools)
+    --cursor <handle>   --device <name>   --reset   --no-install   --yes (accept detected tools)
+
+  ${c.bold('GitHub login')}
+    Uses the GitHub CLI login (gh auth login) or TOKENTRACK_GITHUB_TOKEN.
+    To delete everything, delete your ${DATA_REPO} repo and run tokentrack uninstall.
 `;
 
 const [command, ...rest] = process.argv.slice(2);
@@ -682,14 +497,13 @@ const flags = parseFlags(rest);
 
 switch (command) {
   case 'init': await init(flags); break;
-  case 'login': login(flags); break;
   case 'connect':
   case 'connections': await connect(flags); break;
-  case 'delete-account': await deleteAccount(flags); break;
   case 'sync': await sync(flags); break;
   case 'install': install(); break;
   case 'uninstall': uninstall(); break;
   case 'status': status(); break;
+  case 'check': await checkMachines({ repoDir: flags.repo && flags.repo !== true ? flags.repo : '.', log: (m) => line(`  ${m}`) }); break;
   case 'build': await buildSite({ repoDir: flags.repo && flags.repo !== true ? flags.repo : '.', outDir: flags.out && flags.out !== true ? flags.out : '_site', owner: flags.owner && flags.owner !== true ? flags.owner : undefined, log: (m) => line(`  ${m}`) }); break;
   default: line(HELP);
 }

@@ -41,6 +41,10 @@ export function recordSync(configDir, { ok, error = null, signedOut = false }) {
   return next;
 }
 
+export function markWorkflowChecked(configDir) {
+  writeState(configDir, { ...readState(configDir), workflowCheckedAt: new Date().toISOString() });
+}
+
 /** A human summary of upload health, or null when everything is fine. */
 export function healthProblem(state, now = Date.now()) {
   if (state.signedOut) return 'This machine was signed out, so uploads stopped. Run init to sign in again.';

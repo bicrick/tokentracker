@@ -7,8 +7,7 @@
   <img alt="open source" src="https://img.shields.io/badge/open%20source-%E2%9C%93-2563eb?style=flat-square">
   <img alt="Node 22.13+" src="https://img.shields.io/badge/node-22.13%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white">
   <img alt="zero dependencies CLI" src="https://img.shields.io/badge/cli-zero%20dependencies-555?style=flat-square">
-  <img alt="Vercel" src="https://img.shields.io/badge/Vercel-functions-000?style=flat-square&logo=vercel&logoColor=white">
-  <img alt="Neon Postgres" src="https://img.shields.io/badge/Neon-Postgres-00E599?style=flat-square&logo=postgresql&logoColor=white">
+  <img alt="stored in your GitHub" src="https://img.shields.io/badge/data-your%20GitHub-181717?style=flat-square&logo=github&logoColor=white">
   <img alt="macOS, Linux, Windows" src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-supported-555?style=flat-square">
 </p>
 
@@ -32,7 +31,7 @@ curl https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/stats?range=ytd
 npx @bicrick/tokentracker init
 ```
 
-That one command finds the tools on your machine, shows you what it found, creates your free account (sign in by email), uploads your history, and turns on an hourly background sync. Your data is then available at `/api/v1/users/<handle>`.
+That one command finds the tools on your machine, shows you what it found, creates a `tokentracker-data` repo on **your own GitHub**, saves your history there, and turns on an hourly background sync. Your handle is your GitHub username, and your data is then available at `/api/v1/users/<github-username>`. There is no tokentracker account and no tokentracker database.
 
 ## Supported tools
 
@@ -69,13 +68,15 @@ npx @bicrick/tokentracker init
     · OpenCode       365M tokens · 1,251 responses
 
   ✓ Which tools should be tracked? Claude Code, OpenCode
-  ✓ Where should your usage live? Create a free account
-  ✓ Pick a public handle you
-  ✓ Uploaded 18 day/model rows
+  ✓ Name this machine my-laptop
+  ✓ Created you/tokentracker-data · GitHub Pages on
+  ✓ Saved 412 day/model rows to you/tokentracker-data
   ✓ Background sync on (launchd, runs hourly and at login, no admin needed)
 ```
 
-**More computers:** run the same command on each one and choose *Sign in with email*. Each computer gets its own key; totals add up.
+**More computers:** run the same command on each one, signed into the same GitHub. Each computer writes its own files; totals add up.
+
+**GitHub login:** `init` uses the [GitHub CLI](https://cli.github.com) login (`gh auth login`), or a token you paste (scopes `repo`, `workflow`).
 
 ### Background sync
 
@@ -87,7 +88,7 @@ npx @bicrick/tokentracker init
 | Linux | systemd user timer, cron fallback | `~/.local/state/tokentrack/sync.log` |
 | Windows | Task Scheduler, per user | `%LOCALAPPDATA%\tokentrack\sync.log` |
 
-The first sync uploads your full history; later syncs send only the last 7 days. Claude Code deletes transcripts after 30 days by default, so the hourly sync also keeps that history safe.
+Syncs merge into your repo and never delete: Claude Code removes transcripts after about 30 days by default, but days already saved stay saved. If uploads stop, you get a desktop notification, and after 3 quiet days your repo's Action opens an issue (GitHub emails you).
 
 ### Commands
 
@@ -95,10 +96,10 @@ The first sync uploads your full history; later syncs send only the last 7 days.
 |---|---|
 | `tokentrack init` | guided setup |
 | `tokentrack connect` | choose tools (detected ones are marked *Auto*), add custom folders, connect Cursor |
-| `tokentrack sync [--dry] [--full]` | upload daily totals. `--dry` prints the exact payload |
-| `tokentrack status` | account, machine, tools and recent syncs |
+| `tokentrack sync [--dry]` | save daily totals now. `--dry` prints exactly what is saved |
+| `tokentrack status` | repo, machine, last upload, tools and recent syncs |
 | `tokentrack install` / `uninstall` | turn background sync on or off |
-| `tokentrack delete-account` | delete your account and all data |
+| `tokentrack build` / `check` | run by your repo's Action: build the static API, flag quiet machines |
 
 Connections live in `~/.config/tokentrack/config.json`:
 
@@ -116,20 +117,19 @@ Connections live in `~/.config/tokentrack/config.json`:
 
 ## Privacy
 
-- The collector runs on your machine and uploads **only daily token counts per tool and model**. Never prompts, code, file paths or API keys.
-- The server **rejects** any upload containing other fields.
-- `tokentrack sync --dry` prints exactly what would be sent:
+- The collector runs on your machine and saves **only daily token counts per tool and model** to your own repo. Never prompts, code, file paths or API keys.
+- `tokentrack sync --dry` prints exactly what is saved:
 
 ```json
 { "date": "2026-11-17", "source": "opencode", "model": "github-copilot/claude-opus-5.5",
   "input": 381, "output": 138, "reasoning": 63, "cacheRead": 8448, "cacheWrite": 0, "messages": 1 }
 ```
 
-- Keys are stored hashed. `tokentrack delete-account` removes everything.
+- Your data lives in your public `tokentracker-data` repo. To delete everything, delete the repo and run `tokentrack uninstall`.
 
 ## API
 
-Public and keyless. All endpoints are `GET`, CORS-enabled and edge-cached. Base URL: `https://tokentracker.patrickbrown.dev/api/v1`.
+Public and keyless. All endpoints are `GET`, CORS-enabled and edge-cached. Base URL: `https://tokentracker.patrickbrown.dev/api/v1`. It is stateless: it reads `{handle}.github.io/tokentracker-data/api/v1/rows.json` and computes everything from it.
 
 | Endpoint | Returns |
 |---|---|
@@ -147,23 +147,24 @@ Filters on every endpoint: `range=all|ytd|30d|2026`, `from`/`to`, `tools`, `mode
 - For LLMs: https://tokentracker.patrickbrown.dev/llms.txt
 - OpenAPI 3.1: https://tokentracker.patrickbrown.dev/openapi.json
 
-## Self-hosting
+## Storage and the static API
 
-Prefer to keep your data in your own database? Deploy your own server and point `init` at it.
+Your repo is the whole database: `machines/<machine-id>/<year>.json`, one file per computer per year, described in the repo's own `FORMAT.md`. Files carry a format version and every release reads every format, so a repo set up today keeps working for years; the CLI keeps the repo's workflow up to date.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/bicrick/tokentracker&env=TOKENTRACK_INGEST_KEYS,TOKENTRACK_ACCOUNT,CURSOR_HANDLE,CRON_SECRET&envDescription=See%20.env.example&project-name=tokentracker&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
+On every change, the repo's Action publishes pre-built JSON to GitHub Pages, so you can use your data with no tokentracker server at all:
 
-1. Deploy (the button provisions a free Neon Postgres database).
-2. Set `TOKENTRACK_INGEST_KEYS` (comma-separated, `openssl rand -hex 24`), `TOKENTRACK_ACCOUNT`, `CURSOR_HANDLE` and `CRON_SECRET`. See `.env.example`.
-3. Run `init`, choose *Connect an existing account*, and enter your server URL and one of your keys.
-
+```
+https://<you>.github.io/tokentracker-data/api/v1/stats.json
+https://<you>.github.io/tokentracker-data/api/v1/30d/usage.json      # ranges: ytd, 30d, 90d, 365d
+https://<you>.github.io/tokentracker-data/api/v1/heatmap.json
+https://<you>.github.io/tokentracker-data/api/v1/rows.json           # every row
+```
 
 ## Development
 
 ```sh
 npm install
-npm test          # connector, API and heatmap tests
-npm run dev       # vercel dev
+npm test          # connector, API, storage and heatmap tests
 ```
 
 ## License

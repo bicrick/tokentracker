@@ -84,10 +84,9 @@ function timeline(totals) {
       '',
     ] },
     { type: 'lines', w: 0.6, lines: [ok(`Which tools should be tracked? ${span('t-blue', local.map(([k]) => NAMES[k] || k).join(', '))}`)] },
-    { type: 'lines', w: 0.6, lines: [ok(`Where should your usage live? ${span('t-blue', 'Create a free account')}`)] },
-    { type: 'type', prefix: ok('Pick a public handle '), text: 'you', w: 0.6 },
+    { type: 'spin', text: 'Setting up tokentracker-data on your GitHub', done: `Created ${span('t-blue', 'you/tokentracker-data')} ${span('t-gray', '· GitHub Pages on')}`, w: 0.9 },
     { type: 'lines', w: 0.2, lines: [''] },
-    { type: 'spin', text: 'Uploading your history', done: 'Uploaded 412 day/model rows', w: 0.9 },
+    { type: 'spin', text: 'Saving your history', done: `Saved 412 day/model rows to ${span('t-blue', 'you/tokentracker-data')}`, w: 0.9 },
     { type: 'spin', text: 'Turning on background sync', done: `Background sync on ${span('t-gray', '(hourly, no admin needed)')}`, w: 0.7 },
     { type: 'lines', w: 1.2, lines: [
       '',

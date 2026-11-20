@@ -2,8 +2,6 @@
 // Node and edge functions. Fetch a profile and get back everything needed to
 // render a heatmap or stats in your own markup.
 //
-//   import { getHeatmap } from 'https://tokentracker.patrickbrown.dev/lib/heatmap.js';
-//   const { weeks, months, total } = await getHeatmap('you', { range: 'year' });
 
 export const DEFAULT_ORIGIN = 'https://tokentracker.patrickbrown.dev';
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -38,11 +36,6 @@ export function formatTokens(n, { precision = 2 } = {}) {
 }
 
 /** Fetch a public profile's raw activity. */
-export async function fetchActivity(handle, { origin = DEFAULT_ORIGIN, fetch: f = globalThis.fetch } = {}) {
-  const res = await f(`${origin}/api/activity?handle=${encodeURIComponent(handle)}`);
-  if (!res.ok) throw new Error(res.status === 404 ? `no profile for ${handle}` : `tokentracker ${res.status}`);
-  return res.json();
-}
 
 /** Resolve a range option to [startISO, endISO]. */
 export function resolveRange(range = 'year', today = iso(new Date())) {
@@ -163,9 +156,6 @@ export function buildHeatmap(data, {
 }
 
 /** Fetch and build in one call. */
-export async function getHeatmap(handle, options = {}) {
-  return buildHeatmap(await fetchActivity(handle, options), options);
-}
 
 /** Daily series for line/bar charts: [{ date, count, cumulative }]. */
 export function buildSeries(data, { range = 'year', tools = null, today = iso(new Date()) } = {}) {

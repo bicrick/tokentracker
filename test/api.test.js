@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ApiError, devices, heatmap, models, parseFilters, stats, toCsv, tools, totals, usage } from '../lib/query.js';
+import { ApiError, devices, heatmap, models, parseFilters, stats, toCsv, tools, totals, usage } from '../cli/core/query.js';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const daysAgo = (n) => {

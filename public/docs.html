@@ -62,9 +62,9 @@
         <p>Reference</p>
         <a href="#sources">Data sources</a>
         <a href="#privacy">Privacy</a>
-        <a href="#accounts">Accounts</a>
+        <a href="#storage">Storage</a>
         <a href="#cli">CLI</a>
-        <a href="#self-host">Self-hosting</a>
+        <a href="#static">Static API</a>
         <a href="#machine-readable">llms.txt and OpenAPI</a>
       </aside>
 
@@ -97,10 +97,10 @@ const { totals, rows } = await res.json();
           <ol>
             <li>Finds the AI tools on this machine and shows what it found before anything is sent.</li>
             <li>You choose which tools to track.</li>
-            <li>Creates your account (pick a handle, sign in by email) or signs this machine into an existing one.</li>
-            <li>Uploads your history and turns on an hourly background sync (no admin rights).</li>
+            <li>Uses your GitHub login (the <code>gh</code> CLI, or a token you paste) to create a public <code>tokentracker-data</code> repo on your GitHub.</li>
+            <li>Saves your history there and turns on an hourly background sync (no admin rights).</li>
           </ol>
-          <p>On each additional machine, run the same command and choose <b>Sign in with email</b>. Totals from all machines combine.</p>
+          <p>Your handle is your GitHub username. On each additional computer, run the same command while signed into the same GitHub; totals from all machines combine. There is no tokentracker account.</p>
         </section>
 
         <section id="conventions">
@@ -243,15 +243,21 @@ rows.filter((m) =&gt; m.model !== 'cursor/all')
 
         <section id="privacy">
           <h2>Privacy</h2>
-          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. The ingest endpoint rejects anything else. Run <code>tokentrack sync --dry</code> to see the exact payload. At sign-in the CLI also sends a one-way hash of this computer's hardware id, so running <code>init</code> again on the same machine reuses its name instead of counting your usage twice.</p>
+          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. Run <code>tokentrack sync --dry</code> to see exactly what is saved. Each computer's files are named by a one-way hash of its hardware id, so setting up the same machine again never counts your usage twice. Your data is public in your repo, like the API.</p>
         </section>
 
-        <section id="accounts">
-          <h2>Accounts</h2>
+        <section id="storage">
+          <h2>Storage: your GitHub</h2>
+          <p>tokentracker has no database. Everything lives in <code>github.com/&lt;you&gt;/tokentracker-data</code>, which you own:</p>
+          <pre>tokentracker.json                  settings (Cursor handle)
+machines/&lt;machine-id&gt;/&lt;year&gt;.json   daily totals, one file per computer per year
+FORMAT.md                          the data format, so it stays readable forever
+.github/workflows/tokentracker.yml builds your static API on GitHub Pages</pre>
           <ul>
-            <li>Reading is public. Writing (uploads, settings) needs a machine key.</li>
-            <li><code>init</code> signs you in by email: click the link and the terminal finishes on its own. Each machine gets its own key, stored in <code>~/.config/tokentrack/config.json</code> and hashed on the server.</li>
-            <li><a href="/settings">Settings</a>: see and revoke machines, connect Cursor, delete your account.</li>
+            <li><b>History is never lost.</b> Tools delete old logs (Claude Code after about 30 days); saved days stay in your repo. New syncs only add or update days.</li>
+            <li><b>Built to last.</b> Files carry a <code>format</code> version and every release reads every format. The CLI keeps the workflow file up to date for you.</li>
+            <li><b>Stopped syncing?</b> You get a desktop notification, and after 3 quiet days the repo's Action opens an issue (GitHub emails you). It closes itself when the machine is back.</li>
+            <li><b>Delete everything:</b> delete the repo and run <code>tokentrack uninstall</code>.</li>
           </ul>
         </section>
 
@@ -260,16 +266,23 @@ rows.filter((m) =&gt; m.model !== 'cursor/all')
           <table>
             <tr><td><code>tokentrack init</code></td><td>Guided setup</td></tr>
             <tr><td><code>tokentrack connect</code></td><td>Choose tools, add custom folders, connect Cursor</td></tr>
-            <tr><td><code>tokentrack sync [--dry] [--full]</code></td><td>Upload now; <code>--dry</code> prints the payload</td></tr>
-            <tr><td><code>tokentrack status</code></td><td>Account, machine, tools and recent syncs</td></tr>
+            <tr><td><code>tokentrack sync [--dry]</code></td><td>Save now; <code>--dry</code> prints exactly what is saved</td></tr>
+            <tr><td><code>tokentrack status</code></td><td>Repo, machine, last upload, tools and recent syncs</td></tr>
             <tr><td><code>tokentrack install</code> / <code>uninstall</code></td><td>Background sync on or off</td></tr>
-            <tr><td><code>tokentrack delete-account</code></td><td>Delete your account and data</td></tr>
+            <tr><td><code>tokentrack build</code> / <code>check</code></td><td>Run by your repo's Action: build the static API, flag quiet machines</td></tr>
           </table>
         </section>
 
-        <section id="self-host">
-          <h2>Self-hosting</h2>
-          <p>Deploy the repo to Vercel with a Neon Postgres database, set <code>TOKENTRACK_INGEST_KEYS</code>, <code>TOKENTRACK_ACCOUNT</code> and <code>CRON_SECRET</code>, then run <code>init</code> and choose <b>Use a key or my own server</b>. The API is identical. <a href="https://github.com/bicrick/tokentracker#self-hosting">Details on GitHub ↗</a></p>
+        <section id="static">
+          <h2>Static API (no server at all)</h2>
+          <p>Your repo's Action also publishes pre-built JSON to GitHub Pages, so you can skip this API entirely:</p>
+          <pre>https://&lt;you&gt;.github.io/tokentracker-data/api/v1/stats.json
+https://&lt;you&gt;.github.io/tokentracker-data/api/v1/30d/usage.json   # ranges: ytd, 30d, 90d, 365d
+https://&lt;you&gt;.github.io/tokentracker-data/api/v1/usage-month.json
+https://&lt;you&gt;.github.io/tokentracker-data/api/v1/heatmap.json
+https://&lt;you&gt;.github.io/tokentracker-data/api/v1/rows.json         # every row, for your own queries
+https://&lt;you&gt;.github.io/tokentracker-data/api/v1/index.json        # the full list</pre>
+          <p>The API above reads the same <code>rows.json</code>, so both always agree. It adds any filter, grouping and CSV, and stores nothing.</p>
         </section>
 
         <section id="machine-readable">

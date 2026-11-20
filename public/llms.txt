@@ -47,5 +47,7 @@ Example user: `bicrick` (real data).
 
 - [API docs](https://tokentracker.patrickbrown.dev/docs): human-readable reference with live "try it" consoles
 - [OpenAPI 3.1 spec](https://tokentracker.patrickbrown.dev/openapi.json)
-- [Source](https://github.com/bicrick/tokentracker): MIT; self-hostable on Vercel + Neon Postgres
+- [Source](https://github.com/bicrick/tokentracker): MIT
+- Storage: there is no tokentracker database. Each user's data lives in their own public GitHub repo `github.com/{handle}/tokentracker-data` (handle = GitHub username), as `machines/<machine-id>/<year>.json` (format described in that repo's FORMAT.md). This API reads `https://{handle}.github.io/tokentracker-data/api/v1/rows.json` and computes every resource from it.
+- Static API, no server: `https://{handle}.github.io/tokentracker-data/api/v1/{stats|usage|usage-week|usage-month|models|tools|devices|heatmap|profile|rows|index}.json`, plus range folders `ytd/`, `30d/`, `90d/`, `365d/` (e.g. `api/v1/30d/usage.json`).
 - Privacy: collectors upload only daily token counts per tool and model, never prompts, code, paths or keys.

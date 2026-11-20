@@ -17,9 +17,5 @@
         { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=3600" }
       ]
     }
-  ],
-  "crons": [
-    { "path": "/api/cron/cursor", "schedule": "0 * * * *" },
-    { "path": "/api/cron/stale", "schedule": "0 15 * * *" }
   ]
 }
