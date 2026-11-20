@@ -141,6 +141,16 @@ const safe = (fn, el) => () => fn().catch((err) => {
   if (target) target.outerHTML = `<p class="muted">Could not load: ${esc(err.message)}</p>`;
 });
 
+// ── agents: a chat answered from the live API ────────────────────────────────
+async function renderChat() {
+  const el = document.getElementById('q-chat-answer');
+  const [s, m] = await Promise.all([api(`/users/${HANDLE}/stats`), api(`/users/${HANDLE}/models?from=${new Date().toISOString().slice(0, 7)}-01`)]);
+  // One model can be logged by two tools under slightly different names (4-5 vs 4.5)
+  const top = [...new Set(m.rows.filter((x) => x.model !== 'cursor/all').map((x) => x.name.replace(/-(\d)-(\d)(?=$|-)/, '-$1.$2')))].slice(0, 2);
+  const big = (n) => formatCount(n).toUpperCase();
+  el.textContent = `${big(s.thisMonth)} tokens so far this month${s.today ? `, ${big(s.today)} of them today` : ''}. Mostly ${top.join(' and ') || 'Cursor'}${s.topTool ? `, and ${s.topTool.name} is your biggest tool overall` : ''}. You're on a ${s.currentStreak}-day streak.`;
+}
+
 export function mountChapters() {
   skeletonBars(document.getElementById('q-usage'), 11);
   document.getElementById('q-models').innerHTML = Array.from({ length: 5 }, () => '<li><span class="rank">&nbsp;</span><span class="name">&nbsp;</span><span class="bar"><i style="--w:60%"></i></span><span class="num">&nbsp;</span></li>').join('');
@@ -149,5 +159,7 @@ export function mountChapters() {
   onEnter(document.getElementById('ch-models'), safe(renderModels, 'q-models'));
   onEnter(document.getElementById('ch-tools'), safe(renderTools, 'q-tools'));
   onEnter(document.getElementById('ch-stats'), safe(renderStats, 'q-stats'));
+  onEnter(document.getElementById('ch-how'));
+  onEnter(document.getElementById('ch-agents'), safe(renderChat, 'q-chat-answer'));
   onEnter(document.getElementById('ch-api'), () => renderRaw());
 }

@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=34">
-  <link rel="stylesheet" href="/mobile.css?v=34" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=40">
+  <link rel="stylesheet" href="/mobile.css?v=40" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -43,16 +43,17 @@
     <div class="hero">
       <div class="hero-copy">
     <p class="lede">
-      A collector reads every coding tool on every machine you use. One public API
-      answers how many tokens, which models, which tools and which days.
+      Every token you spend in Claude Code, Codex, Cursor and more, on every machine,
+      saved to a repo on your own GitHub and served as one API your agents can query.
     </p>
 
     <div class="cmd">
       <code id="cmd">npx @bicrick/tokentracker init</code>
       <button type="button" id="copy">Copy command</button>
     </div>
-    <p class="note">Free and open source. Needs Node 22.13+ on macOS, Linux or Windows.</p>
-    <p class="note">Only daily token counts per tool and model leave your machine. Never prompts, code, file paths or keys. Run <code>sync --dry</code> to see the exact payload.</p>
+    <p class="note ask">Or ask your agent: <q>Install tokentracker for me.</q></p>
+    <p class="note">Free and open source. No account: you sign in to GitHub with a code. Node 22.13+ on macOS, Linux or Windows.</p>
+    <p class="note">Only daily token counts per tool and model are saved, to your repo. Never prompts, code, file paths or keys.</p>
       </div>
       <canvas class="coin" id="coin" aria-hidden="true"></canvas>
     </div>
@@ -87,6 +88,28 @@
       </div>
     </div>
 
+    <section class="chapter how" id="ch-how" aria-labelledby="h0">
+      <h2 id="h0">How it works.</h2>
+      <ol class="how-steps">
+        <li>
+          <span class="how-n">1</span>
+          <b>Reads your tools, locally.</b>
+          <p>A small CLI reads the usage logs Claude Code, Codex, OpenCode, Gemini CLI and others already keep, every hour, on every machine. Cursor comes from your public profile.</p>
+        </li>
+        <li>
+          <span class="how-n">2</span>
+          <b>Saves to your GitHub.</b>
+          <p>Daily totals per tool and model go into a <code>tokentracker-data</code> repo on your GitHub. Plain JSON you own, history kept forever. Delete the repo and it's gone.</p>
+        </li>
+        <li>
+          <span class="how-n">3</span>
+          <b>Answers as an API.</b>
+          <p>Query <code>/api/v1/users/you</code> with any filter, or read the static JSON your repo publishes to GitHub Pages. No server needed.</p>
+        </li>
+      </ol>
+      <p class="how-example">See a real one: <a href="https://github.com/bicrick/tokentracker-data">github.com/bicrick/tokentracker-data ↗</a></p>
+    </section>
+
     <section class="chapter q-chapter" id="ch-usage" aria-labelledby="q1">
       <h2 id="q1">Usage over time.</h2>
       <p class="chapter-lede">Group by day, week, month or year, split by tool or model, filter by any range.</p>
@@ -115,6 +138,16 @@
       <dl class="stat-grid skeleton" id="q-stats"></dl>
     </section>
 
+    <section class="chapter agents" id="ch-agents" aria-labelledby="h6">
+      <h2 id="h6">Made for agents.</h2>
+      <p class="chapter-lede">Your agent installs it, and your agent asks it. Every repo ships an <code>AGENTS.md</code>, and the API is described in <a href="/llms.txt">llms.txt</a>.</p>
+      <div class="chat" id="q-chat">
+        <p class="you"><span>you</span>How many tokens did I use this month, and on what?</p>
+        <p class="agent"><span>agent</span><code>GET /api/v1/users/bicrick/stats</code></p>
+        <p class="agent answer"><span></span><span id="q-chat-answer">…</span></p>
+      </div>
+    </section>
+
     <section class="chapter q-chapter" id="ch-api" aria-labelledby="q5">
       <h2 id="q5">Build whatever you want.</h2>
       <p class="chapter-lede">Plain JSON or CSV. No key, no SDK, cross-origin enabled. Every component on this page is one request.</p>
@@ -136,12 +169,12 @@
   </div>
 
   <script type="module">
-    import { api, wireCopy } from '/app.js?v=34';
-    import { mountDemo } from '/demo.js?v=34';
-    import { mountCoin } from '/coin.js?v=36';
+    import { api, wireCopy } from '/app.js?v=40';
+    import { mountDemo } from '/demo.js?v=40';
+    import { mountCoin } from '/coin.js?v=40';
     import { mountTokenSea } from '/sea.js?v=49';
     import { mountStipple } from '/stipple.js?v=2';
-    import { mountChapters } from '/chapters.js?v=34';
+    import { mountChapters } from '/chapters.js?v=40';
 
 
     mountStipple(document.getElementById('stipple'), { content: document.querySelector('.wrap') });

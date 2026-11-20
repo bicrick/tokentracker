@@ -1119,3 +1119,22 @@ footer {
 
 /* settings: machine that stopped uploading */
 .device-list .stale, li .stale { display: block; margin-top: 4px; font-family: var(--mono); font-size: 12px; color: #e5826a; }
+
+/* how it works */
+.how-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--rule); }
+.how-steps li { padding: 18px 18px 20px; border-right: 1px solid var(--rule); }
+.how-steps li:last-child { border-right: 0; }
+.how-steps b { display: block; margin: 10px 0 6px; color: var(--ink); }
+.how-steps p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.how-n { display: inline-grid; place-items: center; width: 22px; height: 22px; background: var(--link); color: var(--on-link); font-family: var(--mono); font-size: 12px; }
+.how-example { margin: 14px 0 0; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.note.ask q { color: var(--ink); }
+
+/* made for agents */
+.chat { border: 1px solid var(--rule); padding: 6px 0; font-size: 14px; }
+.chat p { margin: 0; padding: 10px 16px; line-height: 1.5; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; }
+#q-chat-answer { font-family: inherit; font-size: inherit; color: var(--ink); padding: 0; }
+.chat p span { font-family: var(--mono); font-size: 11px; color: var(--muted); padding-top: 3px; }
+.chat .you { color: var(--ink); }
+.chat .agent code { font-size: 12px; color: var(--ink-soft); }
+.chat .answer { color: var(--ink); }
