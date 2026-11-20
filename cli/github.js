@@ -434,16 +434,73 @@ export function readMachines(repoDir) {
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
 const PAGE = (owner, repo) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>@${esc(owner)} · tokentracker</title>
-<style>body{margin:0;padding:48px 24px;background:#121317;color:#ecece8;font:14px/1.6 ui-monospace,Menlo,monospace}
-main{max-width:640px;margin:0 auto}a{color:#6b9eff}h1{font-size:20px}b{color:#f0c463}</style>
-</head><body><main><h1><b>●</b> @${esc(owner)}'s AI token usage</h1>
-<p id="total">Loading…</p>
-<p>Profile: <a href="https://tokentracker.patrickbrown.dev/u/${esc(owner)}">tokentracker.patrickbrown.dev/u/${esc(owner)}</a> ·
-data: <a href="https://github.com/${esc(owner)}/${esc(repo)}">${esc(owner)}/${esc(repo)}</a></p>
-<ul>${['index', 'stats', 'usage', '30d/usage', 'usage-month', 'models', 'tools', 'heatmap', 'devices', 'profile'].map((p) => `<li><a href="api/v1/${p}.json">api/v1/${p}.json</a></li>`).join('')}</ul>
-<script>fetch('api/v1/stats.json').then(r=>r.json()).then(s=>{document.getElementById('total').textContent=s.tokens.toLocaleString()+' tokens across '+s.activeDays+' active days'})</script>
-</main></body></html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@${esc(owner)} · AI token usage</title>
+<meta name="description" content="@${esc(owner)}'s AI coding token usage, tracked by tokentracker.">
+<link rel="icon" href="https://tokentracker.patrickbrown.dev/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#121317;--ink:#ecece8;--soft:#b9bbc2;--muted:#8b8e97;--rule:#24262d;--rule2:#33363f;--blue:#6b9eff;--gold:#f0c463;
+--l0:#1b1d23;--l1:#1e3a6e;--l2:#2b5cb0;--l3:#4d82e0;--l4:#f0c463}
+@media (prefers-color-scheme:light){:root{--bg:#fbfaf7;--ink:#17181c;--soft:#3d4049;--muted:#6b6f7a;--rule:#e6e4de;--rule2:#d6d3cc;--blue:#2f6fe4;--l0:#ecebe6;--l1:#c9d9fb;--l2:#8fb2f6;--l3:#4d82e0;--l4:#e0a93a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+.mono,code,small,nav,.k,dt{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+main{max-width:880px;margin:0 auto;padding:28px 24px 64px}
+nav{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+nav a{color:var(--soft);text-decoration:none;margin-left:18px}nav a:hover{color:var(--ink)}nav b{color:var(--ink)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--gold);margin-right:8px;vertical-align:-1px}
+h1{font-size:15px;font-weight:600;margin:40px 0 4px;color:var(--soft)}
+.big{font-size:clamp(44px,9vw,76px);font-weight:650;letter-spacing:-.03em;line-height:1.05;margin:0}
+.sub{color:var(--muted);font-size:13px;margin:6px 0 28px}
+h2{font-size:13px;font-weight:600;color:var(--muted);margin:40px 0 12px;font-family:ui-monospace,Menlo,monospace}
+.hm{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px}.hm i{aspect-ratio:1;background:var(--l0)}
+.hm i.out{background:transparent}.hm .l1{background:var(--l1)}.hm .l2{background:var(--l2)}.hm .l3{background:var(--l3)}.hm .l4{background:var(--l4)}
+.months{display:grid;font-size:11px;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,Menlo,monospace}
+.bars{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;height:180px;align-items:end}
+.bar{display:flex;flex-direction:column-reverse;min-height:2px}.bar span{display:block}
+.bl{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;font-size:11px;color:var(--muted);text-align:center;margin-top:6px;font-family:ui-monospace,Menlo,monospace}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-top:10px;font-family:ui-monospace,Menlo,monospace}.legend i{display:inline-block;width:9px;height:9px;margin-right:6px}
+dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;border:1px solid var(--rule)}
+dl div{padding:14px 16px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}dl div:nth-child(4n){border-right:0}dl div:nth-last-child(-n+4){border-bottom:0}
+dt{font-size:11px;color:var(--muted)}dd{margin:4px 0 0;font-size:20px;font-weight:600;font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere}dd small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+ol{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+ol li{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 110px;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule);font-size:13px;font-family:ui-monospace,Menlo,monospace}
+ol small{display:block;color:var(--muted);font-size:11px}.track{height:6px;background:var(--l0)}.track i{display:block;height:100%;background:var(--blue)}.r{text-align:right}
+footer{margin-top:48px;padding-top:14px;border-top:1px solid var(--rule);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:ui-monospace,Menlo,monospace}
+footer a{color:var(--soft)}
+@media (max-width:640px){dl{grid-template-columns:repeat(2,minmax(0,1fr))}dl div:nth-child(4n){border-right:1px solid var(--rule)}dl div:nth-child(2n){border-right:0}dl div:nth-last-child(-n+4){border-bottom:1px solid var(--rule)}dl div:nth-last-child(-n+2){border-bottom:0}ol li{grid-template-columns:minmax(0,1fr) 90px}.track{display:none}.bars{height:130px;gap:3px}}
+</style></head><body><main>
+<nav><span><span class="dot"></span><b>tokentracker</b></span><span><a href="api/v1/index.json">API</a><a href="https://github.com/${esc(owner)}/${esc(repo)}">Data</a><a href="https://tokentracker.patrickbrown.dev">Get your own</a></span></nav>
+<h1>@${esc(owner)}</h1>
+<p class="big" id="total">—</p>
+<p class="sub" id="sub">tokens this year</p>
+<h2>this year</h2><div class="months" id="months"></div><div class="hm" id="hm"></div>
+<h2>by month</h2><div class="bars" id="bars"></div><div class="bl" id="bl"></div><div class="legend" id="legend"></div>
+<h2>numbers</h2><dl id="stats"></dl>
+<h2>top models</h2><ol id="models"></ol>
+<footer><span>tracked with <a href="https://tokentracker.patrickbrown.dev">tokentracker</a> · updated <span id="updated">…</span></span><span>for agents: <a href="llms.txt">llms.txt</a></span></footer>
+</main><script>
+const C=['#6b9eff','#f0c463','#d97757','#6fd39b','#c58af9','#4fd1c5','#f687b3','#a0aec0'];
+const f=(n)=>{for(const[v,u]of[[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']])if(n>=v)return(n/v).toFixed(n/v>=100?0:n/v>=10?1:2).replace(/\\.?0+$/,'')+u;return String(n)};
+const e=(s)=>String(s).replace(/[&<>]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const pretty=(n)=>String(n).replace(/-(\\d)-(\\d)(?=$|-)/,'-$1.$2');
+const get=(p)=>fetch('api/v1/'+p).then((r)=>r.json());
+Promise.all([get('ytd/stats.json'),get('heatmap.json'),get('ytd/usage-month.json'),get('ytd/models.json')]).then(([s,hm,um,m])=>{
+  document.getElementById('total').textContent=f(s.tokens);
+  document.getElementById('sub').textContent='tokens this year · '+s.activeDays+' active days · '+(s.topTool?s.topTool.name+' most used':'');
+  document.getElementById('updated').textContent=new Date(s.generatedAt).toLocaleString();
+  const w=hm.weeks.length,months=document.getElementById('months');months.style.gridTemplateColumns='repeat('+w+',1fr)';
+  months.innerHTML=hm.months.map((x)=>'<span style="grid-column:'+(x.week+1)+'">'+x.label+'</span>').join('');
+  document.getElementById('hm').innerHTML=hm.weeks.flat().map((d)=>!d?'<i class="out"></i>':'<i class="l'+(d.tokens==null?0:d.level)+'" title="'+d.date+(d.tokens?' · '+f(d.tokens):'')+'"></i>').join('');
+  const tools=[...new Set(um.rows.flatMap((r)=>Object.keys(r.split||{})))],max=Math.max(1,...um.rows.map((r)=>r.tokens));
+  document.getElementById('bars').innerHTML=um.rows.map((r)=>'<div class="bar" title="'+r.period+' · '+f(r.tokens)+'" style="height:'+Math.max(1,r.tokens/max*100)+'%">'+tools.map((t,i)=>r.split[t]?'<span style="flex-grow:'+r.split[t]+';background:'+C[i%8]+'"></span>':'').join('')+'</div>').join('');
+  document.getElementById('bl').innerHTML=um.rows.map((r)=>'<span>'+'JFMAMJJASOND'[Number(r.period.slice(5))-1]+'</span>').join('');
+  document.getElementById('legend').innerHTML=tools.map((t,i)=>'<span><i style="background:'+C[i%8]+'"></i>'+e(t)+'</span>').join('');
+  const it=[['this month',f(s.thisMonth)],['today',f(s.today)],['busiest day',s.busiestDay?f(s.busiestDay.tokens):'-',s.busiestDay&&s.busiestDay.date],['current streak',s.currentStreak+'d'],['longest streak',s.longestStreak+'d'],['active days',s.activeDays],['top tool',s.topTool?s.topTool.name:'-'],['top model',s.topModel?pretty(s.topModel.model.split('/').pop()):'-']];
+  document.getElementById('stats').innerHTML=it.map(([k,v,n])=>'<div><dt>'+k+'</dt><dd>'+e(v)+(n?'<small>'+n+'</small>':'')+'</dd></div>').join('');
+  const rows=m.rows.filter((x)=>x.model!=='cursor/all').slice(0,6),mm=Math.max(1,...rows.map((x)=>x.tokens));
+  document.getElementById('models').innerHTML=rows.map((x)=>'<li><span>'+e(pretty(x.name))+'<small>'+e((x.provider||'')+' · '+x.tool)+'</small></span><span class="track"><i style="width:'+x.tokens/mm*100+'%"></i></span><span class="r">'+f(x.tokens)+'<small>'+x.responses.toLocaleString()+' responses</small></span></li>').join('');
+}).catch(()=>{document.getElementById('total').textContent='No data yet';});
+</script></body></html>
 `;
 
 function readSettings(repoDir) {
