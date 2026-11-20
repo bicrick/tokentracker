@@ -199,7 +199,6 @@ written by the tokentracker CLI. Do not edit files in \`machines/\` by hand.
     ${pages}/usage.json        daily usage split by tool (also usage-week.json, usage-month.json)
     ${pages}/models.json       per model: tokens, responses, share, first/last used
     ${pages}/tools.json        per tool
-    ${pages}/devices.json      per machine, last sync
     ${pages}/heatmap.json      calendar grid (also heatmap-365d.json, heatmap-90d.json)
     ${pages}/rows.json         every daily row      ${pages}/index.json   every file
 
@@ -207,7 +206,7 @@ Time ranges are folders: ${pages}/{ytd,30d,90d,365d}/<file>.json, e.g. ${pages}/
 
 For anything else (from/to dates, tools=a,b, models=x,y, group=, split=, format=csv), the query layer computes
 from the same rows.json and stores nothing: ${api}/usage?from=2026-11-01&group=week&split=tool
-(resources: usage, models, tools, heatmap, stats, devices; profile at ${api})
+(resources: usage, models, tools, heatmap, stats; profile at ${api})
 
 Semantics: tokens = input + output + reasoning + cacheRead + cacheWrite. responses = model calls.
 Dates are local days. Cursor has totals only (model "cursor/all"). Full reference:
@@ -243,7 +242,6 @@ always writes the same files even if it is renamed or set up again.
     {
       "format": 1,
       "machine": "<machine-id>",
-      "device": "my-laptop",            // display name, may change
       "year": 2026,
       "syncedOn": "2026-11-19",         // last day this machine synced (written at least daily)
       "updatedAt": "2026-11-19T18:00:00Z", // last time any number changed
@@ -356,7 +354,8 @@ export function mergeRows(stored, local) {
  * touched. Unchanged years make no commit, except a once-a-day heartbeat
  * (`syncedOn`) on the current year so an idle machine isn't mistaken for a broken one.
  */
-export async function uploadMachine(token, { owner, repo = DATA_REPO, machineId, device, rows }) {
+// Machine files never hold the computer's name: it stays on that computer.
+export async function uploadMachine(token, { owner, repo = DATA_REPO, machineId, rows }) {
   const byYear = new Map();
   for (const r of rows) {
     const y = r.date.slice(0, 4);
@@ -376,19 +375,18 @@ export async function uploadMachine(token, { owner, repo = DATA_REPO, machineId,
   for (const [year, local] of [...byYear.entries()].sort()) {
     const file = `machines/${machineId}/${year}.json`;
     let count = 0;
-    const res = await putFile(token, owner, repo, file, null, `tokentracker: ${device} ${year}`, {
+    const res = await putFile(token, owner, repo, file, null, `tokentracker: sync ${year}`, {
       merge: (cur) => {
         // Every machine file for that year written by any tokentracker version
         const merged = mergeRows(cur?.rows || [], local);
         count = merged.length;
         const sameRows = cur && JSON.stringify(cur.rows) === JSON.stringify(merged);
         const heartbeat = year === thisYear && cur?.syncedOn !== today();
-        if (sameRows && cur.device === device && !heartbeat) return null;
+        if (sameRows && !('device' in cur) && !heartbeat) return null;
         if (!merged.length && !cur && year !== thisYear) return null;
         return `${JSON.stringify({
           format: FORMAT,
           machine: machineId,
-          device,
           year: Number(year),
           syncedOn: year === thisYear ? today() : (cur?.syncedOn || today()),
           updatedAt: sameRows ? cur.updatedAt : new Date().toISOString(),
@@ -431,6 +429,14 @@ export function readMachines(repoDir) {
     }
   }
   return [...byId.values()].map((m) => ({ ...m, rows: mergeRows([], m.rows) })).sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+/** "Computer 1", "Computer 2"… in order of each machine's first day of usage. */
+export function labelMachines(found) {
+  const first = (m) => m.rows.reduce((d, r) => (!d || r.date < d ? r.date : d), null) || '9999';
+  return [...found]
+    .sort((a, b) => (first(a) < first(b) ? -1 : first(a) > first(b) ? 1 : a.id < b.id ? -1 : 1))
+    .map((m, i) => ({ ...m, label: `Computer ${i + 1}` }));
 }
 
 // ─── build ────────────────────────────────────────────────────────────────────
@@ -527,11 +533,9 @@ export async function buildSite({
   const settings = readSettings(repoDir);
   const handle = (owner || 'me').toLowerCase();
   const found = readMachines(repoDir);
-  // Two computers with the same display name stay distinct machines
-  const names = new Map();
-  const machines = found.map((m) => {
-    const device = names.has(m.device) ? `${m.device}-${m.id.slice(0, 6)}` : m.device;
-    names.set(m.device, true);
+  // Computers are published anonymously, numbered by when they first saw usage
+  const machines = labelMachines(found).map((m) => {
+    const device = m.label;
     // "last sync" is the later of the last change and the daily heartbeat
     const beat = m.syncedOn ? `${m.syncedOn}T00:00:00Z` : null;
     const lastSync = [m.updatedAt, beat].filter(Boolean).sort().at(-1) || null;
@@ -572,7 +576,7 @@ export async function buildSite({
  */
 export async function checkMachines({ repoDir, token = process.env.GITHUB_TOKEN, repository = process.env.GITHUB_REPOSITORY, now = new Date(), log = () => {} }) {
   const daysSince = (d) => Math.floor((now - new Date(`${d}T00:00:00Z`)) / 864e5);
-  const machines = readMachines(repoDir).map((m) => ({ ...m, last: m.syncedOn || m.updatedAt?.slice(0, 10) || null }));
+  const machines = labelMachines(readMachines(repoDir)).map((m) => ({ ...m, device: `${m.label} (${m.id.slice(0, 6)})`, last: m.syncedOn || m.updatedAt?.slice(0, 10) || null }));
   const stale = machines.filter((m) => m.last && daysSince(m.last) >= STALE_DAYS && daysSince(m.last) <= RETIRED_DAYS);
   if (!token || !repository) {
     log(`stale machines: ${stale.map((m) => m.device).join(', ') || 'none'} (no GITHUB_TOKEN, not opening issues)`);

@@ -49,8 +49,8 @@ about a minute `curl https://<github-user>.github.io/tokentracker-data/api/v1/st
 The data is static JSON on the user's GitHub Pages; no tokentracker server is involved:
 
 ```
-https://{handle}.github.io/tokentracker-data/api/v1/{stats|usage|usage-week|usage-month|models|tools|devices|heatmap|profile|rows|index}.json
-https://{handle}.github.io/tokentracker-data/api/v1/{ytd|30d|90d|365d}/{stats|usage|usage-week|usage-month|models|tools|devices}.json
+https://{handle}.github.io/tokentracker-data/api/v1/{stats|usage|usage-week|usage-month|models|tools|heatmap|profile|rows|index}.json
+https://{handle}.github.io/tokentracker-data/api/v1/{ytd|30d|90d|365d}/{stats|usage|usage-week|usage-month|models|tools}.json
 https://{handle}.github.io/tokentracker-data/api/v1/heatmap-{365d|90d}.json
 https://{handle}.github.io/tokentracker-data/llms.txt             this user's own agent guide
 ```
@@ -71,10 +71,10 @@ For any other range, tool/model filter, grouping or CSV, the query layer compute
 | `/api/v1/users/{handle}/tools` | per tool |
 | `/api/v1/users/{handle}/heatmap` | `range=year\|365d\|90d\|Nd\|YYYY`, `levels=2..10`, `weekStart=sun\|mon` |
 | `/api/v1/users/{handle}/stats` | totals, streaks, busiest day, top tool and model |
-| `/api/v1/users/{handle}/devices` | per machine, last sync |
 
 Base `https://tokentracker.patrickbrown.dev`. Filters on all: `range=all|ytd|Nd|YYYY`, `from`, `to`, `tools=a,b`,
-`models=x,y`; `format=csv` on usage, models, tools, devices. Errors: `{ "error": { "code", "message" } }`.
+`models=x,y`; `format=csv` on usage, models, tools.
+Computer names are never uploaded; computers appear as "Computer 1", "Computer 2"… Errors: `{ "error": { "code", "message" } }`.
 
 Semantics: `tokens = input + output + reasoning + cacheRead + cacheWrite` (input excludes cached input). `responses`
 counts model calls. Dates are local calendar days. Cursor has totals only (model `cursor/all`).

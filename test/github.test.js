@@ -43,7 +43,10 @@ test('build: static API files match the shared query logic', async () => {
   assert.equal(read('api/v1/30d/stats.json').tokens, all.tokens - 7);
   assert.equal(read('api/v1/usage-month.json').rows.reduce((s, x) => s + x.tokens, 0), all.tokens);
   assert.equal(read('api/v1/heatmap.json').weeks[0].length, 7);
-  assert.deepEqual(read('api/v1/devices.json').rows.map((d) => d.device).sort(), ['desktop', 'laptop', 'laptop-cccc']);
+  // Computer names never reach the public files: numbered by first day of usage
+  assert.equal(fs.existsSync(path.join(out, 'api/v1/devices.json')), false);
+  assert.deepEqual(read('api/v1/rows.json').machines.map((m) => m.device), ['Computer 1', 'Computer 2', 'Computer 3']);
+  assert.ok(!fs.readFileSync(path.join(out, 'api/v1/rows.json'), 'utf8').match(/laptop|desktop/));
   const profile = read('api/v1/profile.json');
   assert.equal(profile.storage, 'github');
   assert.equal(profile.links.stats, 'https://someone.github.io/tokentracker-data/api/v1/stats.json');
@@ -115,12 +118,13 @@ test('uploadMachine: one file per year, merges, heartbeat once a day, survives a
       { date: '2025-12-31', source: 'codex', model: 'x', input: 7, messages: 1 },
       { date: `${thisYear}-01-02`, source: 'codex', model: 'x', input: 3, messages: 1 },
     ];
-    const args = { owner: 'me', repo: 'tokentracker-data', machineId: 'abc', device: 'laptop', rows };
+    const args = { owner: 'me', repo: 'tokentracker-data', machineId: 'abc', rows };
     const r1 = await uploadMachine('t', args);
     assert.equal(r1.rows, 2);
     assert.deepEqual([...gh.files.keys()].sort(), ['machines/abc/2025.json', `machines/abc/${thisYear}.json`]);
     const cur = JSON.parse(gh.files.get(`machines/abc/${thisYear}.json`).text);
     assert.equal(cur.format, 1);
+    assert.equal('device' in cur, false);
     assert.equal(cur.syncedOn, new Date().toISOString().slice(0, 10));
 
     // Same numbers, same day: no new commits at all
@@ -132,6 +136,12 @@ test('uploadMachine: one file per year, merges, heartbeat once a day, survives a
     await uploadMachine('t', { ...args, rows: [{ date: `${thisYear}-01-02`, source: 'codex', model: 'x', input: 4, messages: 2 }] });
     assert.equal(JSON.parse(gh.files.get('machines/abc/2025.json').text).rows[0].input, 7);
     assert.equal(JSON.parse(gh.files.get(`machines/abc/${thisYear}.json`).text).rows[0].input, 4);
+
+    // Files from older versions that stored the computer's name get it removed
+    const old = gh.files.get('machines/abc/2025.json');
+    gh.files.set('machines/abc/2025.json', { ...old, text: JSON.stringify({ ...JSON.parse(old.text), device: 'patricks-macbook' }) });
+    await uploadMachine('t', args);
+    assert.equal('device' in JSON.parse(gh.files.get('machines/abc/2025.json').text), false);
   } finally {
     globalThis.fetch = real;
   }
@@ -166,10 +176,10 @@ test('checkMachines: opens one issue for a quiet machine and closes it when it i
   try {
     const now = new Date('2026-11-20T12:00:00Z');
     write('2026-11-15');
-    assert.deepEqual((await checkMachines({ repoDir: dir, token: 't', repository: 'me/tokentracker-data', now })).opened, ['laptop']);
+    assert.deepEqual((await checkMachines({ repoDir: dir, token: 't', repository: 'me/tokentracker-data', now })).opened, ['Computer 1 (abc)']);
     assert.deepEqual((await checkMachines({ repoDir: dir, token: 't', repository: 'me/tokentracker-data', now })).opened, []); // no duplicate
     write('2026-11-20');
-    assert.deepEqual((await checkMachines({ repoDir: dir, token: 't', repository: 'me/tokentracker-data', now })).closed, ['laptop']);
+    assert.deepEqual((await checkMachines({ repoDir: dir, token: 't', repository: 'me/tokentracker-data', now })).closed, ['Computer 1 (abc)']);
     write('2026-09-01'); // quiet for months: retired, not nagged
     assert.deepEqual((await checkMachines({ repoDir: dir, token: 't', repository: 'me/tokentracker-data', now })).opened, []);
   } finally {

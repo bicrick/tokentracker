@@ -96,7 +96,7 @@ async function upload(config, { sources, rows }) {
   const token = githubToken(config);
   if (!token) throw Object.assign(new Error('no GitHub login found (run npx @bicrick/tokentracker init to sign in again)'), { status: 401 });
   const target = { owner: config.github.owner, repo: config.github.repo };
-  const save = () => uploadMachine(token, { ...target, machineId: machineId().slice(0, 16), device: config.device || defaultDevice(), sources, rows });
+  const save = () => uploadMachine(token, { ...target, machineId: machineId().slice(0, 16), sources, rows });
   let res;
   try {
     res = await save();
@@ -195,7 +195,7 @@ async function sync(flags) {
   if (flags.dry) {
     printReport(data.report);
     line(`\n  ${c.bold('Dry run.')} This is exactly what would be uploaded:\n`);
-    line(JSON.stringify({ device: config.device || defaultDevice(), sources: data.sources, rows: data.rows }, null, 2));
+    line(JSON.stringify({ machine: machineId().slice(0, 16), rows: data.rows }, null, 2));
     return;
   }
 
@@ -532,7 +532,7 @@ function status() {
   row('account', config.handle ? c.blue(`@${config.handle}`) : c.gray('not set up'));
   if (config.storage === 'github') row('data', `${c.blue(`github.com/${config.github.owner}/${config.github.repo}`)}`);
   else if (config.server) row('data', `${c.red('old hosted account')} ${c.gray('· run init to move to your GitHub')}`);
-  row('machine', config.device || defaultDevice());
+  row('machine', `${config.device || defaultDevice()} ${c.gray(`(id ${machineId().slice(0, 6)}; the name stays on this computer)`)}`);
   row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(npx @bicrick/tokentracker install)')}`);
   const state = readState(CONFIG_DIR);
   const problem = healthProblem(state);

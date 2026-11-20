@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-  <link rel="stylesheet" href="/style.css?v=48">
-  <link rel="stylesheet" href="/mobile.css?v=48" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=49">
+  <link rel="stylesheet" href="/mobile.css?v=49" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -53,7 +53,6 @@
         <a href="#usage">usage.json</a>
         <a href="#models">models.json</a>
         <a href="#tools">tools.json</a>
-        <a href="#devices">devices.json</a>
         <a href="#heatmap">heatmap.json</a>
         <a href="#profile">profile.json</a>
         <a href="#rows">rows.json</a>
@@ -147,10 +146,6 @@ const { totals, rows } = await res.json();
           <p>One row per tool: <code>{ tool, name, tokens, …, responses, share, models, firstUsed, lastUsed }</code>.</p>
         </section>
 
-        <section id="devices" class="endpoint" data-file="devices.json" data-ranges="1">
-          <h2>devices.json</h2>
-          <p>One row per computer: <code>{ device, tools, lastSync, tokens, …, firstUsed, lastUsed }</code>.</p>
-        </section>
 
         <section id="heatmap" class="endpoint" data-file="heatmap.json" data-variants="heatmap.json,heatmap-365d.json,heatmap-90d.json">
           <h2>heatmap.json · heatmap-365d.json · heatmap-90d.json</h2>
@@ -166,7 +161,7 @@ const { totals, rows } = await res.json();
 
         <section id="rows" class="endpoint" data-file="rows.json">
           <h2>rows.json and index.json</h2>
-          <p><code>rows.json</code> has every daily row (<code>{ date, source, model, input, output, reasoning, cache_read, cache_write, messages, device }</code>) for your own queries. <code>index.json</code> lists every file.</p>
+          <p><code>rows.json</code> has every daily row (<code>{ date, source, model, input, output, reasoning, cache_read, cache_write, messages, device }</code>, where <code>device</code> is an anonymous label like <code>"Computer 1"</code>) for your own queries. <code>index.json</code> lists every file.</p>
         </section>
 
         <section id="errors">
@@ -217,7 +212,7 @@ rows.filter((m) =&gt; m.model !== 'cursor/all')
 
         <section id="privacy">
           <h2>Privacy</h2>
-          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. Run <code>npx @bicrick/tokentracker sync --dry</code> to see exactly what is saved. Each computer's files are named by a one-way hash of its hardware id, so setting up the same machine again never counts your usage twice. Your data is public in your repo, like the API.</p>
+          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths, API keys or your computer's name. Computers show up only as "Computer 1", "Computer 2" and so on. Run <code>npx @bicrick/tokentracker sync --dry</code> to see exactly what is saved. Each computer's files are named by a one-way hash of its hardware id, so setting up the same machine again never counts your usage twice. Your data is public in your repo, like the API.</p>
         </section>
 
         <section id="storage">
@@ -268,7 +263,7 @@ FORMAT.md                          the data format, so it stays readable forever
           <h2>Custom queries (optional)</h2>
           <p>The files cover the common ranges. For anything else (exact dates, one tool or model, other groupings, CSV), <code>tokentracker.patrickbrown.dev</code> can compute it from your <code>rows.json</code> on request. It stores nothing:</p>
           <pre>https://tokentracker.patrickbrown.dev/api/v1/users/&lt;you&gt;/usage?from=2026-11-01&amp;tools=claude-code&amp;group=week</pre>
-          <p>Resources: <code>usage</code>, <code>models</code>, <code>tools</code>, <code>heatmap</code>, <code>stats</code>, <code>devices</code>. Filters: <code>range</code>, <code>from</code>, <code>to</code>, <code>tools</code>, <code>models</code>, <code>group</code>, <code>split</code>, <code>fill=false</code>, <code>format=csv</code>. Full spec: <a href="/openapi.json">openapi.json</a>.</p>
+          <p>Resources: <code>usage</code>, <code>models</code>, <code>tools</code>, <code>heatmap</code>, <code>stats</code>. Filters: <code>range</code>, <code>from</code>, <code>to</code>, <code>tools</code>, <code>models</code>, <code>group</code>, <code>split</code>, <code>fill=false</code>, <code>format=csv</code>. Full spec: <a href="/openapi.json">openapi.json</a>.</p>
         </section>
 
         <section id="machine-readable">
@@ -339,6 +334,6 @@ FORMAT.md                          the data format, so it stays readable forever
     }, { rootMargin: '-20% 0px -70% 0px' });
     document.querySelectorAll('.docs-body section').forEach((s) => io.observe(s));
   </script>
-  <script type="module" src="/nav.js?v=48"></script>
+  <script type="module" src="/nav.js?v=49"></script>
 </body>
 </html>

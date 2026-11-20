@@ -1,6 +1,6 @@
 // Build a user's static API from their machines' rows: the same resources as
 // the hosted v1 API, written as plain JSON files that GitHub Pages serves.
-import { devices, heatmap, models, stats, tools, totals, usage } from './query.js';
+import { heatmap, models, stats, tools, totals, usage } from './query.js';
 
 export const RANGES = ['all', 'ytd', '30d', '90d', '365d'];
 const GROUPS = ['day', 'week', 'month'];
@@ -59,7 +59,6 @@ export function buildStaticApi({ handle, rows, machines, baseUrl, generatedAt = 
     // Short display strings (e.g. "9.79B"), used by the README's live badges
     const display = { tokens: short(st.tokens), thisMonth: short(st.thisMonth), today: short(st.today), activeDays: String(st.activeDays), currentStreak: `${st.currentStreak}d`, longestStreak: `${st.longestStreak}d` };
     files[`${dir}/stats.json`] = { ...meta(filters), ...st, display };
-    files[`${dir}/devices.json`] = { ...meta(filters), rows: devices(r, syncs) };
   }
   // Heatmaps are calendar grids with their own range handling
   for (const range of ['year', '365d', '90d']) {
