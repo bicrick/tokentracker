@@ -185,7 +185,7 @@ main{max-width:640px;margin:0 auto}a{color:#6b9eff}h1{font-size:20px}b{color:#f0
 `;
 
 /** Read a data repo checkout and write the static API into outDir. */
-export async function buildSite({ repoDir, outDir, owner = process.env.GITHUB_REPOSITORY_OWNER, log = () => {} }) {
+export async function buildSite({ repoDir, outDir, owner = process.env.GITHUB_REPOSITORY_OWNER, repo = (process.env.GITHUB_REPOSITORY || '').split('/')[1] || DATA_REPO, log = () => {} }) {
   const settings = (() => {
     try { return JSON.parse(fs.readFileSync(path.join(repoDir, 'tokentracker.json'), 'utf8')); } catch { return {}; }
   })();
@@ -209,7 +209,7 @@ export async function buildSite({ repoDir, outDir, owner = process.env.GITHUB_RE
       log(`cursor skipped: ${err.message}`);
     }
   }
-  const base = owner ? pagesUrl(owner, path.basename(process.env.GITHUB_REPOSITORY || DATA_REPO)) : '';
+  const base = owner ? pagesUrl(owner, repo) : '';
   const files = buildStaticApi({ handle, rows, machines, baseUrl: base });
   fs.rmSync(outDir, { recursive: true, force: true });
   for (const [p, body] of Object.entries(files)) {

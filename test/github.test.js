@@ -32,7 +32,7 @@ function repo() {
 test('build: static API files match the shared query logic', async () => {
   const dir = repo();
   const out = path.join(dir, '_site');
-  const r = await buildSite({ repoDir: dir, outDir: out, owner: 'someone' });
+  const r = await buildSite({ repoDir: dir, outDir: out, owner: 'someone', repo: 'tokentracker-data' });
   assert.equal(r.machines, 3);
   const read = (p) => JSON.parse(fs.readFileSync(path.join(out, p), 'utf8'));
 
