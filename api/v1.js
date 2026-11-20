@@ -3,7 +3,7 @@ import { refreshCursor } from '../lib/cursor.js';
 import { ensureSchema } from '../lib/db.js';
 import { limitHeaders, readLimit, tooMany } from '../lib/ratelimit.js';
 import {
-  ApiError, devices, deviceSyncs, heatmap, loadRows, models, parseFilters, stats, toCsv, tools, totals, usage,
+  ApiError, devices, deviceSyncs, filterRows, heatmap, loadRows, models, parseFilters, stats, toCsv, tools, totals, usage,
 } from '../lib/query.js';
 
 // Public, read-only v1 API. Routed by vercel.json:
@@ -16,13 +16,45 @@ function send(res, status, body) {
   res.status(status).json(body);
 }
 
+const GITHUB_REPO = 'tokentracker-data';
+const OWNER_RE = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
+const pagesBase = (owner) => `https://${owner}.github.io/${GITHUB_REPO}`;
+const ghCache = new Map();
+
+async function hostedSource(handle) {
+  await ensureSchema();
+  const account = await publicAccount(handle);
+  if (!account) throw new ApiError(404, 'user_not_found', `No tokentracker profile for "${handle}"`);
+  if (account.cursor_handle) await refreshCursor({ account: handle, handle: account.cursor_handle }).catch(() => {});
+  return { loadRows: (f) => loadRows(handle, f), syncs: () => deviceSyncs(handle) };
+}
+
+/** Read a user's rows.json from their GitHub Pages; nothing is stored here. */
+async function githubSource(owner) {
+  if (!OWNER_RE.test(owner)) throw new ApiError(400, 'bad_owner', 'Invalid GitHub username');
+  let hit = ghCache.get(owner);
+  if (!hit || Date.now() - hit.at > 60_000) {
+    const res = await fetch(`${pagesBase(owner)}/api/v1/rows.json`, { headers: { 'user-agent': 'tokentracker' } }).catch(() => null);
+    if (!res || res.status === 404) throw new ApiError(404, 'user_not_found', `No tokentracker data at github.com/${owner}/${GITHUB_REPO} (or its GitHub Pages isn't built yet)`);
+    if (!res.ok) throw new ApiError(502, 'github_unavailable', `GitHub Pages returned ${res.status}`);
+    const body = await res.json();
+    hit = { at: Date.now(), rows: body.rows || [], machines: body.machines || [] };
+    ghCache.set(owner, hit);
+  }
+  return {
+    loadRows: async (f) => filterRows(hit.rows, f),
+    syncs: async () => new Map(hit.machines.map((m) => [m.device, m.updatedAt])),
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') return send(res, 405, { error: { code: 'method_not_allowed', message: 'Only GET is supported' } });
 
-  const handle = String(req.query.handle || '').toLowerCase();
+  const githubOwner = req.query.github ? String(req.query.github).toLowerCase() : null;
+  const handle = githubOwner || String(req.query.handle || '').toLowerCase();
   const resource = String(req.query.resource || 'profile');
   const origin = `https://${req.headers.host}`;
 
@@ -58,13 +90,10 @@ export default async function handler(req, res) {
     }
 
     if (!RESOURCES.includes(resource)) throw new ApiError(404, 'unknown_resource', `Unknown resource. Use one of: ${RESOURCES.slice(1).join(', ')}`);
-    await ensureSchema();
-    const account = await publicAccount(handle);
-    if (!account) throw new ApiError(404, 'user_not_found', `No tokentracker profile for "${handle}"`);
-    if (account.cursor_handle) await refreshCursor({ account: handle, handle: account.cursor_handle }).catch(() => {});
-
+    // Where the rows come from: our database, or a user's own GitHub data repo
+    const src = githubOwner ? await githubSource(githubOwner) : await hostedSource(handle);
     const filters = parseFilters(req.query);
-    const rows = await loadRows(handle, filters);
+    const rows = await src.loadRows(filters);
     const meta = { handle, filters: { from: filters.from, to: filters.to, tools: filters.tools, models: filters.models } };
     let data;
 
@@ -72,11 +101,12 @@ export default async function handler(req, res) {
       case 'profile': {
         const all = filters.from || filters.to ? rows : rows;
         const ytdFrom = `${new Date().toISOString().slice(0, 4)}-01-01`;
-        const syncs = await deviceSyncs(handle);
+        const syncs = await src.syncs();
         const last = [...syncs.values()].sort().at(-1) || null;
         data = {
           handle,
-          url: `${origin}/u/${handle}`,
+          url: githubOwner ? `https://github.com/${githubOwner}/${GITHUB_REPO}` : `${origin}/u/${handle}`,
+          ...(githubOwner ? { storage: 'github', pages: pagesBase(githubOwner) } : {}),
           totals: totals(all),
           thisYear: totals(all.filter((r) => r.date >= ytdFrom)),
           tools: tools(all).map((t) => t.tool),
@@ -85,7 +115,7 @@ export default async function handler(req, res) {
           firstDay: all.reduce((m, r) => (!m || r.date < m ? r.date : m), null),
           lastDay: all.reduce((m, r) => (!m || r.date > m ? r.date : m), null),
           lastSync: last,
-          links: Object.fromEntries(RESOURCES.slice(1).map((r) => [r, `${origin}/api/v1/users/${handle}/${r}`])),
+          links: Object.fromEntries(RESOURCES.slice(1).map((r) => [r, `${origin}/api/v1/${githubOwner ? 'github' : 'users'}/${handle}/${r}`])),
         };
         break;
       }
@@ -103,13 +133,13 @@ export default async function handler(req, res) {
         break;
       case 'heatmap':
         // The heatmap has its own calendar range handling
-        data = heatmap(handle, await loadRows(handle, { ...filters, from: null, to: null }), req.query);
+        data = heatmap(handle, await src.loadRows({ ...filters, from: null, to: null }), req.query);
         break;
       case 'stats':
         data = stats(rows);
         break;
       case 'devices':
-        data = { rows: devices(rows, await deviceSyncs(handle)) };
+        data = { rows: devices(rows, await src.syncs()) };
         break;
     }
 

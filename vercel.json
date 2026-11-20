@@ -4,6 +4,8 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/api/v1/users/:handle", "destination": "/api/v1?handle=:handle&resource=profile" },
+    { "source": "/api/v1/github/:owner", "destination": "/api/v1?github=:owner&resource=profile" },
+    { "source": "/api/v1/github/:owner/:resource", "destination": "/api/v1?github=:owner&resource=:resource" },
     { "source": "/api/v1/users/:handle/:resource", "destination": "/api/v1?handle=:handle&resource=:resource" },
     { "source": "/u/:handle", "destination": "/u" }
   ],

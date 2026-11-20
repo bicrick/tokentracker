@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildHeatmap, buildSeries, formatTokens, resolveRange } from '../lib/heatmap.js';
+import { buildHeatmap, buildSeries, formatTokens, resolveRange } from '../cli/core/heatmap.js';
 
 const TODAY = '2026-11-18';
 const data = {

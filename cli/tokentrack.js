@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectAll, CONNECTORS, resolveConnections } from './sources/index.js';
 import { installSchedule, LOG_PATH, removeSchedule, scheduleInstalled, supported as scheduleSupported } from './scheduler.js';
+import { buildSite, DATA_REPO, ensureDataRepo, githubToken, pagesUrl, uploadMachine } from './github.js';
 import { ago, autoUpdate, healthProblem, maybeNotify, readState, recordSync } from './health.js';
 import { box, c, formatTokens, input, isTTY, line, logo, multiselect, select, spinner, sym, task } from './ui.js';
 
@@ -105,6 +106,12 @@ async function api(server, pathname, { method = 'GET', key, body } = {}) {
 // The first upload sends full history; later ones send only recent days and
 // ask the server to replace just that window, which keeps syncs small.
 async function upload(config, { sources, rows }, { full = false } = {}) {
+  if (config.storage === 'github') {
+    const token = githubToken();
+    if (!token) throw Object.assign(new Error('no GitHub login found (run gh auth login, or set TOKENTRACK_GITHUB_TOKEN)'), { status: 401 });
+    const out = await uploadMachine(token, { owner: config.github.owner, repo: config.github.repo, machineId: machineId().slice(0, 16), device: config.device || defaultDevice(), sources, rows });
+    return { rows: out.rows, changed: out.changed };
+  }
   const incremental = !full && config.fullSyncAt;
   const since = incremental ? daysAgo(RECENT_DAYS) : undefined;
   const body = {
@@ -206,7 +213,7 @@ async function sync(flags) {
     return;
   }
 
-  if (!config.server || !config.key) {
+  if ((!config.server || !config.key) && config.storage !== 'github') {
     line(`  ${sym.fail} Not set up yet. Run ${c.blue('tokentrack init')}`);
     process.exit(1);
   }
@@ -332,24 +339,46 @@ async function init(flags) {
 
   // 4. Account
   let { server, key, handle } = existing;
+  let githubRepo = existing.storage === 'github' && !flags.reset && !flags.github ? { ...existing.github, owner: existing.github.owner, url: pagesUrl(existing.github.owner, existing.github.repo) } : null;
   let cursorHandle = null;
 
-  if (server && key && !flags.reset) {
+  if (existing.storage === 'github' && !flags.reset && !flags.github) {
+    line(`  ${sym.ok} Storing in GitHub: ${c.blue(`${existing.github.owner}/${existing.github.repo}`)}`);
+    line(`    ${c.gray('run with --reset to start over')}`);
+  } else if (server && key && !flags.reset) {
     line(`  ${sym.ok} Already connected as ${c.blue(`@${handle || 'unknown'}`)} ${c.gray(`on ${new URL(server).host}`)}`);
     line(`    ${c.gray('run with --reset to start over')}`);
   } else {
     line();
     const mode = flags.server || flags.key ? 'key'
+      : flags.github ? 'github'
       : flags.hosted ? 'hosted'
         : flags.email ? 'email'
           : await select('Where should your usage live?', [
             { value: 'hosted', label: 'Create a free account', hint: `tokentracker cloud · ${new URL(HOSTED).host}` },
+            { value: 'github', label: 'Store in my GitHub', hint: `your own ${DATA_REPO} repo + GitHub Pages API, no account` },
             { value: 'email', label: 'Sign in with email', hint: 'you already have an account (another machine)' },
             { value: 'key', label: 'Use a key or my own server', hint: 'paste a key, or point at a self-hosted server' },
           ]);
     line();
 
-    if (mode === 'hosted') {
+    if (mode === 'github') {
+      const token = githubToken();
+      if (!token) {
+        line(`  ${sym.fail} No GitHub login found on this computer.`);
+        line(`    ${c.gray('Install the GitHub CLI and run')} ${c.blue('gh auth login')}${c.gray(', or set TOKENTRACK_GITHUB_TOKEN to a token with repo + workflow access. Then run init again.')}`);
+        process.exit(1);
+      }
+      const cursor = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
+        : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
+      const repo = await task(`Setting up ${DATA_REPO} on your GitHub`, () => ensureDataRepo(token, { cursorHandle: cursor || null }),
+        (r) => `${r.created ? 'Created' : 'Using'} ${c.blue(`${r.owner}/${r.repo}`)} ${c.gray('with GitHub Pages')}`)
+        .catch((err) => { line(`    ${c.red(err.message)}`); process.exit(1); });
+      githubRepo = repo;
+      handle = repo.owner.toLowerCase();
+      server = null;
+      key = null;
+    } else if (mode === 'hosted') {
       server = HOSTED;
       for (;;) {
         handle = flags.handle || await input('Pick a public handle', {
@@ -412,13 +441,15 @@ async function init(flags) {
     }
   }
 
-  writeConfig({ server, key, handle, device, connections: connectionSettings });
+  writeConfig(githubRepo
+    ? { storage: 'github', github: { owner: githubRepo.owner, repo: githubRepo.repo }, handle, device, connections: connectionSettings }
+    : { server, key, handle, device, connections: connectionSettings });
   const config = readConfig();
 
   // 5. Sync + background
   line();
   await task('Uploading your history', () => upload(config, data, { full: true })
-    .catch((err) => { throw new Error(networkHint(err)); }), (res) => `Uploaded ${res.rows} day/model rows`)
+    .catch((err) => { throw new Error(networkHint(err)); }), (res) => (githubRepo ? `Saved ${res.rows} day/model rows to ${c.blue(`${githubRepo.owner}/${githubRepo.repo}`)}` : `Uploaded ${res.rows} day/model rows`))
     .catch(() => process.exit(1));
 
   if (!flags['no-install'] && scheduleSupported) {
@@ -428,6 +459,25 @@ async function init(flags) {
   }
 
   // 5. Done
+  if (githubRepo) {
+    const base = `${githubRepo.url}/api/v1`;
+    line();
+    box([
+      `${sym.ok} ${c.bold("You're all set")} ${c.gray('· stored in your GitHub')}`,
+      '',
+      `${c.gray('repo    ')} ${c.blue(c.under(`https://github.com/${githubRepo.owner}/${githubRepo.repo}`))}`,
+      `${c.gray('api     ')} ${base}/stats.json`,
+      `${c.gray('bridge  ')} ${new URL(`/api/v1/github/${githubRepo.owner}/stats`, HOSTED)}`,
+      `${c.gray('config  ')} ${tildify(CONFIG_PATH)}`,
+    ], { pad: 2 });
+    line();
+    line(`  ${c.bold('Next')}`);
+    line(`  ${sym.dot} Your API goes live in about a minute, once the repo's first ${c.italic('tokentracker')} Action finishes`);
+    line(`  ${sym.dot} Add another machine: run ${c.blue('npx @bicrick/tokentracker init --github')} there (same GitHub login)`);
+    line(`  ${sym.dot} Filters, CSV and every endpoint: ${c.blue(`${new URL(`/api/v1/github/${githubRepo.owner}/usage?range=30d`, HOSTED)}`)}`);
+    line();
+    return;
+  }
   const profile = new URL(`/u/${handle}`, server).toString();
   line();
   box([
@@ -501,7 +551,7 @@ function copyCli() {
 
 function install() {
   const config = readConfig();
-  if (!config.server || !config.key) {
+  if ((!config.server || !config.key) && config.storage !== 'github') {
     line(`  ${sym.fail} Run ${c.blue('tokentrack init')} first.`);
     process.exit(1);
   }
@@ -582,7 +632,8 @@ function status() {
   const row = (k, v) => line(`  ${c.gray(k.padEnd(9))}${v}`);
   line();
   row('account', config.handle ? c.blue(`@${config.handle}`) : c.gray('not set up'));
-  row('server', config.server || c.gray('-'));
+  if (config.storage === 'github') row('storage', `GitHub · ${c.blue(`${config.github.owner}/${config.github.repo}`)} ${c.gray(`→ ${pagesUrl(config.github.owner, config.github.repo)}/api/v1/`)}`);
+  else row('server', config.server || c.gray('-'));
   row('machine', config.device || defaultDevice());
   row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(tokentrack install)')}`);
   const state = readState(CONFIG_DIR);
@@ -591,7 +642,7 @@ function status() {
   else if (state.lastSuccess) row('uploads', `${sym.ok} last upload ${ago(Date.now() - Date.parse(state.lastSuccess))}`);
   row('version', VERSION);
   row('config', tildify(CONFIG_PATH));
-  if (config.server && config.handle) row('profile', c.blue(new URL(`/u/${config.handle}`, config.server).toString()));
+  if (config.server && config.handle && config.storage !== 'github') row('profile', c.blue(new URL(`/u/${config.handle}`, config.server).toString()));
   line(`\n  ${c.gray('tools')}`);
   for (const conn of resolveConnections(config)) {
     if (!conn.paths.length) continue;
@@ -613,6 +664,7 @@ const HELP = `
     tokentrack connect           choose tools, add folders, connect Cursor
     tokentrack sync [--dry]      upload daily totals (--dry prints the payload, --full resends history)
     tokentrack status            account, machine and recent syncs
+    tokentrack build             build the static API in a ${DATA_REPO} checkout (used by its Action)
     tokentrack install           sync hourly in the background (macOS, Linux, Windows)
     tokentrack uninstall         stop background sync
     tokentrack delete-account    delete your account and all data
@@ -620,6 +672,7 @@ const HELP = `
   ${c.bold('init flags')}
     --hosted --handle <h> [--cursor <h>] [--email <e>]   create a cloud account
     --email <e>                            sign in on this machine with email
+    --github [--cursor <h>]                store in your own GitHub repo (uses your gh login)
     --server <url> --key <key>             connect an existing account
     --device <name>  --reset  --no-install  --yes (accept detected tools)
 `;
@@ -637,5 +690,6 @@ switch (command) {
   case 'install': install(); break;
   case 'uninstall': uninstall(); break;
   case 'status': status(); break;
+  case 'build': await buildSite({ repoDir: flags.repo && flags.repo !== true ? flags.repo : '.', outDir: flags.out && flags.out !== true ? flags.out : '_site', owner: flags.owner && flags.owner !== true ? flags.owner : undefined, log: (m) => line(`  ${m}`) }); break;
   default: line(HELP);
 }
