@@ -3,7 +3,7 @@
   "info": {
     "title": "tokentracker API",
     "version": "1.0.0",
-    "description": "Public, keyless API for AI coding token usage by day, model, tool and machine. Reads are limited to 120 requests per minute per IP (edge-cached responses excluded); over the limit returns 429 with a Retry-After header.",
+    "description": "Public, keyless API for AI coding token usage by day, model, tool and machine. Each user's data lives in their own GitHub repo (github.com/{handle}/tokentracker-data); this API reads it and stores nothing.",
     "license": {
       "name": "MIT"
     }
@@ -89,9 +89,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }
@@ -222,9 +219,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }
@@ -320,9 +314,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }
@@ -418,9 +409,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }
@@ -522,9 +510,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }
@@ -604,9 +589,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }
@@ -702,9 +684,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "description": "Rate limited. Retry after the number of seconds in the Retry-After header."
           }
         }
       }

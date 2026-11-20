@@ -153,53 +153,72 @@ jobs:
 const README = (owner, repo) => {
   const h = owner.toLowerCase();
   const pages = pagesUrl(owner, repo);
-  const badge = (label, path, color) => `![${label}](https://img.shields.io/badge/dynamic/json?url=${encodeURIComponent(`${pages}/api/v1/${path}`)}&query=${encodeURIComponent(`$.display.${label === 'tokens this year' ? 'tokens' : label === 'active days' ? 'activeDays' : 'currentStreak'}`)}&label=${encodeURIComponent(label)}&color=${color}&style=flat-square&cacheSeconds=3600)`;
+  // Live numbers drawn by shields.io from this repo's own Pages JSON (no server)
+  const badge = (label, path, field, color) => `<img alt="${label}" src="https://img.shields.io/badge/dynamic/json?url=${encodeURIComponent(`${pages}/api/v1/${path}`)}&query=${encodeURIComponent(`$.display.${field}`)}&label=${encodeURIComponent(label)}&color=${color}&style=flat-square&cacheSeconds=3600">`;
   return `<p align="center">
   <a href="https://tokentracker.patrickbrown.dev/u/${h}"><img src="https://raw.githubusercontent.com/bicrick/tokentracker/main/docs/assets/banner.png" alt="tokentracker" width="100%"></a>
 </p>
 
 <p align="center">
-  ${badge('tokens this year', 'ytd/stats.json', 'f0c463')}
-  ${badge('active days', 'ytd/stats.json', '6b9eff')}
-  ${badge('current streak', 'stats.json', '6b9eff')}
+  ${badge('tokens this year', 'ytd/stats.json', 'tokens', 'f0c463')}
+  ${badge('active days', 'ytd/stats.json', 'activeDays', '6b9eff')}
+  ${badge('current streak', 'stats.json', 'currentStreak', '6b9eff')}
 </p>
 
 <p align="center">
   <a href="https://tokentracker.patrickbrown.dev/u/${h}">Profile</a> ·
   <a href="https://tokentracker.patrickbrown.dev/api/v1/users/${h}">API</a> ·
-  <a href="${pages}/api/v1/index.json">Static API</a> ·
-  <a href="FORMAT.md">Data format</a>
+  <a href="AGENTS.md">For agents</a>
 </p>
 
----
+@${h}'s AI coding token usage, tracked by [tokentracker](https://github.com/bicrick/tokentracker). This repo is the database.
 
-**@${h}'s AI coding token usage**, tracked by [tokentracker](https://github.com/bicrick/tokentracker) across every tool and every machine. This repo is the database: plain JSON, owned by @${h}. Only daily token counts per tool and model are stored, never prompts, code, paths or keys.
+Ask your agent:
 
-## Query it
+> Using github.com/${owner}/${repo}, how many tokens did I use this week, and on which models?
+`;
+};
 
-\`\`\`sh
-curl https://tokentracker.patrickbrown.dev/api/v1/users/${h}/stats
-curl "https://tokentracker.patrickbrown.dev/api/v1/users/${h}/usage?range=30d&group=week"
-\`\`\`
+/** The agent guide that lives in each data repo, with this user's URLs filled in. */
+export const AGENTS_DOC = (owner, repo) => {
+  const h = owner.toLowerCase();
+  const api = `https://tokentracker.patrickbrown.dev/api/v1/users/${h}`;
+  const pages = `${pagesUrl(owner, repo)}/api/v1`;
+  return `# Agent guide: @${h}'s token usage
 
-| Static JSON (GitHub Pages, no server) | |
-|---|---|
-| [\`stats.json\`](${pages}/api/v1/stats.json) | totals, streaks, busiest day, top tool and model |
-| [\`usage.json\`](${pages}/api/v1/usage.json) · [\`usage-month.json\`](${pages}/api/v1/usage-month.json) | usage over time, split by tool |
-| [\`30d/usage.json\`](${pages}/api/v1/30d/usage.json) | also \`ytd/\`, \`90d/\`, \`365d/\` |
-| [\`models.json\`](${pages}/api/v1/models.json) · [\`tools.json\`](${pages}/api/v1/tools.json) | per model and per tool |
-| [\`heatmap.json\`](${pages}/api/v1/heatmap.json) | ready-to-render calendar |
-| [\`index.json\`](${pages}/api/v1/index.json) | everything |
+This repo holds @${h}'s AI coding token usage: daily totals per tool and model, per machine,
+written by the tokentracker CLI. Do not edit files in \`machines/\` by hand.
 
-## Layout
+## Answer questions with the API (no auth, GET, JSON)
 
-\`\`\`
-machines/<machine>/<year>.json   one file per computer per year (written by the CLI)
-tokentracker.json                settings
-.github/workflows/               rebuilds the static API on every change
-\`\`\`
+    ${api}                  profile and links
+    ${api}/stats            totals, active days, busiest day, streaks, today, this month, top tool and model
+    ${api}/usage            time series: group=day|week|month|year|total, split=tool|model
+    ${api}/models           per model: tokens, responses, share, first/last used
+    ${api}/tools            per tool
+    ${api}/heatmap          calendar grid (range=year|365d|90d)
+    ${api}/devices          per machine, last sync
 
-Set up your own: \`npx @bicrick/tokentracker init\`. Stop on a machine: \`npx @bicrick/tokentracker uninstall\`. Delete everything: delete this repo.
+Filters on all: range=all|ytd|Nd|YYYY, from=YYYY-MM-DD, to=YYYY-MM-DD, tools=a,b, models=x,y,
+format=csv (usage, models, tools, devices). Example: \`${api}/usage?range=30d&group=week&split=tool\`
+
+The same data as static files, with no tokentracker server involved:
+
+    ${pages}/stats.json  usage.json  usage-week.json  usage-month.json  models.json  tools.json
+    ${pages}/devices.json  heatmap.json  profile.json  rows.json (every row)  index.json
+    ${pages}/{ytd,30d,90d,365d}/<same>.json
+
+Semantics: tokens = input + output + reasoning + cacheRead + cacheWrite. responses = model calls.
+Dates are local days. Cursor has totals only (model "cursor/all"). Full reference:
+https://tokentracker.patrickbrown.dev/llms.txt
+
+## Keep it working
+
+- A machine stopped syncing (an issue says so, or stats look stale): on that computer run
+  \`npx @bicrick/tokentracker@latest init --yes\`. Safe to repeat; nothing is counted twice.
+- Add another computer: run the same command there, signed into the same GitHub.
+- Change the Cursor profile: \`npx @bicrick/tokentracker connect\` (or edit cursorHandle in tokentracker.json).
+- Data format: FORMAT.md. Stop syncing: \`npx @bicrick/tokentracker uninstall\`. Delete everything: delete this repo.
 `;
 };
 
@@ -285,6 +304,7 @@ export async function ensureDataRepo(token, { cursorHandle = null, owner: knownO
   });
   await putFile(token, owner, repo, 'README.md', README(owner, repo), 'tokentracker: readme');
   await putFile(token, owner, repo, 'FORMAT.md', FORMAT_DOC, 'tokentracker: data format');
+  await putFile(token, owner, repo, 'AGENTS.md', AGENTS_DOC(owner, repo), 'tokentracker: agent guide');
   await putFile(token, owner, repo, '.github/workflows/tokentracker.yml', WORKFLOW, `tokentracker: workflow v${WORKFLOW_VERSION}`);
 
   const pages = await gh(token, 'POST', `/repos/${owner}/${repo}/pages`, { build_type: 'workflow' });
@@ -470,6 +490,7 @@ export async function buildSite({
     fs.writeFileSync(dest, `${JSON.stringify(body)}\n`);
   }
   fs.writeFileSync(path.join(outDir, 'index.html'), PAGE(handle, repo));
+  fs.writeFileSync(path.join(outDir, 'llms.txt'), AGENTS_DOC(owner || handle, repo));
   fs.writeFileSync(path.join(outDir, '.nojekyll'), '');
   log(`built ${Object.keys(files).length} files from ${machines.length} machine(s), ${rows.length} rows`);
   return { files: Object.keys(files).length, machines: machines.length, rows: rows.length };

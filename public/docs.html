@@ -110,7 +110,6 @@ const { totals, rows } = await res.json();
             <li><b>Auth:</b> none for reads. Profiles are public.</li>
             <li><b>CORS:</b> <code>Access-Control-Allow-Origin: *</code>, so you can call it from any browser page.</li>
             <li><b>Caching:</b> responses are cached at the edge for 5 minutes. Collectors sync hourly.</li>
-            <li><b>Rate limit:</b> 120 requests per minute per IP, cached responses excluded. Over the limit you get <code>429</code> with <code>Retry-After</code>.</li>
             <li><b>Tokens:</b> <code>tokens = input + output + reasoning + cacheRead + cacheWrite</code>. <code>input</code> excludes cached input. <code>responses</code> counts model calls.</li>
             <li><b>Dates:</b> <code>YYYY-MM-DD</code> days in the collector's local time zone.</li>
             <li><b>Every response</b> echoes <code>handle</code> and the applied <code>filters</code>.</li>
@@ -196,9 +195,8 @@ const { totals, rows } = await res.json();
             <tr><td>400</td><td><code>bad_range</code>, <code>bad_date</code>, <code>bad_group</code>, <code>bad_split</code>, <code>bad_tools</code>, <code>bad_models</code>, <code>bad_levels</code>, <code>csv_unsupported</code></td></tr>
             <tr><td>404</td><td><code>user_not_found</code>, <code>unknown_resource</code></td></tr>
             <tr><td>405</td><td><code>method_not_allowed</code></td></tr>
-            <tr><td>429</td><td><code>rate_limited</code></td></tr>
           </table>
-          <p>Reads are limited to 120 requests per minute per IP. Responses served from the edge cache don't count. Every response carries <code>RateLimit-Limit</code> and <code>RateLimit-Remaining</code>; a <code>429</code> includes <code>Retry-After</code> in seconds.</p>
+          <p>Responses are cached at the edge for 5 minutes; your repo's data updates within about an hour of use.</p>
         </section>
 
         <section id="recipe-heatmap">

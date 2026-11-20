@@ -121,12 +121,15 @@ async function upload(config, { sources, rows }) {
  * init again, so it reuses the same name instead of counting usage twice.
  */
 function machineId() {
+  // Once known, this computer's id never changes: it is saved in the config
+  const saved = readConfig().machineId;
+  if (saved && /^[a-f0-9]{64}$/.test(saved)) return saved;
   let raw = '';
   try {
     if (process.platform === 'darwin') {
-      raw = execFileSync('ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice'], { encoding: 'utf8' }).match(/"IOPlatformUUID" = "([^"]+)"/)?.[1] || '';
+      raw = execFileSync('/usr/sbin/ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice'], { encoding: 'utf8' }).match(/"IOPlatformUUID" = "([^"]+)"/)?.[1] || '';
     } else if (process.platform === 'win32') {
-      raw = execFileSync('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'], { encoding: 'utf8' }).match(/MachineGuid\s+REG_SZ\s+(\S+)/)?.[1] || '';
+      raw = execFileSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'reg.exe'), ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'], { encoding: 'utf8' }).match(/MachineGuid\s+REG_SZ\s+(\S+)/)?.[1] || '';
     } else {
       for (const f of ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
         try { raw = fs.readFileSync(f, 'utf8').trim(); if (raw) break; } catch {}
@@ -274,6 +277,7 @@ async function init(flags) {
   // 3. Machine name (the file in your repo is keyed by this computer, so renaming never duplicates)
   const device = flags.device && flags.device !== true ? flags.device
     : existing.device && !flags.reset ? existing.device
+      : !isTTY || flags.yes ? defaultDevice() // agents and scripts: no prompts
       : await input('Name this machine', {
         initial: defaultDevice(),
         validate: (v) => (/^[\w.-]{1,40}$/.test(v) ? null : 'Use up to 40 letters, numbers, dots or dashes'),
@@ -296,7 +300,7 @@ async function init(flags) {
   }
   const prevRepo = existing.storage === 'github' && !flags.reset ? existing.github : null;
   const cursorHandle = flags.cursor !== undefined ? (flags.cursor === true ? '' : flags.cursor)
-    : prevRepo ? null
+    : prevRepo || !isTTY || flags.yes ? null
       : await input('Cursor handle', { placeholder: 'from cursor.com/@handle · enter to skip' });
   const repo = await task(`Setting up ${DATA_REPO} on your GitHub`, () => ensureDataRepo(token, { cursorHandle }),
     (r) => `${r.created ? 'Created' : 'Using'} ${c.blue(`${r.owner}/${r.repo}`)} ${c.gray('· GitHub Pages on')}`)
@@ -308,6 +312,7 @@ async function init(flags) {
     github: { owner: repo.owner, repo: repo.repo },
     handle: repo.owner.toLowerCase(),
     device,
+    machineId: machineId(),
     connections: connectionSettings,
     ...(process.env.TOKENTRACK_GITHUB_TOKEN && !process.env.GITHUB_TOKEN && token === process.env.TOKENTRACK_GITHUB_TOKEN && !existing.token ? { token } : existing.token ? { token: existing.token } : {}),
   });

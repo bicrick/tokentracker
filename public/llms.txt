@@ -1,9 +1,17 @@
 # tokentracker
 
-> tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx @bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and uploads daily totals per tool and model. The API returns that usage as JSON or CSV.
+> tokentracker is a public, keyless HTTP API for AI coding token usage. A collector (`npx @bicrick/tokentracker init`) reads local usage logs from Claude Code, Codex, OpenCode (incl. GitHub Copilot), Gemini CLI, Copilot CLI, DeepSeek Harness, Cline, Roo Code and Kilo Code on each of a user's machines (plus Cursor via its public profile) and saves daily totals per tool and model into a repo on the user's own GitHub (`github.com/{handle}/tokentracker-data`). The API returns that usage as JSON or CSV. There are no accounts: `{handle}` is the user's GitHub username.
+
+## Install it for a user
+
+Needs Node 22.13+ and a GitHub login (`gh auth login`, or `TOKENTRACK_GITHUB_TOKEN` with repo + workflow scopes). Run non-interactively:
+
+    npx @bicrick/tokentracker@latest init --yes [--cursor <cursor-handle>] [--device <name>]
+
+It creates or reuses `{handle}/tokentracker-data`, saves history, enables GitHub Pages and an hourly background job. Re-running on the same computer is safe (no double counting). Verify with `npx @bicrick/tokentracker@latest status`, then query `/users/{handle}/stats` about a minute later. Fix a machine that stopped syncing by running the same init command on it.
 
 Base URL: https://tokentracker.patrickbrown.dev/api/v1
-Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes. Rate limit: 120 requests per minute per IP (cached responses excluded); over the limit returns 429 with `Retry-After`.
+Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes.
 Example user: `bicrick` (real data).
 
 ## Endpoints
