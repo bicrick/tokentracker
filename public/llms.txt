@@ -4,11 +4,11 @@
 
 ## Install it for a user
 
-Needs Node 22.13+ and a GitHub login (`gh auth login`, or `TOKENTRACK_GITHUB_TOKEN` with repo + workflow scopes). Run non-interactively:
+Needs Node 22.13+ and a GitHub login (`gh auth login`, or `TOKENTRACK_GITHUB_TOKEN` with repo + workflow scopes). First ask the user: "Do you use Cursor? If so, what's your cursor.com username?" (the CLI can't prompt when you run it). Then run non-interactively:
 
     npx @bicrick/tokentracker@latest init --yes [--cursor <cursor-handle>] [--device <name>]
 
-It creates or reuses `{handle}/tokentracker-data`, saves history, enables GitHub Pages and an hourly background job. Re-running on the same computer is safe (no double counting). Verify with `npx @bicrick/tokentracker@latest status`, then query `/users/{handle}/stats` about a minute later. Fix a machine that stopped syncing by running the same init command on it.
+It creates or reuses `{handle}/tokentracker-data`, saves history, enables GitHub Pages and an hourly background job. Re-running on the same computer is safe (no double counting). Verify with `npx @bicrick/tokentracker@latest status`, then query `/users/{handle}/stats` about a minute later. Fix a machine that stopped syncing by running the same init command on it. Connect Cursor later with `npx @bicrick/tokentracker@latest connect --cursor <username>`.
 
 Base URL: https://tokentracker.patrickbrown.dev/api/v1
 Auth: none for reads. All endpoints are GET, CORS-enabled (`Access-Control-Allow-Origin: *`), and edge-cached for ~5 minutes.

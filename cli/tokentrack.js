@@ -349,6 +349,11 @@ async function init(flags) {
   line(`  ${sym.dot} Query it: ${c.blue(`curl ${api}/stats`)}`);
   line(`  ${sym.dot} Another machine: run ${c.blue('npx @bicrick/tokentracker init')} there, signed into the same GitHub`);
   line(`  ${sym.dot} See exactly what gets saved: ${c.blue('tokentrack sync --dry')}`);
+  if (!cursorHandle && !prevRepo) {
+    // Agents run init without a terminal, so the Cursor question is theirs to ask
+    line(`  ${sym.dot} Cursor not connected. If you use Cursor (an agent should ask the user), run:`);
+    line(`    ${c.blue('npx @bicrick/tokentracker@latest connect --cursor <cursor.com username>')}`);
+  }
   line();
 }
 
@@ -385,6 +390,19 @@ function uninstall() {
 async function connect(flags) {
   let config = readConfig();
   line();
+
+  if (flags.cursor !== undefined) {
+    // tokentrack connect --cursor <handle>   (no prompts; --cursor alone disconnects)
+    if (config.storage !== 'github') {
+      line(`  ${sym.fail} Run ${c.blue('npx @bicrick/tokentracker init')} first.`);
+      process.exit(1);
+    }
+    const handle = flags.cursor === true ? '' : String(flags.cursor).replace(/^@/, '').replace(/^https?:\/\/(www\.)?cursor\.com\/@?/, '');
+    await task('Saving', () => ensureDataRepo(githubToken(config), { cursorHandle: handle, owner: config.github.owner }),
+      () => (handle ? `Cursor connected as @${handle} ${c.gray('(your repo fetches cursor.com/@' + handle + ' every 6 hours)')}` : 'Cursor disconnected'))
+      .catch((err) => { line(`    ${c.red(err.message)}`); process.exit(1); });
+    return;
+  }
 
   if (flags.add) {
     // tokentrack connect --add <tool> <path>

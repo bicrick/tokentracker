@@ -13,8 +13,14 @@ Requirements: Node 22.13+ and a GitHub login (the GitHub CLI `gh auth login`, or
 npx @bicrick/tokentracker init
 ```
 
-Non-interactive (what an agent should run). Without a terminal, `init` accepts every detected
-tool, names the machine after its hostname, and skips Cursor unless given:
+**Ask the user first** (the CLI can't prompt when an agent runs it):
+
+1. "Do you use Cursor? If so, what's your cursor.com username?" (Cursor usage comes from the
+   public profile at cursor.com/@username; other tools are read from this computer.)
+2. Optionally: "What should this computer be called?" (default: its hostname).
+
+Then run it non-interactively. Without a terminal, `init` accepts every detected tool, names the
+machine after its hostname, and skips Cursor unless given:
 
 ```sh
 npx @bicrick/tokentracker@latest init --yes                 # defaults
@@ -26,6 +32,9 @@ What it does: scans local AI tool logs, creates (or reuses) a public repo
 installs an hourly per-user background job (launchd / systemd / Task Scheduler, no admin).
 Running it again on the same computer is safe: the machine is recognised by a hashed hardware
 id, so nothing is counted twice. On another computer, run the same command with the same GitHub login.
+
+Connect or change Cursor later: `npx @bicrick/tokentracker@latest connect --cursor <username>`
+(`connect --cursor` with no name disconnects it).
 
 Verify: `npx @bicrick/tokentracker@latest status` (shows repo, last upload, version), then after
 about a minute `curl https://tokentracker.patrickbrown.dev/api/v1/users/<github-user>/stats`.
@@ -97,6 +106,7 @@ Writes merge and never delete, so history survives tools pruning their logs.
 | API returns `user_not_found` | the repo's first Action run hasn't finished; check `github.com/<user>/tokentracker-data/actions` |
 | An issue "X stopped syncing" appeared in the data repo | run `init --yes` on machine X; the issue closes itself |
 | Wrong or missing tool | `npx @bicrick/tokentracker connect`, or `connect --add <tool> <path>` |
+| No Cursor data | ask for their cursor.com username, then `connect --cursor <username>` |
 | See exactly what is saved | `npx @bicrick/tokentracker sync --dry` |
 
 Logs: `~/Library/Logs/tokentrack.log` (macOS), `~/.local/state/tokentrack/sync.log` (Linux),
