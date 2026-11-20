@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=42">
-  <link rel="stylesheet" href="/mobile.css?v=42" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=43">
+  <link rel="stylesheet" href="/mobile.css?v=43" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -39,7 +39,7 @@
       <div class="links">
         <a href="/docs">Docs</a>
         <a href="https://www.npmjs.com/package/@bicrick/tokentracker">npm ↗</a>
-        <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
+        <a class="star" href="https://github.com/bicrick/tokentracker">★ Star on GitHub</a>
       </div>
     </nav>
 
@@ -47,7 +47,7 @@
     <div class="hero">
       <div class="hero-copy">
     <p class="lede">
-      Stored in your GitHub. Queryable by you.
+      Stored in your GitHub. Always and forever free.
     </p>
 
     <div class="cmd">
@@ -55,7 +55,7 @@
       <button type="button" id="copy">Copy command</button>
     </div>
     <p class="note ask">Or ask your agent: <q>Install tokentracker for me.</q></p>
-    <p class="note">Free, open source, no account. Only token counts leave your machine.</p>
+    <p class="note">Open source, no account. Only token counts leave your machine.</p>
       </div>
       <canvas class="coin" id="coin" aria-hidden="true"></canvas>
     </div>
@@ -158,12 +158,12 @@
   </div>
 
   <script type="module">
-    import { api, wireCopy } from '/app.js?v=42';
-    import { mountDemo } from '/demo.js?v=42';
-    import { mountCoin } from '/coin.js?v=42';
+    import { api, wireCopy } from '/app.js?v=43';
+    import { mountDemo } from '/demo.js?v=43';
+    import { mountCoin } from '/coin.js?v=43';
     import { mountTokenSea } from '/sea.js?v=49';
     import { mountStipple } from '/stipple.js?v=2';
-    import { mountChapters } from '/chapters.js?v=42';
+    import { mountChapters } from '/chapters.js?v=43';
 
 
     mountStipple(document.getElementById('stipple'), { content: document.querySelector('.wrap') });
@@ -193,6 +193,6 @@
       skipButton: document.getElementById('skip'),
     });
   </script>
-  <script type="module" src="/nav.js?v=42"></script>
+  <script type="module" src="/nav.js?v=43"></script>
 </body>
 </html>

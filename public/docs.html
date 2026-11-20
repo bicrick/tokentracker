@@ -22,8 +22,8 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-  <link rel="stylesheet" href="/style.css?v=42">
-  <link rel="stylesheet" href="/mobile.css?v=42" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/style.css?v=43">
+  <link rel="stylesheet" href="/mobile.css?v=43" media="(max-width: 720px)">
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -37,7 +37,7 @@
       <div class="links">
         <a href="/docs" aria-current="page">Docs</a>
         <a href="https://www.npmjs.com/package/@bicrick/tokentracker">npm ↗</a>
-        <a href="https://github.com/bicrick/tokentracker">GitHub ↗</a>
+        <a class="star" href="https://github.com/bicrick/tokentracker">★ Star on GitHub</a>
       </div>
     </nav>
 
@@ -76,7 +76,7 @@
           <h1>tokentracker API</h1>
           <p>
             tokentracker turns the token usage your AI coding tools already record into a public, queryable API.
-            A small collector runs on each of your machines and uploads daily totals per tool and model. The API
+            A small collector runs on each of your machines and saves daily totals per tool and model to a repo on your own GitHub. The API
             answers questions like <i>how many tokens did I use this month</i>, <i>which models</i>, <i>which tools</i>
             and <i>which days</i>, as JSON or CSV.
           </p>
@@ -90,7 +90,7 @@
           <pre>const res = await fetch('https://tokentracker.patrickbrown.dev/api/v1/users/bicrick/usage?range=30d&amp;group=day');
 const { totals, rows } = await res.json();
 // rows: [{ period: "2026-10-20", tokens, input, output, reasoning, cacheRead, cacheWrite, responses }, ...]</pre>
-          <p>Swap <code>bicrick</code> for your handle once you've installed the collector.</p>
+          <p>Swap <code>bicrick</code> for your GitHub username once you've installed the collector.</p>
         </section>
 
         <section id="install">
@@ -244,7 +244,7 @@ rows.filter((m) =&gt; m.model !== 'cursor/all')
 
         <section id="privacy">
           <h2>Privacy</h2>
-          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. Run <code>tokentrack sync --dry</code> to see exactly what is saved. Each computer's files are named by a one-way hash of its hardware id, so setting up the same machine again never counts your usage twice. Your data is public in your repo, like the API.</p>
+          <p>Only daily token counts per tool and model leave your machine: never prompts, code, file paths or API keys. Run <code>npx @bicrick/tokentracker sync --dry</code> to see exactly what is saved. Each computer's files are named by a one-way hash of its hardware id, so setting up the same machine again never counts your usage twice. Your data is public in your repo, like the API.</p>
         </section>
 
         <section id="storage">
@@ -258,19 +258,20 @@ FORMAT.md                          the data format, so it stays readable forever
             <li><b>History is never lost.</b> Tools delete old logs (Claude Code after about 30 days); saved days stay in your repo. New syncs only add or update days.</li>
             <li><b>Built to last.</b> Files carry a <code>format</code> version and every release reads every format. The CLI keeps the workflow file up to date for you.</li>
             <li><b>Stopped syncing?</b> You get a desktop notification, and after 3 quiet days the repo's Action opens an issue (GitHub emails you). It closes itself when the machine is back.</li>
-            <li><b>Delete everything:</b> delete the repo and run <code>tokentrack uninstall</code>.</li>
+            <li><b>Delete everything:</b> delete the repo and run <code>npx @bicrick/tokentracker uninstall</code>.</li>
           </ul>
         </section>
 
         <section id="cli">
           <h2>CLI</h2>
+          <p>Run each as <code>npx @bicrick/tokentracker &lt;command&gt;</code>. Nothing is installed globally.</p>
           <table>
-            <tr><td><code>tokentrack init</code></td><td>Guided setup</td></tr>
-            <tr><td><code>tokentrack connect</code></td><td>Choose tools, add custom folders, connect Cursor</td></tr>
-            <tr><td><code>tokentrack sync [--dry]</code></td><td>Save now; <code>--dry</code> prints exactly what is saved</td></tr>
-            <tr><td><code>tokentrack status</code></td><td>Repo, machine, last upload, tools and recent syncs</td></tr>
-            <tr><td><code>tokentrack install</code> / <code>uninstall</code></td><td>Background sync on or off</td></tr>
-            <tr><td><code>tokentrack build</code> / <code>check</code></td><td>Run by your repo's Action: build the static API, flag quiet machines</td></tr>
+            <tr><td><code>init</code></td><td>Guided setup</td></tr>
+            <tr><td><code>connect</code></td><td>Choose tools, add custom folders, connect Cursor</td></tr>
+            <tr><td><code>sync [--dry]</code></td><td>Save now; <code>--dry</code> prints exactly what is saved</td></tr>
+            <tr><td><code>status</code></td><td>Repo, machine, last upload, tools and recent syncs</td></tr>
+            <tr><td><code>install</code> / <code>uninstall</code></td><td>Background sync on or off</td></tr>
+            <tr><td><code>build</code> / <code>check</code></td><td>Run by your repo's Action: build the static API, flag quiet machines</td></tr>
           </table>
         </section>
 
@@ -353,6 +354,6 @@ https://&lt;you&gt;.github.io/tokentracker-data/api/v1/index.json        # the f
     }, { rootMargin: '-20% 0px -70% 0px' });
     document.querySelectorAll('.docs-body section').forEach((s) => io.observe(s));
   </script>
-  <script type="module" src="/nav.js?v=42"></script>
+  <script type="module" src="/nav.js?v=43"></script>
 </body>
 </html>

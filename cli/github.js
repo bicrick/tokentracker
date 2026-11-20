@@ -301,10 +301,12 @@ export async function ensureDataRepo(token, { cursorHandle = null, owner: knownO
   });
   await gh(token, 'PUT', `/repos/${owner}/${repo}/topics`, { names: ['tokentracker', 'tokentracker-data', 'ai-usage', 'token-usage', 'llm', 'claude-code'] });
 
+  let savedCursor = null;
   await putFile(token, owner, repo, 'tokentracker.json', null, 'tokentracker: settings', {
     merge: (cur) => {
       const settings = { format: FORMAT, ...(cur || {}) };
       if (cursorHandle !== null) settings.cursorHandle = cursorHandle || null;
+      savedCursor = settings.cursorHandle || null;
       return `${JSON.stringify(settings, null, 2)}\n`;
     },
   });
@@ -316,7 +318,7 @@ export async function ensureDataRepo(token, { cursorHandle = null, owner: knownO
   const pages = await gh(token, 'POST', `/repos/${owner}/${repo}/pages`, { build_type: 'workflow' });
   if (!pages.ok && pages.status !== 409) throw fail('could not turn on GitHub Pages', pages);
   if (pages.status === 409) await gh(token, 'PUT', `/repos/${owner}/${repo}/pages`, { build_type: 'workflow' });
-  return { owner, repo, created, url: pagesUrl(owner, repo) };
+  return { owner, repo, created, url: pagesUrl(owner, repo), cursorHandle: savedCursor };
 }
 
 /** Refresh the workflow file if this CLI ships a newer one (at most once a day, by the caller). */
@@ -367,6 +369,11 @@ export async function uploadMachine(token, { owner, repo = DATA_REPO, machineId,
   const thisYear = today().slice(0, 4);
   if (!byYear.has(thisYear)) byYear.set(thisYear, []);
 
+  // A computer with no AI tool usage at all writes nothing (no empty machine)
+  if (!rows.length) {
+    const existing = await getJson(token, owner, repo, `machines/${machineId}/${thisYear}.json`).catch(() => null);
+    if (!existing) return { rows: 0, changed: false };
+  }
   let changed = false;
   let total = 0;
   for (const [year, local] of [...byYear.entries()].sort()) {

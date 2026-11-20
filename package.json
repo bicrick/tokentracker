@@ -1,6 +1,6 @@
 {
   "name": "@bicrick/tokentracker",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Your AI coding token usage as an API, stored in your own GitHub repo. Claude Code, Codex, Cursor, OpenCode, Gemini CLI and more.",
   "keywords": [
     "ai",

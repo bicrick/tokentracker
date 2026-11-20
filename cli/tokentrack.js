@@ -380,14 +380,18 @@ async function init(flags) {
   // 5. Upload + background
   line();
   await task('Saving your history', () => upload(config, data)
-    .catch((err) => { throw new Error(networkHint(err)); }), (res) => `Saved ${res.rows} day/model rows to ${c.blue(`${repo.owner}/${repo.repo}`)}`)
+    .catch((err) => { throw new Error(networkHint(err)); }), (res) => (res.rows ? `Saved ${res.rows} day/model rows to ${c.blue(`${repo.owner}/${repo.repo}`)}` : `No AI tool usage on this machine yet ${c.gray('(nothing saved; the hourly sync picks it up once there is)')}`))
     .catch(() => process.exit(1));
   recordSync(CONFIG_DIR, { ok: true });
 
   if (!flags['no-install'] && scheduleSupported) {
     await task('Turning on background sync', async () => installSchedule({ node: process.execPath, entry: copyCli(), configDir: CONFIG_DIR }),
       (r) => `Background sync on ${c.gray(`(${r.method}, ${r.detail}, no admin needed)`)}`)
-      .catch(() => line(`    ${c.gray('Run tokentrack install later to retry.')}`));
+      .catch((err) => {
+        // Minimal Linux and containers often have neither systemd nor cron
+        if (/ENOENT/.test(err.message)) line(`    ${c.gray('No scheduler on this machine (systemd or cron). Run')} ${c.blue('npx @bicrick/tokentracker sync')} ${c.gray('from your own scheduler, e.g. hourly.')}`);
+        else line(`    ${c.gray('Run npx @bicrick/tokentracker install later to retry.')}`);
+      });
   }
 
   // 6. Done
@@ -407,8 +411,8 @@ async function init(flags) {
   line(`  ${sym.dot} Your API is live in about a minute, once the repo's ${c.italic('tokentracker')} Action finishes`);
   line(`  ${sym.dot} Query it: ${c.blue(`curl ${api}/stats`)}`);
   line(`  ${sym.dot} Another machine: run ${c.blue('npx @bicrick/tokentracker init')} there, signed into the same GitHub`);
-  line(`  ${sym.dot} See exactly what gets saved: ${c.blue('tokentrack sync --dry')}`);
-  if (!cursorHandle && !prevRepo) {
+  line(`  ${sym.dot} See exactly what gets saved: ${c.blue('npx @bicrick/tokentracker sync --dry')}`);
+  if (!cursorHandle && !repo.cursorHandle) {
     // Agents run init without a terminal, so the Cursor question is theirs to ask
     line(`  ${sym.dot} Cursor not connected. If you use Cursor (an agent should ask the user), run:`);
     line(`    ${c.blue('npx @bicrick/tokentracker@latest connect --cursor <cursor.com username>')}`);
@@ -468,7 +472,7 @@ async function connect(flags) {
     const id = flags.add;
     const target = rest.find((a) => !a.startsWith('--') && a !== id);
     if (!CONNECTORS.some((conn) => conn.id === id) || !target) {
-      line(`  Usage: tokentrack connect --add <${CONNECTORS.map((conn) => conn.id).join('|')}> <path>`);
+      line(`  Usage: npx @bicrick/tokentracker connect --add <${CONNECTORS.map((conn) => conn.id).join('|')}> <path>`);
       process.exit(1);
     }
     const s = config.connections?.[id] || {};
@@ -529,7 +533,7 @@ function status() {
   if (config.storage === 'github') row('data', `${c.blue(`github.com/${config.github.owner}/${config.github.repo}`)}`);
   else if (config.server) row('data', `${c.red('old hosted account')} ${c.gray('· run init to move to your GitHub')}`);
   row('machine', config.device || defaultDevice());
-  row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(tokentrack install)')}`);
+  row('sync', scheduleInstalled() ? `${sym.ok} background, hourly` : `${sym.skip} not scheduled ${c.gray('(npx @bicrick/tokentracker install)')}`);
   const state = readState(CONFIG_DIR);
   const problem = healthProblem(state);
   if (problem) row('uploads', `${sym.fail} ${c.red(problem)}`);
@@ -554,17 +558,17 @@ function status() {
 }
 
 const HELP = `
-  ${c.bold('tokentrack')} ${c.gray('· every AI token you spend, as an API, stored in your GitHub')}
+  ${c.bold('tokentracker')} ${c.gray('· every AI token you spend, as an API, stored in your GitHub')}
 
-  ${c.bold('Usage')}
-    tokentrack init              guided setup (creates your ${DATA_REPO} repo)
-    tokentrack connect           choose tools, add folders, connect Cursor
-    tokentrack sync [--dry]      save daily totals now (--dry prints exactly what is saved)
-    tokentrack status            machine, repo, last upload and recent syncs
-    tokentrack install           sync hourly in the background (macOS, Linux, Windows)
-    tokentrack uninstall         stop background sync
-    tokentrack build             build the static API in a ${DATA_REPO} checkout (its Action runs this)
-    tokentrack check             open or close a "machine stopped syncing" issue (its Action runs this)
+  ${c.bold('Usage')}  ${c.gray('npx @bicrick/tokentracker <command>')}
+    init                       guided setup (creates your ${DATA_REPO} repo)
+    connect                    choose tools, add folders, connect Cursor
+    sync [--dry]               save daily totals now (--dry prints exactly what is saved)
+    status                     machine, repo, last upload and recent syncs
+    install                    sync hourly in the background (macOS, Linux, Windows)
+    uninstall                  stop background sync
+    build                      build the static API in a ${DATA_REPO} checkout (its Action runs this)
+    check                      open or close a "machine stopped syncing" issue (its Action runs this)
 
   ${c.bold('init flags')}
     --cursor <handle>   --device <name>   --reset   --no-install   --yes (accept detected tools)
@@ -572,7 +576,7 @@ const HELP = `
   ${c.bold('GitHub login')}
     init signs you in with a code (github.com/login/device), or uses the gh CLI login
     or TOKENTRACK_GITHUB_TOKEN. Without a terminal it prints the code and exits 2; run init again to finish.
-    To delete everything, delete your ${DATA_REPO} repo and run tokentrack uninstall.
+    To delete everything, delete your ${DATA_REPO} repo and run uninstall.
 `;
 
 const [command, ...rest] = process.argv.slice(2);
