@@ -166,5 +166,4 @@ footer {
 .stat-grid > div:nth-last-child(-n + 2) { border-bottom: 0; }
 .api-body { height: 240px; font-size: 10px; }
 
-.how-steps { grid-template-columns: minmax(0, 1fr); gap: 14px; font-size: 16px; }
 .chat p { grid-template-columns: 44px minmax(0, 1fr); }

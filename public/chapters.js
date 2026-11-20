@@ -161,7 +161,6 @@ export function mountChapters() {
   onEnter(document.getElementById('ch-models'), safe(renderModels, 'q-models'));
   onEnter(document.getElementById('ch-tools'), safe(renderTools, 'q-tools'));
   onEnter(document.getElementById('ch-stats'), safe(renderStats, 'q-stats'));
-  onEnter(document.getElementById('ch-how'));
   onEnter(document.getElementById('ch-agents'), safe(renderChat, 'q-chat-answer'));
   onEnter(document.getElementById('ch-api'), () => renderRaw());
 }

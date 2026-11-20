@@ -1120,11 +1120,7 @@ footer {
 /* settings: machine that stopped uploading */
 .device-list .stale, li .stale { display: block; margin-top: 4px; font-family: var(--mono); font-size: 12px; color: #e5826a; }
 
-/* how it works */
-.how-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; font-size: 17px; color: var(--ink); }
-.how-steps li { display: flex; align-items: center; gap: 12px; }
-.how-steps a { color: inherit; text-decoration-color: var(--rule-strong); text-underline-offset: 4px; }
-.how-n { display: inline-grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; background: var(--link); color: var(--on-link); font-family: var(--mono); font-size: 12px; }
+/* hero: ask-your-agent line */
 .note.ask q { color: var(--ink); }
 
 /* made for agents */
