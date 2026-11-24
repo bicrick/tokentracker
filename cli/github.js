@@ -22,7 +22,7 @@ export const CLIENT_ID = process.env.TOKENTRACK_GITHUB_CLIENT_ID || 'Ov23liqz1LH
 // Enough to create and write one public repo and its workflow; never private repos
 export const SCOPES = 'public_repo workflow';
 export const FORMAT = 1;
-export const WORKFLOW_VERSION = 1;
+export const WORKFLOW_VERSION = 2;
 const API = 'https://api.github.com';
 const STALE_DAYS = 3;
 const RETIRED_DAYS = 30;
@@ -131,13 +131,10 @@ permissions:
   issues: write
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: \${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -151,6 +148,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
 `;
