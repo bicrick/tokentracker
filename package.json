@@ -1,6 +1,6 @@
 {
   "name": "@bicrick/tokentracker",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Track AI coding token usage (Claude Code, Cursor, Codex, OpenCode, Gemini CLI, Copilot and more) in your own GitHub repo, served as a free public API on GitHub Pages.",
   "keywords": [
     "ai",
